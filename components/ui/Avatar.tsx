@@ -1,14 +1,18 @@
-import { View, Image, Text, Pressable } from "react-native";
+import { View, Image, Text, Pressable, ImageSourcePropType } from "react-native";
 import { cn, getInitials } from "@/lib/utils";
 
+// Default profile image
+export const DEFAULT_AVATAR = require("@/assets/fondatorul-barber-store-romania-cristi-bostan-doreste-sa-dezvolte-piata-de-coafor-si-barbering-.jpg");
+
 interface AvatarProps {
-  source?: string | null;
+  source?: string | null | ImageSourcePropType;
   name?: string;
   size?: "xs" | "sm" | "md" | "lg" | "xl";
   onPress?: () => void;
   showBadge?: boolean;
   badgeColor?: string;
   className?: string;
+  useDefaultAvatar?: boolean;
 }
 
 const sizes = {
@@ -27,15 +31,35 @@ export function Avatar({
   showBadge = false,
   badgeColor = "bg-green-500",
   className,
+  useDefaultAvatar = false,
 }: AvatarProps) {
   const Wrapper = onPress ? Pressable : View;
   const sizeStyles = sizes[size];
 
+  // Determine the image source
+  const getImageSource = () => {
+    if (source) {
+      // If source is a string (URL), wrap it in an object
+      if (typeof source === "string") {
+        return { uri: source };
+      }
+      // Otherwise it's already an ImageSourcePropType (require())
+      return source;
+    }
+    // Use default avatar if enabled
+    if (useDefaultAvatar) {
+      return DEFAULT_AVATAR;
+    }
+    return null;
+  };
+
+  const imageSource = getImageSource();
+
   return (
     <Wrapper onPress={onPress} className={cn("relative", className)}>
-      {source ? (
+      {imageSource ? (
         <Image
-          source={{ uri: source }}
+          source={imageSource}
           className={cn(
             sizeStyles.container,
             "rounded-full bg-dark-300"

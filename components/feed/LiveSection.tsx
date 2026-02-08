@@ -102,6 +102,7 @@ function LiveCard({ live }: { live: LiveWithHost }) {
               source={live.host.avatar_url}
               name={live.host.display_name || live.host.username}
               size="xs"
+              useDefaultAvatar={true}
             />
             <Text className="text-white/80 text-xs ml-2">
               {live.host.display_name || live.host.username}

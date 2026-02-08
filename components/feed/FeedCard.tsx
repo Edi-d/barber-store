@@ -25,6 +25,7 @@ export function FeedCard({ item, onLike, onComment, onShare }: FeedCardProps) {
             source={item.author.avatar_url}
             name={item.author.display_name || item.author.username}
             size="sm"
+            useDefaultAvatar={true}
           />
           <View className="ml-3 flex-1">
             <View className="flex-row items-center">

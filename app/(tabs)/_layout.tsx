@@ -27,7 +27,7 @@ export default function TabsLayout() {
           paddingTop: 8,
           paddingBottom: Platform.OS === "ios" ? 28 : 8,
         },
-        tabBarActiveTintColor: "#0a66c2",
+        tabBarActiveTintColor: "#0a85f4",
         tabBarInactiveTintColor: "#64748b",
         tabBarLabelStyle: {
           fontSize: 10,
@@ -68,7 +68,7 @@ export default function TabsLayout() {
         options={{
           title: "",
           tabBarIcon: () => (
-            <View className="w-14 h-14 -mt-4 bg-primary-600 rounded-2xl items-center justify-center shadow-lg">
+            <View className="w-14 h-14 -mt-4 bg-primary-500 rounded-2xl items-center justify-center shadow-lg">
               <Ionicons name="add" size={32} color="white" />
             </View>
           ),
@@ -96,7 +96,7 @@ export default function TabsLayout() {
                 color={color} 
               />
               {cartCount > 0 && (
-                <View className="absolute -top-1 -right-2 bg-primary-600 min-w-[18px] h-[18px] rounded-full items-center justify-center">
+                <View className="absolute -top-1 -right-2 bg-primary-500 min-w-[18px] h-[18px] rounded-full items-center justify-center">
                   <Ionicons name="ellipse" size={4} color="white" />
                 </View>
               )}

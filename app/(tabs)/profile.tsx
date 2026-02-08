@@ -80,6 +80,7 @@ export default function ProfileScreen() {
             name={profile.display_name || profile.username}
             size="xl"
             className="mb-4"
+            useDefaultAvatar={true}
           />
           <View className="flex-row items-center gap-2">
             <Text className="text-dark-700 text-2xl font-bold">

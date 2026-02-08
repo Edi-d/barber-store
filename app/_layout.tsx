@@ -25,19 +25,19 @@ function RootLayoutNav() {
 
   if (!isInitialized || isLoading) {
     return (
-      <View className="flex-1 bg-dark-900 items-center justify-center">
-        <ActivityIndicator size="large" color="#ef5245" />
+      <View className="flex-1 bg-dark-50 items-center justify-center">
+        <ActivityIndicator size="large" color="#6366f1" />
       </View>
     );
   }
 
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: "#1a1a2e" },
+          contentStyle: { backgroundColor: "#f9fafb" },
           animation: "slide_from_right",
         }}
       >

@@ -92,7 +92,7 @@ export function FeedItem({ item, isActive, onLike, onComment }: FeedItemProps) {
             <Ionicons
               name={item.is_liked ? "heart" : "heart-outline"}
               size={28}
-              color={item.is_liked ? "#ef5245" : "white"}
+              color={item.is_liked ? "#6366f1" : "white"}
             />
           </View>
           <Text className="text-white text-xs mt-1 font-semibold">
@@ -141,6 +141,7 @@ export function FeedItem({ item, isActive, onLike, onComment }: FeedItemProps) {
             source={item.author.avatar_url}
             name={item.author.display_name || item.author.username}
             size="sm"
+            useDefaultAvatar={true}
           />
           <Text className="text-white font-bold ml-2">
             @{item.author.username}

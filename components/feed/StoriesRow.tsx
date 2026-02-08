@@ -54,6 +54,7 @@ export function StoriesRow({ stories, onAddStory, onStoryPress }: StoriesRowProp
                   source={story.avatar_url}
                   name={story.username}
                   size="md"
+                  useDefaultAvatar={true}
                 />
               </View>
             </View>

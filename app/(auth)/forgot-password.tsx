@@ -121,7 +121,7 @@ export default function ForgotPasswordScreen() {
             className="flex-row items-center justify-center mt-8"
           >
             <Ionicons name="arrow-back" size={16} color="#0a66c2" />
-            <Text className="text-primary-600 font-medium ml-2">
+            <Text className="text-primary-500 font-medium ml-2">
               Înapoi la conectare
             </Text>
           </Pressable>

@@ -132,7 +132,7 @@ export default function CheckoutScreen() {
             ))}
             <View className="flex-row justify-between pt-3 mt-3 border-t border-dark-300">
               <Text className="text-dark-700 font-bold">Total</Text>
-              <Text className="text-primary-600 font-bold text-lg">
+              <Text className="text-primary-500 font-bold text-lg">
                 {formatPrice(total, "RON")}
               </Text>
             </View>

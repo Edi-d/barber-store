@@ -10,7 +10,7 @@ export default function WelcomeScreen() {
       <View className="flex-1 px-6 pt-12">
         {/* Logo & Branding */}
         <View className="flex-1 items-center justify-center">
-          <View className="w-24 h-24 bg-primary-600 rounded-3xl items-center justify-center mb-6 shadow-lg">
+          <View className="w-24 h-24 bg-primary-500 rounded-3xl items-center justify-center mb-6 shadow-lg">
             <Ionicons name="cut" size={48} color="white" />
           </View>
           <Text className="text-4xl font-bold text-dark-700 mb-2">

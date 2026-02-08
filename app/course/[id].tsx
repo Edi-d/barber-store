@@ -147,11 +147,11 @@ export default function CourseDetailScreen() {
             <Card className="mb-6">
               <View className="flex-row justify-between mb-2">
                 <Text className="text-dark-700 font-semibold">Progresul tău</Text>
-                <Text className="text-primary-600 font-bold">{progress}%</Text>
+                <Text className="text-primary-500 font-bold">{progress}%</Text>
               </View>
               <View className="h-3 bg-dark-300 rounded-full overflow-hidden">
                 <View
-                  className="h-full bg-primary-600 rounded-full"
+                  className="h-full bg-primary-500 rounded-full"
                   style={{ width: `${progress}%` }}
                 />
               </View>

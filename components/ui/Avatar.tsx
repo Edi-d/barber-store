@@ -69,7 +69,7 @@ export function Avatar({
         <View
           className={cn(
             sizeStyles.container,
-            "rounded-full bg-primary-600 items-center justify-center"
+            "rounded-full bg-primary-500 items-center justify-center"
           )}
         >
           <Text className={cn("text-white font-bold", sizeStyles.text)}>

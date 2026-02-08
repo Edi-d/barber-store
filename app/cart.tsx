@@ -68,7 +68,7 @@ export default function CartScreen() {
                     <Text className="text-dark-700 font-semibold" numberOfLines={2}>
                       {item.product.title}
                     </Text>
-                    <Text className="text-primary-600 font-bold mt-1">
+                    <Text className="text-primary-500 font-bold mt-1">
                       {formatPrice(item.product.price_cents, item.product.currency)}
                     </Text>
                   </View>

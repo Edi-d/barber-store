@@ -178,7 +178,7 @@ function SectionHeader({
       </View>
       {onSeeAll && (
         <Pressable onPress={onSeeAll} className="flex-row items-center">
-          <Text className="text-primary-600 text-sm font-medium">See all</Text>
+          <Text className="text-primary-500 text-sm font-medium">See all</Text>
           <Ionicons name="chevron-forward" size={16} color="#0a66c2" />
         </Pressable>
       )}
@@ -232,11 +232,11 @@ function CourseCardHorizontal({ course }: { course: Course & { lessons_count: nu
           <View className="mt-2">
             <View className="h-1.5 bg-dark-300 rounded-full overflow-hidden">
               <View
-                className="h-full bg-primary-600 rounded-full"
+                className="h-full bg-primary-500 rounded-full"
                 style={{ width: `${progress}%` }}
               />
             </View>
-            <Text className="text-primary-600 text-xs mt-1">{progress}% complete</Text>
+            <Text className="text-primary-500 text-xs mt-1">{progress}% complete</Text>
           </View>
         )}
       </View>
@@ -288,11 +288,11 @@ function CourseCardVertical({ course }: { course: Course & { lessons_count: numb
           <View className="flex-row items-center">
             <View className="flex-1 h-1.5 bg-dark-300 rounded-full overflow-hidden mr-2">
               <View
-                className="h-full bg-primary-600 rounded-full"
+                className="h-full bg-primary-500 rounded-full"
                 style={{ width: `${progress}%` }}
               />
             </View>
-            <Text className="text-primary-600 text-xs">{progress}%</Text>
+            <Text className="text-primary-500 text-xs">{progress}%</Text>
           </View>
         ) : (
           <View className="flex-row items-center">

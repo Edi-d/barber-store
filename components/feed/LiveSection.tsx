@@ -31,7 +31,7 @@ export function LiveSection({ lives, onSeeAll }: LiveSectionProps) {
         </View>
         {onSeeAll && (
           <Pressable onPress={onSeeAll} className="flex-row items-center">
-            <Text className="text-primary-600 text-sm font-medium">See all</Text>
+            <Text className="text-primary-500 text-sm font-medium">See all</Text>
             <Ionicons name="chevron-forward" size={16} color="#0a66c2" />
           </Pressable>
         )}

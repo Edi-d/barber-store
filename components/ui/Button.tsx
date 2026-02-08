@@ -30,9 +30,9 @@ export const Button = forwardRef<View, ButtonProps>(
     const baseStyles = "flex-row items-center justify-center rounded-xl";
     
     const variants = {
-      primary: "bg-primary-600 active:bg-primary-700",
+      primary: "bg-primary-500 active:bg-primary-600",
       secondary: "bg-dark-200 active:bg-dark-300",
-      outline: "border-2 border-primary-600 bg-transparent active:bg-primary-50",
+      outline: "border-2 border-primary-500 bg-transparent active:bg-primary-50",
       ghost: "bg-transparent active:bg-dark-200",
       danger: "bg-red-600 active:bg-red-700",
     };
@@ -46,7 +46,7 @@ export const Button = forwardRef<View, ButtonProps>(
     const textVariants = {
       primary: "text-white font-semibold",
       secondary: "text-dark-700 font-semibold",
-      outline: "text-primary-600 font-semibold",
+      outline: "text-primary-500 font-semibold",
       ghost: "text-dark-700 font-semibold",
       danger: "text-white font-semibold",
     };

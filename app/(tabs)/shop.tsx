@@ -53,7 +53,7 @@ export default function ShopScreen() {
             <Ionicons name="cart" size={24} color="#64748b" />
           </View>
           {cartCount > 0 && (
-            <View className="absolute -top-1 -right-1 bg-primary-600 w-6 h-6 rounded-full items-center justify-center">
+            <View className="absolute -top-1 -right-1 bg-primary-500 w-6 h-6 rounded-full items-center justify-center">
               <Text className="text-white text-xs font-bold">{cartCount}</Text>
             </View>
           )}
@@ -129,7 +129,7 @@ function ProductCard({
       <Text className="text-dark-700 font-semibold text-sm mb-1" numberOfLines={2}>
         {product.title}
       </Text>
-      <Text className="text-primary-600 font-bold text-lg mb-3">
+      <Text className="text-primary-500 font-bold text-lg mb-3">
         {formatPrice(product.price_cents, product.currency)}
       </Text>
 

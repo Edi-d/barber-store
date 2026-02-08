@@ -101,7 +101,7 @@ export default function ProductDetailScreen() {
             {product.title}
           </Text>
 
-          <Text className="text-primary-600 text-3xl font-bold mb-4">
+          <Text className="text-primary-500 text-3xl font-bold mb-4">
             {formatPrice(product.price_cents, product.currency)}
           </Text>
 
@@ -170,7 +170,7 @@ export default function ProductDetailScreen() {
             onPress={() => router.push("/cart")}
             className="mt-3 py-2"
           >
-            <Text className="text-primary-600 text-center font-semibold">
+            <Text className="text-primary-500 text-center font-semibold">
               Vezi coșul →
             </Text>
           </Pressable>

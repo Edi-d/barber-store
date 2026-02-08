@@ -177,9 +177,9 @@ export default function SignUpScreen() {
             {/* Terms */}
             <Text className="text-dark-500 text-center text-sm mb-6">
               Prin înregistrare, accepți{" "}
-              <Text className="text-primary-600">Termenii și Condițiile</Text>{" "}
+              <Text className="text-primary-500">Termenii și Condițiile</Text>{" "}
               și{" "}
-              <Text className="text-primary-600">Politica de Confidențialitate</Text>
+              <Text className="text-primary-500">Politica de Confidențialitate</Text>
             </Text>
 
             {/* Submit Button */}
@@ -197,7 +197,7 @@ export default function SignUpScreen() {
               <Text className="text-dark-500">Ai deja cont? </Text>
               <Link href="/(auth)/login" asChild>
                 <Pressable>
-                  <Text className="text-primary-600 font-semibold">
+                  <Text className="text-primary-500 font-semibold">
                     Conectează-te
                   </Text>
                 </Pressable>

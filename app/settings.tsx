@@ -148,7 +148,7 @@ export default function SettingsScreen() {
               <Pressable
                 onPress={pickAvatar}
                 disabled={isUploading}
-                className="absolute bottom-0 right-0 w-10 h-10 bg-primary-600 rounded-full items-center justify-center border-4 border-white"
+                className="absolute bottom-0 right-0 w-10 h-10 bg-primary-500 rounded-full items-center justify-center border-4 border-white"
               >
                 <Ionicons
                   name={isUploading ? "hourglass" : "camera"}

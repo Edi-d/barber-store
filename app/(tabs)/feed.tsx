@@ -157,7 +157,7 @@ export default function FeedScreen() {
   });
 
   const quickActions = [
-    { id: "post", label: "Post", icon: "add-circle" as const, variant: "primary" as const },
+    { id: "book", label: "Programare", icon: "calendar-outline" as const, variant: "primary" as const },
     { id: "courses", label: "Cursuri", icon: "school-outline" as const, variant: "outline" as const },
     { id: "shop", label: "Shop", icon: "bag-outline" as const, variant: "outline" as const },
     { id: "live", label: "Lives", icon: "radio-outline" as const, variant: "outline" as const },
@@ -165,8 +165,8 @@ export default function FeedScreen() {
 
   const handleQuickAction = (action: { id: string }) => {
     switch (action.id) {
-      case "post":
-        // TODO: Create post
+      case "book":
+        router.push("/appointments");
         break;
       case "courses":
         router.push("/(tabs)/courses");

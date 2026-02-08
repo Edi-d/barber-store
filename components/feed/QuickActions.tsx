@@ -28,7 +28,7 @@ export function QuickActions({ actions, onActionPress }: QuickActionsProps) {
             onPress={() => onActionPress?.(action)}
             className={`flex-row items-center px-4 py-2 rounded-full ${
               action.variant === "primary"
-                ? "bg-primary-600"
+                ? "bg-primary-500"
                 : "bg-dark-200 border border-dark-300"
             }`}
           >

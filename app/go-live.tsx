@@ -261,7 +261,7 @@ export default function GoLiveScreen() {
                     onPress={() => setIsPublic(true)}
                     className={`flex-1 p-4 rounded-xl border-2 ${
                       isPublic
-                        ? "border-primary-600 bg-primary-50"
+                        ? "border-primary-500 bg-primary-50"
                         : "border-dark-300 bg-white"
                     }`}
                   >
@@ -286,7 +286,7 @@ export default function GoLiveScreen() {
                     onPress={() => setIsPublic(false)}
                     className={`flex-1 p-4 rounded-xl border-2 ${
                       !isPublic
-                        ? "border-primary-600 bg-primary-50"
+                        ? "border-primary-500 bg-primary-50"
                         : "border-dark-300 bg-white"
                     }`}
                   >

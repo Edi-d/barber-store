@@ -14,6 +14,7 @@ export type LessonType = "video" | "text";
 export type OrderStatus = "pending" | "paid" | "shipped" | "cancelled";
 export type ReportStatus = "open" | "reviewed" | "closed";
 export type ReportTargetType = "content" | "comment" | "user" | "live";
+export type AppointmentStatus = "pending" | "confirmed" | "completed" | "cancelled" | "no_show";
 
 export interface Database {
   public: {
@@ -507,4 +508,47 @@ export type OrderWithItems = Order & {
   items: (OrderItem & {
     product: Product;
   })[];
+};
+
+// Appointments types
+export interface BarberService {
+  id: string;
+  name: string;
+  description: string | null;
+  duration_min: number;
+  price_cents: number;
+  currency: string;
+  active: boolean;
+  created_at: string;
+}
+
+export interface Barber {
+  id: string;
+  profile_id: string | null;
+  name: string;
+  avatar_url: string | null;
+  bio: string | null;
+  specialties: string[] | null;
+  active: boolean;
+  created_at: string;
+}
+
+export interface Appointment {
+  id: string;
+  user_id: string;
+  barber_id: string;
+  service_id: string;
+  scheduled_at: string;
+  duration_min: number;
+  status: AppointmentStatus;
+  notes: string | null;
+  total_cents: number;
+  currency: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type AppointmentWithDetails = Appointment & {
+  barber: Barber;
+  service: BarberService;
 };

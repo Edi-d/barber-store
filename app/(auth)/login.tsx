@@ -122,7 +122,7 @@ export default function LoginScreen() {
             {/* Forgot Password */}
             <Link href="/(auth)/forgot-password" asChild>
               <Pressable className="mb-8">
-                <Text className="text-primary-600 text-right font-medium">
+                <Text className="text-primary-500 text-right font-medium">
                   Ai uitat parola?
                 </Text>
               </Pressable>
@@ -143,7 +143,7 @@ export default function LoginScreen() {
               <Text className="text-dark-500">Nu ai cont? </Text>
               <Link href="/(auth)/signup" asChild>
                 <Pressable>
-                  <Text className="text-primary-600 font-semibold">
+                  <Text className="text-primary-500 font-semibold">
                     Înregistrează-te
                   </Text>
                 </Pressable>

@@ -45,7 +45,7 @@ export function StoriesRow({ stories, onAddStory, onStoryPress }: StoriesRowProp
                 story.isLive
                   ? "bg-red-500"
                   : story.hasStory
-                  ? "bg-primary-600"
+                  ? "bg-primary-500"
                   : "bg-transparent"
               }`}
             >

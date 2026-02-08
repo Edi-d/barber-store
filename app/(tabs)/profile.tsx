@@ -16,7 +16,7 @@ export default function ProfileScreen() {
     queryFn: async () => {
       if (!session) return null;
 
-      const [ordersResult, progressResult, contentResult] = await Promise.all([
+      const [ordersResult, progressResult, contentResult, appointmentsResult] = await Promise.all([
         supabase
           .from("orders")
           .select("id", { count: "exact", head: true })
@@ -30,12 +30,19 @@ export default function ProfileScreen() {
           .from("content")
           .select("id", { count: "exact", head: true })
           .eq("author_id", session.user.id),
+        supabase
+          .from("appointments")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", session.user.id)
+          .in("status", ["pending", "confirmed"])
+          .gte("scheduled_at", new Date().toISOString()),
       ]);
 
       return {
         orders: ordersResult.count || 0,
         lessonsCompleted: progressResult.count || 0,
         posts: contentResult.count || 0,
+        upcomingAppointments: appointmentsResult.count || 0,
       };
     },
     enabled: !!session,
@@ -126,14 +133,15 @@ export default function ProfileScreen() {
           {/* Quick Links */}
           <Card className="gap-0 p-0 overflow-hidden">
             <ProfileMenuItem
+              icon="calendar"
+              label="Programările mele"
+              onPress={() => router.push("/appointments")}
+              badge={stats?.upcomingAppointments}
+            />
+            <ProfileMenuItem
               icon="cart"
               label="Comenzile mele"
               onPress={() => router.push("/orders")}
-            />
-            <ProfileMenuItem
-              icon="bookmark"
-              label="Salvate"
-              onPress={() => {}}
             />
             <ProfileMenuItem
               icon="school"
@@ -167,11 +175,13 @@ function ProfileMenuItem({
   label,
   onPress,
   hideBorder = false,
+  badge,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress: () => void;
   hideBorder?: boolean;
+  badge?: number;
 }) {
   return (
     <Pressable
@@ -180,6 +190,11 @@ function ProfileMenuItem({
     >
       <Ionicons name={icon} size={22} color="#64748b" />
       <Text className="text-dark-700 flex-1 ml-3 text-base">{label}</Text>
+      {badge && badge > 0 ? (
+        <View className="bg-primary-500 px-2 py-0.5 rounded-full mr-2">
+          <Text className="text-white text-xs font-bold">{badge}</Text>
+        </View>
+      ) : null}
       <Ionicons name="chevron-forward" size={20} color="#64748b" />
     </Pressable>
   );

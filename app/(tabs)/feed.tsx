@@ -237,7 +237,7 @@ export default function FeedScreen() {
       <View className="h-[50px] flex-row items-center justify-between px-4 border-b border-dark-300 bg-white">
         <View className="flex-row items-center">
           <Ionicons name="cut" size={28} color="#0a66c2" />
-          <Text className="text-dark-700 text-xl font-bold ml-2">Barber Store</Text>
+          <Text className="text-dark-700 text-xl font-bold ml-2">Tapzi</Text>
         </View>
         <View className="flex-row items-center gap-4">
           <Pressable className="relative">

@@ -14,7 +14,7 @@ export default function WelcomeScreen() {
             <Ionicons name="cut" size={48} color="white" />
           </View>
           <Text className="text-4xl font-bold text-dark-700 mb-2">
-            Barber Store
+            Tapzi
           </Text>
           <Text className="text-dark-500 text-center text-lg">
             Învață arta frizuriei de la cei mai buni

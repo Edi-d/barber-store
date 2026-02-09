@@ -79,7 +79,7 @@ export default function CoursesScreen() {
     <SafeAreaView className="flex-1 bg-dark-200" edges={["top"]}>
       {/* Header - 45px */}
       <View className="h-[50px] flex-row items-center justify-between px-4 border-b border-dark-300 bg-white">
-        <Text className="text-dark-700 text-xl font-bold">Barber Academy</Text>
+        <Text className="text-dark-700 text-xl font-bold">Tapzi Academy</Text>
         <Pressable className="w-10 h-10 bg-dark-200 rounded-full items-center justify-center">
           <Ionicons name="search-outline" size={22} color="#64748b" />
         </Pressable>

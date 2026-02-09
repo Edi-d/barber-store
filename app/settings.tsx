@@ -252,7 +252,7 @@ export default function SettingsScreen() {
 
           {/* App Info */}
           <View className="items-center py-4">
-            <Text className="text-dark-500 text-sm">Barber Store v1.0.0</Text>
+            <Text className="text-dark-500 text-sm">Tapzi v1.0.0</Text>
             <Text className="text-dark-400 text-xs mt-1">
               Made with ❤️ for barbers
             </Text>

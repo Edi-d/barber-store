@@ -230,17 +230,41 @@ export default function CheckoutScreen() {
             />
           </View>
 
-          {/* Payment Info */}
-          <Card className="mt-6">
-            <View className="flex-row items-center">
-              <Ionicons name="cash-outline" size={24} color="#d4af37" />
-              <View className="ml-3 flex-1">
-                <Text className="text-dark-700 font-semibold">Plata la livrare</Text>
-                <Text className="text-dark-500 text-sm">
-                  Vei plăti cash când primești comanda
+          {/* Payment Method */}
+          <Text className="text-dark-700 font-bold text-lg mt-6 mb-3">
+            Metodă de plată
+          </Text>
+          <Card className="mb-2">
+            {/* Cash on Delivery - Selected */}
+            <Pressable className="flex-row items-center">
+              <View className="w-5 h-5 rounded-full border-2 border-primary-500 items-center justify-center mr-3">
+                <View className="w-3 h-3 rounded-full bg-primary-500" />
+              </View>
+              <View className="w-10 h-10 bg-amber-50 rounded-xl items-center justify-center mr-3">
+                <Ionicons name="cash-outline" size={22} color="#d4af37" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-dark-700 font-semibold">Ramburs (Plată la livrare)</Text>
+                <Text className="text-dark-500 text-xs mt-0.5">
+                  Plătești cash când primești coletul
                 </Text>
               </View>
-            </View>
+            </Pressable>
+          </Card>
+          <Card>
+            {/* Card Payment - Disabled/Coming Soon */}
+            <Pressable className="flex-row items-center opacity-50" disabled>
+              <View className="w-5 h-5 rounded-full border-2 border-dark-300 mr-3" />
+              <View className="w-10 h-10 bg-dark-100 rounded-xl items-center justify-center mr-3">
+                <Ionicons name="card-outline" size={22} color="#94a3b8" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-dark-500 font-semibold">Card online</Text>
+                <Text className="text-dark-400 text-xs mt-0.5">
+                  Coming soon
+                </Text>
+              </View>
+            </Pressable>
           </Card>
         </View>
       </ScrollView>

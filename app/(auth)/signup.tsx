@@ -8,14 +8,13 @@ import { useAuthStore } from "@/stores/authStore";
 import { Ionicons } from "@expo/vector-icons";
 
 interface SignUpForm {
-  username: string;
   email: string;
   password: string;
   confirmPassword: string;
 }
 
 export default function SignUpScreen() {
-  const { signUp, isLoading } = useAuthStore();
+  const { signUp, isSubmitting } = useAuthStore();
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -25,7 +24,6 @@ export default function SignUpScreen() {
     formState: { errors },
   } = useForm<SignUpForm>({
     defaultValues: {
-      username: "",
       email: "",
       password: "",
       confirmPassword: "",
@@ -36,11 +34,11 @@ export default function SignUpScreen() {
 
   const onSubmit = async (data: SignUpForm) => {
     setError(null);
-    const { error } = await signUp(data.email, data.password, data.username);
+    const { error } = await signUp(data.email, data.password);
     if (error) {
       setError(error.message);
     } else {
-      router.replace("/(tabs)/feed");
+      router.replace("/(auth)/onboarding");
     }
   };
 
@@ -52,10 +50,11 @@ export default function SignUpScreen() {
       >
         <ScrollView
           className="flex-1"
-          contentContainerStyle={{ flexGrow: 1 }}
+          contentContainerStyle={{ paddingBottom: 40 }}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <View className="flex-1 px-6 pt-4">
+          <View className="px-6 pt-4">
             {/* Header */}
             <Pressable onPress={() => router.back()} className="mb-8">
               <Ionicons name="arrow-back" size={24} color="#334155" />
@@ -77,33 +76,6 @@ export default function SignUpScreen() {
 
             {/* Form */}
             <View className="gap-4 mb-8">
-              <Controller
-                control={control}
-                name="username"
-                rules={{
-                  required: "Username-ul este obligatoriu",
-                  minLength: {
-                    value: 3,
-                    message: "Minim 3 caractere",
-                  },
-                  pattern: {
-                    value: /^[a-zA-Z0-9_]+$/,
-                    message: "Doar litere, cifre și underscore",
-                  },
-                }}
-                render={({ field: { onChange, value } }) => (
-                  <Input
-                    label="Username"
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="john_barber"
-                    autoComplete="username"
-                    error={errors.username?.message}
-                    icon={<Ionicons name="person" size={20} color="#64748b" />}
-                  />
-                )}
-              />
-
               <Controller
                 control={control}
                 name="email"
@@ -185,7 +157,7 @@ export default function SignUpScreen() {
             {/* Submit Button */}
             <Button
               onPress={handleSubmit(onSubmit)}
-              loading={isLoading}
+              loading={isSubmitting}
               size="lg"
               className="w-full mb-6"
             >

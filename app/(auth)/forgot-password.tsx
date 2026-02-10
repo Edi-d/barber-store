@@ -12,7 +12,7 @@ interface ForgotPasswordForm {
 }
 
 export default function ForgotPasswordScreen() {
-  const { resetPassword, isLoading } = useAuthStore();
+  const { resetPassword, isSubmitting } = useAuthStore();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
@@ -106,7 +106,7 @@ export default function ForgotPasswordScreen() {
               {/* Submit Button */}
               <Button
                 onPress={handleSubmit(onSubmit)}
-                loading={isLoading}
+                loading={isSubmitting}
                 size="lg"
                 className="w-full"
               >

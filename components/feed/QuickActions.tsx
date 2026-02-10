@@ -6,6 +6,7 @@ interface QuickAction {
   label: string;
   icon?: keyof typeof Ionicons.glyphMap;
   variant?: "primary" | "outline";
+  badge?: number;
 }
 
 interface QuickActionsProps {
@@ -29,7 +30,7 @@ export function QuickActions({ actions, onActionPress }: QuickActionsProps) {
             className={`flex-row items-center px-4 py-2 rounded-full ${
               action.variant === "primary"
                 ? "bg-primary-500"
-                : "bg-dark-200 border border-dark-300"
+                : "bg-white border border-dark-300"
             }`}
           >
             {action.icon && (
@@ -47,6 +48,11 @@ export function QuickActions({ actions, onActionPress }: QuickActionsProps) {
             >
               {action.label}
             </Text>
+            {action.badge !== undefined && action.badge > 0 && (
+              <View className="ml-1.5 bg-primary-500 rounded-full min-w-[20px] h-5 items-center justify-center px-1">
+                <Text className="text-white text-[10px] font-bold">{action.badge}</Text>
+              </View>
+            )}
           </Pressable>
         ))}
       </ScrollView>

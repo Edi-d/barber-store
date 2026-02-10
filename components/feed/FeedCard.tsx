@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { View, Text, Pressable, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Avatar, Badge, Card } from "@/components/ui";
+import { Avatar, Card } from "@/components/ui";
 import { ContentWithAuthor } from "@/types/database";
 import { timeAgo } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
+import { useAuthStore } from "@/stores/authStore";
 import { router } from "expo-router";
 
 interface FeedCardProps {
@@ -10,13 +13,19 @@ interface FeedCardProps {
   onLike: () => void;
   onComment: () => void;
   onShare?: () => void;
+  isFollowing?: boolean;
+  onFollow?: (authorId: string) => void;
 }
 
-export function FeedCard({ item, onLike, onComment, onShare }: FeedCardProps) {
+export function FeedCard({ item, onLike, onComment, onShare, isFollowing, onFollow }: FeedCardProps) {
+  const { session } = useAuthStore();
+  const isOwnPost = session?.user.id === item.author_id;
+
   return (
     <Card className="mx-4 mb-3 p-0 overflow-hidden">
-      {/* Header - 28px height style */}
-      <View className="flex-row items-center justify-between p-4 pb-3">
+      {/* Header - matches screenshot layout */}
+      <View className="flex-row items-center p-4 pb-3">
+        {/* Left: Avatar + Info */}
         <Pressable
           onPress={() => router.push(`/profile/${item.author_id}`)}
           className="flex-row items-center flex-1"
@@ -24,32 +33,53 @@ export function FeedCard({ item, onLike, onComment, onShare }: FeedCardProps) {
           <Avatar
             source={item.author.avatar_url}
             name={item.author.display_name || item.author.username}
-            size="sm"
+            size="md"
             useDefaultAvatar={true}
           />
           <View className="ml-3 flex-1">
             <View className="flex-row items-center">
-              <Text className="text-dark-700 font-semibold">
+              <Text className="text-dark-700 font-bold text-[15px]">
                 {item.author.display_name || item.author.username}
               </Text>
-              {item.author.role === "creator" && (
-                <Ionicons
-                  name="checkmark-circle"
-                  size={14}
-                  color="#0a66c2"
-                  style={{ marginLeft: 4 }}
-                />
+              {(item.author.role === "creator" || item.author.role === "admin") && (
+                <View className="ml-1 w-4 h-4 bg-primary-500 rounded-full items-center justify-center">
+                  <Ionicons name="checkmark" size={10} color="white" />
+                </View>
               )}
             </View>
-            <Text className="text-dark-500 text-xs">
-              {item.author.role === "creator" ? "Creator" : "Member"} • {timeAgo(item.created_at)}
+            <Text className="text-dark-500 text-xs mt-0.5">
+              {item.author.role === "creator"
+                ? "Creator"
+                : item.author.role === "admin"
+                ? "Admin"
+                : "Member"}{" "}
+              • {timeAgo(item.created_at)}
             </Text>
           </View>
         </Pressable>
 
-        <Pressable className="p-2">
-          <Ionicons name="ellipsis-horizontal" size={20} color="#64748b" />
-        </Pressable>
+        {/* Right: Follow button + More menu */}
+        <View className="flex-row items-center gap-2">
+          {!isOwnPost && (
+            <Pressable
+              onPress={() => onFollow?.(item.author_id)}
+              className={`px-4 py-1.5 rounded-full ${
+                isFollowing ? "border border-primary-500 bg-white" : "bg-primary-500"
+              }`}
+            >
+              <Text
+                className={`text-sm font-semibold ${
+                  isFollowing ? "text-primary-500" : "text-white"
+                }`}
+              >
+                {isFollowing ? "Following" : "Follow"}
+              </Text>
+            </Pressable>
+          )}
+          <Pressable className="p-1">
+            <Ionicons name="ellipsis-vertical" size={18} color="#64748b" />
+          </Pressable>
+        </View>
       </View>
 
       {/* Caption */}
@@ -77,7 +107,7 @@ export function FeedCard({ item, onLike, onComment, onShare }: FeedCardProps) {
         </Pressable>
       ) : null}
 
-      {/* Actions - 24px & 12px spacing */}
+      {/* Actions */}
       <View className="flex-row items-center px-4 py-3 border-t border-dark-300">
         {/* Like */}
         <Pressable onPress={onLike} className="flex-row items-center mr-6">

@@ -13,7 +13,7 @@ interface LoginForm {
 }
 
 export default function LoginScreen() {
-  const { signIn, isLoading } = useAuthStore();
+  const { signIn, isSubmitting } = useAuthStore();
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -45,10 +45,11 @@ export default function LoginScreen() {
       >
         <ScrollView
           className="flex-1"
-          contentContainerStyle={{ flexGrow: 1 }}
+          contentContainerStyle={{ paddingBottom: 40 }}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <View className="flex-1 px-6 pt-4">
+          <View className="px-6 pt-4">
             {/* Header */}
             <Pressable onPress={() => router.back()} className="mb-8">
               <Ionicons name="arrow-back" size={24} color="#334155" />
@@ -131,7 +132,7 @@ export default function LoginScreen() {
             {/* Submit Button */}
             <Button
               onPress={handleSubmit(onSubmit)}
-              loading={isLoading}
+              loading={isSubmitting}
               size="lg"
               className="w-full mb-6"
             >

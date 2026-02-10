@@ -197,8 +197,8 @@ export default function AppointmentsScreen() {
       <Card 
         className="mb-4 bg-gradient-to-r border-primary-200"
         onPress={() => {
-          // TODO: Navigate to booking flow
-        }}
+          router.push("/book-appointment" as any);
+}}
       >
         <View className="flex-row items-center">
           <View className="w-14 h-14 bg-primary-500 rounded-2xl items-center justify-center mr-4">
@@ -260,8 +260,8 @@ export default function AppointmentsScreen() {
               <Pressable 
                 className="mt-6 px-6 py-3 bg-primary-500 rounded-xl flex-row items-center"
                 onPress={() => {
-                  // TODO: Navigate to booking
-                }}
+                  router.push("/book-appointment" as any);
+}}
               >
                 <Ionicons name="add-circle" size={20} color="white" />
                 <Text className="text-white font-semibold ml-2">Programare nouă</Text>

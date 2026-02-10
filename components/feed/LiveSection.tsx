@@ -1,19 +1,24 @@
-import { View, Text, ScrollView, Pressable, ImageBackground, Dimensions, Image } from "react-native";
+import { View, Text, ScrollView, Pressable, Image, Dimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Avatar, Badge } from "@/components/ui";
-import { Live, Profile } from "@/types/database";
+import { LiveWithHost } from "@/types/database";
+import { timeAgo } from "@/lib/utils";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
-const CARD_WIDTH = (Dimensions.get("window").width - 48) / 2.3;
-
-interface LiveWithHost extends Live {
-  host: Profile;
-  viewers_count?: number;
-}
+const CARD_WIDTH = (Dimensions.get("window").width - 48) / 2;
+const CARD_HEIGHT = 220;
 
 interface LiveSectionProps {
   lives: LiveWithHost[];
   onSeeAll?: () => void;
+}
+
+function formatViewers(count: number): string {
+  if (count >= 1000) {
+    return `${(count / 1000).toFixed(1)}k`;
+  }
+  return count.toString();
 }
 
 export function LiveSection({ lives, onSeeAll }: LiveSectionProps) {
@@ -25,8 +30,8 @@ export function LiveSection({ lives, onSeeAll }: LiveSectionProps) {
       <View className="flex-row items-center justify-between px-4 mb-3">
         <View className="flex-row items-center">
           <Text className="text-dark-700 text-lg font-bold">Creator on Live</Text>
-          <View className="ml-2 flex-row items-center">
-            <View className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+          <View className="ml-2 bg-primary-500 rounded-full px-2 py-0.5 min-w-[28px] items-center">
+            <Text className="text-white text-xs font-bold">{lives.length}</Text>
           </View>
         </View>
         {onSeeAll && (
@@ -55,59 +60,75 @@ function LiveCard({ live }: { live: LiveWithHost }) {
   return (
     <Pressable
       onPress={() => {
-        // TODO: Navigate to live stream
+        // TODO: Navigate to live stream viewer
       }}
-      className="overflow-hidden rounded-2xl bg-dark-300"
-      style={{ width: CARD_WIDTH }}
+      className="overflow-hidden rounded-2xl"
+      style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}
     >
-      <View className="h-40 justify-between">
-        {/* Background Image */}
-        {live.cover_url ? (
-          <Image
-            source={{ uri: live.cover_url }}
-            className="absolute inset-0 w-full h-full rounded-2xl"
-            resizeMode="cover"
-          />
-        ) : (
-          <View className="absolute inset-0 bg-primary-100 rounded-2xl items-center justify-center">
-            <Ionicons name="radio" size={32} color="#0a66c2" />
-          </View>
-        )}
-        
-        {/* Gradient Overlay */}
-        <View className="absolute inset-0 bg-black/40 rounded-2xl" />
-
-        {/* Top - Live Badge */}
-        <View className="flex-row items-center justify-between p-3 z-10">
-          <Badge variant="live" size="sm">
-            LIVE
-          </Badge>
-          {live.viewers_count !== undefined && (
-            <View className="flex-row items-center bg-black/50 px-2 py-1 rounded-full">
-              <Ionicons name="eye" size={12} color="white" />
-              <Text className="text-white text-xs ml-1">
-                {live.viewers_count}
-              </Text>
-            </View>
-          )}
+      {/* Background Image */}
+      {live.cover_url ? (
+        <Image
+          source={{ uri: live.cover_url }}
+          className="absolute inset-0 w-full h-full"
+          resizeMode="cover"
+        />
+      ) : (
+        <View className="absolute inset-0 bg-primary-100 items-center justify-center">
+          <Ionicons name="radio" size={40} color="#0a66c2" />
         </View>
+      )}
 
-        {/* Bottom - Title & Host */}
-        <View className="p-3 z-10">
-          <Text className="text-white font-semibold text-sm mb-2" numberOfLines={2}>
-            {live.title}
-          </Text>
-          <View className="flex-row items-center">
-            <Avatar
-              source={live.host.avatar_url}
-              name={live.host.display_name || live.host.username}
-              size="xs"
-              useDefaultAvatar={true}
-            />
-            <Text className="text-white/80 text-xs ml-2">
-              {live.host.display_name || live.host.username}
+      {/* Gradient Overlay - stronger at bottom */}
+      <LinearGradient
+        colors={["rgba(0,0,0,0.1)", "rgba(0,0,0,0.15)", "rgba(0,0,0,0.65)"]}
+        locations={[0, 0.4, 1]}
+        className="absolute inset-0"
+      />
+
+      {/* Top Row - LIVE badge + Viewer count */}
+      <View className="flex-row items-center justify-between p-3 z-10">
+        <View className="flex-row items-center bg-red-500 px-2 py-1 rounded-md">
+          <View className="w-1.5 h-1.5 rounded-full bg-white mr-1.5" />
+          <Text className="text-white text-[10px] font-bold tracking-wide">LIVE</Text>
+        </View>
+        {live.viewers_count > 0 && (
+          <View className="flex-row items-center bg-black/40 px-2 py-1 rounded-full">
+            <Ionicons name="people" size={12} color="white" />
+            <Text className="text-white text-xs font-medium ml-1">
+              {formatViewers(live.viewers_count)}
             </Text>
           </View>
+        )}
+      </View>
+
+      {/* Bottom Content - Title + Host info */}
+      <View className="absolute bottom-0 left-0 right-0 p-3 z-10">
+        {/* Title */}
+        <Text className="text-white font-semibold text-sm mb-2.5 leading-[18px]" numberOfLines={2}>
+          {live.title}
+        </Text>
+
+        {/* Host Info */}
+        <View className="flex-row items-center">
+          <Avatar
+            source={live.host.avatar_url}
+            name={live.host.display_name || live.host.username}
+            size="xs"
+            useDefaultAvatar={true}
+          />
+          <Text className="text-white/90 text-xs font-medium ml-2" numberOfLines={1}>
+            {live.host.display_name || live.host.username}
+          </Text>
+          {(live.host.role === "creator" || live.host.role === "admin") && (
+            <View className="ml-1 w-3.5 h-3.5 bg-primary-500 rounded-full items-center justify-center">
+              <Ionicons name="checkmark" size={8} color="white" />
+            </View>
+          )}
+          {live.started_at && (
+            <Text className="text-white/60 text-[10px] ml-1.5">
+              • {timeAgo(live.started_at)}
+            </Text>
+          )}
         </View>
       </View>
     </Pressable>

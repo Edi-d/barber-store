@@ -9,7 +9,7 @@ import { StoriesRow } from "@/components/feed/StoriesRow";
 import { QuickActions } from "@/components/feed/QuickActions";
 import { LiveSection } from "@/components/feed/LiveSection";
 import { FeedCard } from "@/components/feed/FeedCard";
-import { ContentWithAuthor, Live, Profile } from "@/types/database";
+import { ContentWithAuthor, Live, Profile, LiveWithHost } from "@/types/database";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function FeedScreen() {
@@ -36,6 +36,46 @@ export default function FeedScreen() {
     },
   });
 
+  // Placeholder lives for when no active lives exist
+  const placeholderLives: LiveWithHost[] = [
+    {
+      id: "placeholder-1", host_id: "", title: "Join me, paint the arts 🎨",
+      cover_url: "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=600",
+      is_public: true, status: "live", provider: null, ingest_url: null,
+      stream_key: null, playback_url: null, viewers_count: 41600,
+      started_at: new Date(Date.now() - 5 * 60000).toISOString(),
+      ended_at: null, created_at: new Date().toISOString(),
+      host: { id: "", username: "dianne", display_name: "Dianne", avatar_url: null, bio: null, role: "creator", created_at: "" },
+    },
+    {
+      id: "placeholder-2", host_id: "", title: "Live Session, Let's learn together 🔥",
+      cover_url: "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=600",
+      is_public: true, status: "live", provider: null, ingest_url: null,
+      stream_key: null, playback_url: null, viewers_count: 21200,
+      started_at: new Date(Date.now() - 6 * 60000).toISOString(),
+      ended_at: null, created_at: new Date().toISOString(),
+      host: { id: "", username: "robert", display_name: "Robert", avatar_url: null, bio: null, role: "creator", created_at: "" },
+    },
+    {
+      id: "placeholder-3", host_id: "", title: "Fade Masterclass - Live Demo ✂️",
+      cover_url: "https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=600",
+      is_public: true, status: "live", provider: null, ingest_url: null,
+      stream_key: null, playback_url: null, viewers_count: 15800,
+      started_at: new Date(Date.now() - 12 * 60000).toISOString(),
+      ended_at: null, created_at: new Date().toISOString(),
+      host: { id: "", username: "alex", display_name: "Alex", avatar_url: null, bio: null, role: "creator", created_at: "" },
+    },
+    {
+      id: "placeholder-4", host_id: "", title: "Beard Styling Session 💈",
+      cover_url: "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600",
+      is_public: true, status: "live", provider: null, ingest_url: null,
+      stream_key: null, playback_url: null, viewers_count: 8900,
+      started_at: new Date(Date.now() - 18 * 60000).toISOString(),
+      ended_at: null, created_at: new Date().toISOString(),
+      host: { id: "", username: "cristi", display_name: "Cristi", avatar_url: null, bio: null, role: "creator", created_at: "" },
+    },
+  ];
+
   // Fetch active lives
   const { data: lives } = useQuery({
     queryKey: ["lives-active"],
@@ -48,9 +88,12 @@ export default function FeedScreen() {
         .limit(6);
 
       if (error) throw error;
-      return data as (Live & { host: Profile })[];
+      return data as LiveWithHost[];
     },
   });
+
+  // Always show lives - use DB data or fallback to placeholders
+  const displayLives = (lives && lives.length > 0) ? lives : placeholderLives;
 
   // Fetch feed content
   const { data: feedItems, isLoading, refetch, isRefetching } = useQuery({
@@ -113,6 +156,67 @@ export default function FeedScreen() {
     },
   });
 
+  // Fetch user's follows
+  const { data: followingIds } = useQuery({
+    queryKey: ["following", session?.user.id],
+    queryFn: async () => {
+      if (!session) return new Set<string>();
+      const { data, error } = await supabase
+        .from("follows")
+        .select("following_id")
+        .eq("follower_id", session.user.id);
+      if (error) throw error;
+      return new Set(data.map((f) => f.following_id));
+    },
+    enabled: !!session,
+  });
+
+  // Follow/unfollow mutation
+  const followMutation = useMutation({
+    mutationFn: async ({ authorId, isFollowing }: { authorId: string; isFollowing: boolean }) => {
+      if (!session) throw new Error("Not authenticated");
+
+      if (isFollowing) {
+        await supabase
+          .from("follows")
+          .delete()
+          .eq("follower_id", session.user.id)
+          .eq("following_id", authorId);
+      } else {
+        await supabase.from("follows").insert({
+          follower_id: session.user.id,
+          following_id: authorId,
+        });
+      }
+    },
+    onMutate: async ({ authorId, isFollowing }) => {
+      await queryClient.cancelQueries({ queryKey: ["following", session?.user.id] });
+      const previous = queryClient.getQueryData<Set<string>>(["following", session?.user.id]);
+
+      queryClient.setQueryData<Set<string>>(["following", session?.user.id], (old) => {
+        const next = new Set(old);
+        if (isFollowing) {
+          next.delete(authorId);
+        } else {
+          next.add(authorId);
+        }
+        return next;
+      });
+
+      return { previous };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["following", session?.user.id], context.previous);
+      }
+    },
+  });
+
+  const handleFollow = (authorId: string) => {
+    const isFollowing = followingIds?.has(authorId) || false;
+    followMutation.mutate({ authorId, isFollowing });
+  };
+
   // Like mutation
   const likeMutation = useMutation({
     mutationFn: async ({ contentId, isLiked }: { contentId: string; isLiked: boolean }) => {
@@ -166,7 +270,7 @@ export default function FeedScreen() {
   const handleQuickAction = (action: { id: string }) => {
     switch (action.id) {
       case "book":
-        router.push("/appointments");
+        router.push("/book-appointment" as any);
         break;
       case "courses":
         router.push("/(tabs)/courses");
@@ -208,10 +312,8 @@ export default function FeedScreen() {
       {/* Quick Actions - 44px */}
       <QuickActions actions={quickActions} onActionPress={handleQuickAction} />
 
-      {/* Live Section - ~144px */}
-      {lives && lives.length > 0 && (
-        <LiveSection lives={lives} onSeeAll={() => {}} />
-      )}
+      {/* Live Section - always visible */}
+      <LiveSection lives={displayLives} onSeeAll={() => {}} />
 
       {/* All Feeds Header - 16px */}
       <View className="flex-row items-center justify-between px-4 py-3 bg-white">
@@ -260,6 +362,8 @@ export default function FeedScreen() {
             item={item}
             onLike={() => handleLike(item.id, item.is_liked || false)}
             onComment={() => handleComment(item.id)}
+            isFollowing={followingIds?.has(item.author_id) || false}
+            onFollow={handleFollow}
           />
         )}
         refreshControl={

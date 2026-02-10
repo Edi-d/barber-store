@@ -132,6 +132,7 @@ export interface Database {
           ingest_url: string | null;
           stream_key: string | null;
           playback_url: string | null;
+          viewers_count: number;
           started_at: string | null;
           ended_at: string | null;
           created_at: string;
@@ -147,6 +148,7 @@ export interface Database {
           ingest_url?: string | null;
           stream_key?: string | null;
           playback_url?: string | null;
+          viewers_count?: number;
           started_at?: string | null;
           ended_at?: string | null;
           created_at?: string;
@@ -162,6 +164,7 @@ export interface Database {
           ingest_url?: string | null;
           stream_key?: string | null;
           playback_url?: string | null;
+          viewers_count?: number;
           started_at?: string | null;
           ended_at?: string | null;
           created_at?: string;
@@ -529,6 +532,8 @@ export interface Barber {
   avatar_url: string | null;
   bio: string | null;
   specialties: string[] | null;
+  address: string | null;
+  city: string | null;
   active: boolean;
   created_at: string;
 }
@@ -551,4 +556,24 @@ export interface Appointment {
 export type AppointmentWithDetails = Appointment & {
   barber: Barber;
   service: BarberService;
+};
+
+export interface BarberAvailability {
+  id: string;
+  barber_id: string;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  is_available: boolean;
+  created_at: string;
+}
+
+export interface Follow {
+  follower_id: string;
+  following_id: string;
+  created_at: string;
+}
+
+export type LiveWithHost = Live & {
+  host: Profile;
 };

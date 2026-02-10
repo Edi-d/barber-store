@@ -17,13 +17,13 @@ const queryClient = new QueryClient({
 });
 
 function RootLayoutNav() {
-  const { isLoading, isInitialized, initialize } = useAuthStore();
+  const { isInitialized, initialize } = useAuthStore();
 
   useEffect(() => {
     initialize();
   }, []);
 
-  if (!isInitialized || isLoading) {
+  if (!isInitialized) {
     return (
       <View className="flex-1 bg-dark-50 items-center justify-center">
         <ActivityIndicator size="large" color="#6366f1" />

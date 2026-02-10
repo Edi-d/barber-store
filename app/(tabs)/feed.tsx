@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import { View, FlatList, RefreshControl, Text, Pressable, ActivityIndicator } from "react-native";
+import { View, FlatList, RefreshControl, Text, Pressable, ActivityIndicator, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
@@ -337,10 +337,11 @@ export default function FeedScreen() {
     <SafeAreaView className="flex-1 bg-dark-200" edges={["top"]}>
       {/* Header Bar - 45px */}
       <View className="h-[50px] flex-row items-center justify-between px-4 border-b border-dark-300 bg-white">
-        <View className="flex-row items-center">
-          <Ionicons name="cut" size={28} color="#0a66c2" />
-          <Text className="text-dark-700 text-xl font-bold ml-2">Tapzi</Text>
-        </View>
+        <Image
+          source={require("@/assets/image-removebg-preview.png")}
+          style={{ width: 100, height: 36 }}
+          resizeMode="contain"
+        />
         <View className="flex-row items-center gap-4">
           <Pressable className="relative">
             <Ionicons name="search-outline" size={24} color="#64748b" />

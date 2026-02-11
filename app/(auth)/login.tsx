@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, Pressable, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import { View, Text, Pressable, KeyboardAvoidingView, Platform, ScrollView, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Link, router } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
@@ -51,9 +51,16 @@ export default function LoginScreen() {
         >
           <View className="px-6 pt-4">
             {/* Header */}
-            <Pressable onPress={() => router.back()} className="mb-8">
+            <Pressable onPress={() => router.back()} className="mb-6">
               <Ionicons name="arrow-back" size={24} color="#334155" />
             </Pressable>
+
+            <Image
+              source={require("@/assets/image-removebg-preview.png")}
+              style={{ width: 140, height: 50 }}
+              resizeMode="contain"
+              className="mb-6"
+            />
 
             <Text className="text-3xl font-bold text-dark-700 mb-2">
               Bine ai revenit

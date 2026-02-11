@@ -10,12 +10,12 @@ export default function WelcomeScreen() {
       <View className="flex-1 px-6 pt-12">
         {/* Logo & Branding */}
         <View className="flex-1 items-center justify-center">
-          <View className="w-24 h-24 bg-primary-500 rounded-3xl items-center justify-center mb-6 shadow-lg">
-            <Ionicons name="cut" size={48} color="white" />
-          </View>
-          <Text className="text-4xl font-bold text-dark-700 mb-2">
-            Tapzi
-          </Text>
+          <Image
+            source={require("@/assets/image-removebg-preview.png")}
+            style={{ width: 180, height: 65 }}
+            resizeMode="contain"
+            className="mb-6"
+          />
           <Text className="text-dark-500 text-center text-lg">
             Învață arta frizuriei de la cei mai buni
           </Text>

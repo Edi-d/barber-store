@@ -9,7 +9,8 @@ import { StoriesRow } from "@/components/feed/StoriesRow";
 import { QuickActions } from "@/components/feed/QuickActions";
 import { LiveSection } from "@/components/feed/LiveSection";
 import { FeedCard } from "@/components/feed/FeedCard";
-import { ContentWithAuthor, Live, Profile, LiveWithHost } from "@/types/database";
+import { BookingHeroCard } from "@/components/feed/BookingHeroCard";
+import { ContentWithAuthor, Live, Profile, LiveWithHost, Barber } from "@/types/database";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function FeedScreen() {
@@ -94,6 +95,20 @@ export default function FeedScreen() {
 
   // Always show lives - use DB data or fallback to placeholders
   const displayLives = (lives && lives.length > 0) ? lives : placeholderLives;
+
+  // Fetch active barbers (for BookingHeroCard locations)
+  const { data: barbers } = useQuery({
+    queryKey: ["barbers-active"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("barbers")
+        .select("*")
+        .eq("active", true)
+        .order("name");
+      if (error) throw error;
+      return data as Barber[];
+    },
+  });
 
   // Fetch feed content
   const { data: feedItems, isLoading, refetch, isRefetching } = useQuery({
@@ -261,7 +276,6 @@ export default function FeedScreen() {
   });
 
   const quickActions = [
-    { id: "book", label: "Programare", icon: "calendar-outline" as const, variant: "primary" as const },
     { id: "courses", label: "Cursuri", icon: "school-outline" as const, variant: "outline" as const },
     { id: "shop", label: "Shop", icon: "bag-outline" as const, variant: "outline" as const },
     { id: "live", label: "Lives", icon: "radio-outline" as const, variant: "outline" as const },
@@ -269,9 +283,6 @@ export default function FeedScreen() {
 
   const handleQuickAction = (action: { id: string }) => {
     switch (action.id) {
-      case "book":
-        router.push("/book-appointment" as any);
-        break;
       case "courses":
         router.push("/(tabs)/courses");
         break;
@@ -307,6 +318,12 @@ export default function FeedScreen() {
         onStoryPress={(story) => {
           // TODO: View story
         }}
+      />
+
+      {/* Booking Hero Card - prominent CTA with map */}
+      <BookingHeroCard
+        barbers={barbers || []}
+        onBookPress={() => router.push("/book-appointment" as any)}
       />
 
       {/* Quick Actions - 44px */}

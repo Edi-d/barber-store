@@ -31,13 +31,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   initialize: async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      console.log("[AUTH] Session:", session ? `User ${session.user.id}` : "null");
       set({ session });
 
       if (session) {
         await get().fetchProfile();
+        console.log("[AUTH] Profile after fetch:", get().profile?.username ?? "null");
       }
 
       set({ isInitialized: true });
+      console.log("[AUTH] Initialized - session:", !!session, "profile:", !!get().profile);
 
       // Listen for auth changes
       supabase.auth.onAuthStateChange(async (event, session) => {
@@ -166,6 +169,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         .eq("id", session.user.id)
         .maybeSingle();
 
+      console.log("[AUTH] fetchProfile result - data:", data, "error:", error);
       if (error) throw error;
       set({ profile: data });
     } catch (error) {

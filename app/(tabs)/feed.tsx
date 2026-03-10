@@ -1,20 +1,23 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useRef } from "react";
 import { View, FlatList, RefreshControl, Text, Pressable, ActivityIndicator, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { router } from "expo-router";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient, InfiniteData } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { useAuthStore } from "@/stores/authStore";
 import { StoriesRow } from "@/components/feed/StoriesRow";
-import { QuickActions } from "@/components/feed/QuickActions";
 import { LiveSection } from "@/components/feed/LiveSection";
 import { FeedCard } from "@/components/feed/FeedCard";
-import { BookingHeroCard } from "@/components/feed/BookingHeroCard";
-import { ContentWithAuthor, Live, Profile, LiveWithHost, Barber } from "@/types/database";
-import { Ionicons } from "@expo/vector-icons";
+import { ContentWithAuthor, LiveWithHost } from "@/types/database";
+import { Ionicons, Feather } from "@expo/vector-icons";
+import { CommentsModal } from "@/components/feed/CommentsModal";
+import Animated, {
+  FadeInDown,
+  FadeInLeft,
+} from "react-native-reanimated";
 
 export default function FeedScreen() {
-  const { session, profile } = useAuthStore();
+  const { session } = useAuthStore();
   const queryClient = useQueryClient();
 
   // Fetch stories (recent creators)
@@ -36,6 +39,19 @@ export default function FeedScreen() {
       }));
     },
   });
+
+  // Placeholder stories for when no creators exist in DB
+  const placeholderStories = [
+    { id: "ps-1", username: "Alex P.", avatar_url: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200", hasStory: true },
+    { id: "ps-2", username: "Mihai I.", avatar_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200", hasStory: true },
+    { id: "ps-3", username: "Cristi B.", avatar_url: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200", hasStory: true },
+    { id: "ps-4", username: "Andrei M.", avatar_url: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200", hasStory: true },
+    { id: "ps-5", username: "Razvan D.", avatar_url: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=200", hasStory: true },
+    { id: "ps-6", username: "Stefan V.", avatar_url: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=200", hasStory: true },
+    { id: "ps-7", username: "Dan C.", avatar_url: "https://images.unsplash.com/photo-1534030347209-467a5b0ad3e6?w=200", hasStory: true },
+  ];
+
+  const displayStories = (stories && stories.length > 0) ? stories : placeholderStories;
 
   // Placeholder lives for when no active lives exist
   const placeholderLives: LiveWithHost[] = [
@@ -96,80 +112,62 @@ export default function FeedScreen() {
   // Always show lives - use DB data or fallback to placeholders
   const displayLives = (lives && lives.length > 0) ? lives : placeholderLives;
 
-  // Fetch active barbers (for BookingHeroCard locations)
-  const { data: barbers } = useQuery({
-    queryKey: ["barbers-active"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("barbers")
-        .select("*")
-        .eq("active", true)
-        .order("name");
-      if (error) throw error;
-      return data as Barber[];
-    },
-  });
+  const PAGE_SIZE = 10;
 
-  // Fetch feed content
-  const { data: feedItems, isLoading, refetch, isRefetching } = useQuery({
+  // Fetch feed content with cursor-based infinite scroll
+  const {
+    data: feedData,
+    isLoading,
+    refetch,
+    isRefetching,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ["feed"],
-    queryFn: async () => {
-      const { data, error } = await supabase
+    queryFn: async ({ pageParam }) => {
+      let query = supabase
         .from("content")
         .select(`*, author:profiles!author_id(*)`)
         .eq("status", "published")
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(PAGE_SIZE);
 
+      if (pageParam) {
+        query = query.lt("created_at", pageParam);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
 
       const contentIds = data.map((item) => item.id);
 
-      const [likesResult, userLikesResult, commentsResult] = await Promise.all([
-        supabase
-          .from("likes")
-          .select("content_id")
-          .in("content_id", contentIds),
-        session
-          ? supabase
-              .from("likes")
-              .select("content_id")
-              .eq("user_id", session.user.id)
-              .in("content_id", contentIds)
-          : Promise.resolve({ data: [] }),
-        supabase
-          .from("comments")
-          .select("content_id")
-          .in("content_id", contentIds),
-      ]);
+      // Fetch which items the current user has liked
+      const userLikesResult = session && contentIds.length > 0
+        ? await supabase
+            .from("likes")
+            .select("content_id")
+            .eq("user_id", session.user.id)
+            .in("content_id", contentIds)
+        : { data: [] };
 
-      // Count likes per content
-      const likesCountMap = new Map<string, number>();
-      likesResult.data?.forEach((like) => {
-        const count = likesCountMap.get(like.content_id) || 0;
-        likesCountMap.set(like.content_id, count + 1);
-      });
-
-      // Count comments per content
-      const commentsCountMap = new Map<string, number>();
-      commentsResult.data?.forEach((comment) => {
-        const count = commentsCountMap.get(comment.content_id) || 0;
-        commentsCountMap.set(comment.content_id, count + 1);
-      });
-
-      // User's liked content
       const userLikedIds = new Set(
         userLikesResult.data?.map((l) => l.content_id) || []
       );
 
       return data.map((item) => ({
         ...item,
-        likes_count: likesCountMap.get(item.id) || 0,
-        comments_count: commentsCountMap.get(item.id) || 0,
         is_liked: userLikedIds.has(item.id),
       })) as ContentWithAuthor[];
     },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => {
+      if (lastPage.length < PAGE_SIZE) return undefined;
+      return lastPage[lastPage.length - 1].created_at;
+    },
   });
+
+  const feedItems = feedData?.pages.flatMap((page) => page) ?? [];
 
   // Fetch user's follows
   const { data: followingIds } = useQuery({
@@ -189,6 +187,10 @@ export default function FeedScreen() {
   // Follow/unfollow mutation
   const followMutation = useMutation({
     mutationFn: async ({ authorId, isFollowing }: { authorId: string; isFollowing: boolean }) => {
+      const rateCheck = checkRateLimit('follow');
+      if (!rateCheck.allowed) {
+        throw new Error('Prea multe acțiuni. Încearcă din nou.');
+      }
       if (!session) throw new Error("Not authenticated");
 
       if (isFollowing) {
@@ -232,9 +234,17 @@ export default function FeedScreen() {
     followMutation.mutate({ authorId, isFollowing });
   };
 
+  // Track which contentIds have an in-flight like mutation
+  const pendingLikeIds = useRef(new Set<string>());
+
   // Like mutation
   const likeMutation = useMutation({
+    mutationKey: ["like"],
     mutationFn: async ({ contentId, isLiked }: { contentId: string; isLiked: boolean }) => {
+      const rateCheck = checkRateLimit('like');
+      if (!rateCheck.allowed) {
+        throw new Error('Prea multe acțiuni. Încearcă din nou.');
+      }
       if (!session) throw new Error("Not authenticated");
 
       if (isLiked) {
@@ -252,19 +262,25 @@ export default function FeedScreen() {
     },
     onMutate: async ({ contentId, isLiked }) => {
       await queryClient.cancelQueries({ queryKey: ["feed"] });
-      const previousFeed = queryClient.getQueryData<ContentWithAuthor[]>(["feed"]);
+      const previousFeed = queryClient.getQueryData<InfiniteData<ContentWithAuthor[]>>(["feed"]);
 
-      queryClient.setQueryData<ContentWithAuthor[]>(["feed"], (old) =>
-        old?.map((item) =>
-          item.id === contentId
-            ? {
-                ...item,
-                is_liked: !isLiked,
-                likes_count: item.likes_count + (isLiked ? -1 : 1),
-              }
-            : item
-        )
-      );
+      queryClient.setQueryData<InfiniteData<ContentWithAuthor[]>>(["feed"], (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page) =>
+            page.map((item) =>
+              item.id === contentId
+                ? {
+                    ...item,
+                    is_liked: !isLiked,
+                    likes_count: item.likes_count + (isLiked ? -1 : 1),
+                  }
+                : item
+            )
+          ),
+        };
+      });
 
       return { previousFeed };
     },
@@ -273,102 +289,147 @@ export default function FeedScreen() {
         queryClient.setQueryData(["feed"], context.previousFeed);
       }
     },
+    onSettled: (_data, _error, variables) => {
+      pendingLikeIds.current.delete(variables.contentId);
+    },
   });
 
-  const quickActions = [
-    { id: "courses", label: "Cursuri", icon: "school-outline" as const, variant: "outline" as const },
-    { id: "shop", label: "Shop", icon: "bag-outline" as const, variant: "outline" as const },
-    { id: "live", label: "Lives", icon: "radio-outline" as const, variant: "outline" as const },
-  ];
-
-  const handleQuickAction = (action: { id: string }) => {
-    switch (action.id) {
-      case "courses":
-        router.push("/(tabs)/courses");
-        break;
-      case "shop":
-        router.push("/(tabs)/shop");
-        break;
-      case "live":
-        if (profile?.role === "creator" || profile?.role === "admin") {
-          router.push("/go-live");
-        }
-        break;
-    }
-  };
+  const [commentsItem, setCommentsItem] = useState<ContentWithAuthor | null>(null);
 
   const handleLike = (contentId: string, isLiked: boolean) => {
+    // Skip if a mutation is already in-flight for this content
+    if (pendingLikeIds.current.has(contentId)) return;
+    pendingLikeIds.current.add(contentId);
     likeMutation.mutate({ contentId, isLiked });
   };
 
   const handleComment = (contentId: string) => {
-    // TODO: Open comments modal
-    console.log("Open comments for:", contentId);
+    const item = feedItems?.find((i) => i.id === contentId);
+    if (item) setCommentsItem(item);
   };
 
   // Header Component
   const ListHeader = () => (
     <View>
-      {/* Stories Row - 82px */}
-      <StoriesRow
-        stories={stories || []}
-        onAddStory={() => {
-          // TODO: Add story
-        }}
-        onStoryPress={(story) => {
-          // TODO: View story
-        }}
-      />
+      {/* Stories Row */}
+      <Animated.View entering={FadeInLeft.duration(400).delay(80)}>
+        <StoriesRow
+          stories={displayStories}
+          onAddStory={() => {
+            // TODO: Add story
+          }}
+          onStoryPress={(story) => {
+            // TODO: View story
+          }}
+        />
+      </Animated.View>
 
-      {/* Booking Hero Card - prominent CTA with map */}
-      <BookingHeroCard
-        barbers={barbers || []}
-        onBookPress={() => router.push("/book-appointment" as any)}
-      />
+      {/* Live Section */}
+      <Animated.View entering={FadeInDown.duration(450).delay(500)}>
+        <LiveSection lives={displayLives} onSeeAll={() => {}} />
+      </Animated.View>
 
-      {/* Quick Actions - 44px */}
-      <QuickActions actions={quickActions} onActionPress={handleQuickAction} />
-
-      {/* Live Section - always visible */}
-      <LiveSection lives={displayLives} onSeeAll={() => {}} />
-
-      {/* All Feeds Header - 16px */}
-      <View className="flex-row items-center justify-between px-4 py-3 bg-white">
+      {/* All Feeds Header */}
+      <Animated.View
+        entering={FadeInDown.duration(400).delay(650)}
+        className="flex-row items-center justify-between px-4 py-3"
+        style={{ backgroundColor: "#F0F4F8" }}
+      >
         <Text className="text-dark-700 text-lg font-bold">All Feeds</Text>
         <Pressable className="flex-row items-center">
           <Ionicons name="options-outline" size={20} color="#64748b" />
         </Pressable>
-      </View>
+      </Animated.View>
     </View>
   );
 
   if (isLoading) {
     return (
-      <View className="flex-1 bg-white items-center justify-center">
+      <View className="flex-1 items-center justify-center" style={{ backgroundColor: "#F0F4F8" }}>
         <ActivityIndicator size="large" color="#0a66c2" />
       </View>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-dark-200" edges={["top"]}>
-      {/* Header Bar - 45px */}
-      <View className="h-[50px] flex-row items-center justify-between px-4 border-b border-dark-300 bg-white">
-        <Image
-          source={require("@/assets/image-removebg-preview.png")}
-          style={{ width: 100, height: 36 }}
-          resizeMode="contain"
-        />
-        <View className="flex-row items-center gap-4">
-          <Pressable className="relative">
-            <Ionicons name="search-outline" size={24} color="#64748b" />
-          </Pressable>
-          <Pressable className="relative">
-            <Ionicons name="notifications-outline" size={24} color="#64748b" />
-            <View className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500" />
-          </Pressable>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: "#F0F4F8" }} edges={["top"]}>
+      {/* Header Bar */}
+      <Animated.View entering={FadeInDown.duration(350)}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingHorizontal: 20,
+            paddingVertical: 12,
+            backgroundColor: "#F0F4F8",
+          }}
+        >
+          <Image
+            source={require("@/assets/logo-text.png")}
+            style={{ width: 100, height: 32 }}
+            resizeMode="contain"
+          />
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <Pressable
+              style={{
+                width: 40,
+                height: 40,
+                borderTopLeftRadius: 18,
+                borderTopRightRadius: 8,
+                borderBottomRightRadius: 18,
+                borderBottomLeftRadius: 18,
+                backgroundColor: "rgba(255,255,255,0.65)",
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.9)",
+                borderBottomWidth: 1.5,
+                borderBottomColor: "rgba(10,102,194,0.18)",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Feather name="search" size={20} color="#191919" />
+            </Pressable>
+            <Pressable
+              style={{
+                width: 40,
+                height: 40,
+                borderTopLeftRadius: 18,
+                borderTopRightRadius: 8,
+                borderBottomRightRadius: 18,
+                borderBottomLeftRadius: 18,
+                backgroundColor: "rgba(255,255,255,0.65)",
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.9)",
+                borderBottomWidth: 1.5,
+                borderBottomColor: "rgba(10,102,194,0.18)",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Feather name="bell" size={20} color="#191919" />
+              <View
+                style={{
+                  position: "absolute",
+                  top: 4,
+                  right: 2,
+                  minWidth: 18,
+                  height: 18,
+                  borderRadius: 9,
+                  backgroundColor: "#0A66C2",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  paddingHorizontal: 4,
+                  borderWidth: 2,
+                  borderColor: "#fff",
+                }}
+              >
+                <Text style={{ color: "#fff", fontSize: 9, fontWeight: "800" }}>3</Text>
+              </View>
+            </Pressable>
+          </View>
         </View>
-      </View>
+      </Animated.View>
 
       {/* Feed Content */}
       <FlatList
@@ -380,8 +441,10 @@ export default function FeedScreen() {
             item={item}
             onLike={() => handleLike(item.id, item.is_liked || false)}
             onComment={() => handleComment(item.id)}
+            onShare={() => {}}
             isFollowing={followingIds?.has(item.author_id) || false}
             onFollow={handleFollow}
+            isLikePending={likeMutation.isPending}
           />
         )}
         refreshControl={
@@ -391,19 +454,39 @@ export default function FeedScreen() {
             tintColor="#0a66c2"
           />
         }
-        contentContainerStyle={{ paddingBottom: 20 }}
+        onEndReached={() => {
+          if (hasNextPage && !isFetchingNextPage) {
+            fetchNextPage();
+          }
+        }}
+        onEndReachedThreshold={0.5}
+        contentContainerStyle={{ paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
+        ListFooterComponent={
+          isFetchingNextPage ? (
+            <View style={{ paddingVertical: 20, alignItems: "center" }}>
+              <ActivityIndicator size="small" color="#0a66c2" />
+            </View>
+          ) : null
+        }
         ListEmptyComponent={
           <View className="items-center justify-center py-12 px-6 bg-white rounded-xl mx-4">
             <Ionicons name="newspaper-outline" size={64} color="#64748b" />
             <Text className="text-dark-700 text-xl font-bold mt-4 text-center">
-              Niciun conținut încă
+              Niciun conținut incă
             </Text>
             <Text className="text-dark-500 text-center mt-2">
               Urmărește creatori pentru a vedea postările lor aici
             </Text>
           </View>
         }
+      />
+
+      {/* Comments Modal */}
+      <CommentsModal
+        visible={!!commentsItem}
+        item={commentsItem}
+        onClose={() => setCommentsItem(null)}
       />
     </SafeAreaView>
   );

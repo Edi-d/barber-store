@@ -57,6 +57,8 @@ export interface Database {
           media_url: string | null;
           thumb_url: string | null;
           status: ContentStatus;
+          likes_count: number;
+          comments_count: number;
           created_at: string;
         };
         Insert: {
@@ -67,6 +69,8 @@ export interface Database {
           media_url?: string | null;
           thumb_url?: string | null;
           status?: ContentStatus;
+          likes_count?: number;
+          comments_count?: number;
           created_at?: string;
         };
         Update: {
@@ -77,6 +81,8 @@ export interface Database {
           media_url?: string | null;
           thumb_url?: string | null;
           status?: ContentStatus;
+          likes_count?: number;
+          comments_count?: number;
           created_at?: string;
         };
       };
@@ -103,21 +109,30 @@ export interface Database {
           content_id: string;
           user_id: string;
           text: string;
+          parent_id: string | null;
+          is_edited: boolean;
           created_at: string;
+          updated_at: string | null;
         };
         Insert: {
           id?: string;
           content_id: string;
           user_id: string;
           text: string;
+          parent_id?: string | null;
+          is_edited?: boolean;
           created_at?: string;
+          updated_at?: string | null;
         };
         Update: {
           id?: string;
           content_id?: string;
           user_id?: string;
           text?: string;
+          parent_id?: string | null;
+          is_edited?: boolean;
           created_at?: string;
+          updated_at?: string | null;
         };
       };
       lives: {
@@ -513,7 +528,33 @@ export type OrderWithItems = Order & {
   })[];
 };
 
-// Appointments types
+// ── Salon & Appointments types ──
+
+export type SalonType = 'barbershop' | 'coafor';
+
+export interface Salon {
+  id: string;
+  owner_id: string | null;
+  name: string;
+  address: string | null;
+  city: string | null;
+  phone: string | null;
+  avatar_url: string | null;
+  cover_url: string | null;
+  bio: string | null;
+  specialties: string[] | null;
+  latitude: number | null;
+  longitude: number | null;
+  rating_avg: number | null;
+  reviews_count: number | null;
+  avg_price_cents: number | null;
+  is_promoted: boolean;
+  amenities: string[] | null;
+  salon_type: SalonType;
+  active: boolean;
+  created_at: string;
+}
+
 export interface BarberService {
   id: string;
   name: string;
@@ -521,6 +562,7 @@ export interface BarberService {
   duration_min: number;
   price_cents: number;
   currency: string;
+  category: string | null;
   active: boolean;
   created_at: string;
 }
@@ -528,12 +570,23 @@ export interface BarberService {
 export interface Barber {
   id: string;
   profile_id: string | null;
+  salon_id: string | null;
+  role: string;
   name: string;
   avatar_url: string | null;
   bio: string | null;
   specialties: string[] | null;
   address: string | null;
   city: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  rating_avg: number | null;
+  reviews_count: number | null;
+  cover_url: string | null;
+  phone: string | null;
+  avg_price_cents: number | null;
+  is_promoted: boolean;
+  amenities: string[] | null;
   active: boolean;
   created_at: string;
 }
@@ -574,6 +627,52 @@ export interface Follow {
   created_at: string;
 }
 
+export type CommentWithAuthor = Comment & {
+  author: Profile;
+};
+
+export type CommentWithReplies = CommentWithAuthor & {
+  replies?: CommentWithAuthor[];
+};
+
 export type LiveWithHost = Live & {
   host: Profile;
+};
+
+export interface SalonReview {
+  id: string;
+  user_id: string;
+  salon_id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+}
+
+export interface SalonFavorite {
+  user_id: string;
+  salon_id: string;
+  created_at: string;
+}
+
+export interface SalonHappyHour {
+  id: string;
+  salon_id: string;
+  discount_percent: number;
+  starts_at: string;
+  ends_at: string;
+  active: boolean;
+  created_at: string;
+}
+
+export interface SalonPhoto {
+  id: string;
+  salon_id: string;
+  photo_url: string;
+  caption: string | null;
+  sort_order: number;
+  created_at: string;
+}
+
+export type SalonReviewWithAuthor = SalonReview & {
+  profile: Pick<Profile, 'username' | 'display_name' | 'avatar_url'>;
 };

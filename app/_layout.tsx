@@ -17,9 +17,14 @@ import Animated, {
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { useAuthStore } from "@/stores/authStore";
-import { registerGlobals } from "@livekit/react-native";
 
-registerGlobals();
+// LiveKit requires native modules — only available in dev/prod builds, not Expo Go
+try {
+  const { registerGlobals } = require("@livekit/react-native");
+  registerGlobals();
+} catch {
+  // Expo Go: native modules not linked, live streaming unavailable
+}
 
 SplashScreen.preventAutoHideAsync();
 

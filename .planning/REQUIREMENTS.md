@@ -26,7 +26,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Live Streaming
 
-- [ ] **LIVE-01**: Barberii pot starta un live broadcast video+audio (LiveKit integration)
+- [x] **LIVE-01**: Barberii pot starta un live broadcast video+audio (LiveKit integration)
 - [x] **LIVE-02**: Clienții pot viziona live stream-uri în timp real cu video player
 - [x] **LIVE-03**: Viewer count se actualizează realtime via Supabase Presence
 - [x] **LIVE-04**: Text chat în timpul live-ului via Supabase Broadcast (ephemeral, fără persistare)
@@ -36,10 +36,10 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Barber App (tapzi-barber)
 
-- [ ] **BARBER-01**: Go-live screen — barberul configurează titlu, cover, vizibilitate și pornește broadcast video+audio
-- [ ] **BARBER-02**: Live broadcast screen cu camera preview, controls (mute, flip camera), viewer count, end stream
-- [ ] **BARBER-03**: LiveKit publisher integration — barberul publică video+audio tracks
-- [ ] **BARBER-04**: Expo dev build pe tapzi-barber cu LiveKit native modules
+- [x] **BARBER-01**: Go-live screen — barberul configurează titlu, cover, vizibilitate și pornește broadcast video+audio
+- [x] **BARBER-02**: Live broadcast screen cu camera preview, controls (mute, flip camera), viewer count, end stream
+- [x] **BARBER-03**: LiveKit publisher integration — barberul publică video+audio tracks
+- [x] **BARBER-04**: Expo dev build pe tapzi-barber cu LiveKit native modules
 - [x] **BARBER-05**: Story creation — barberul poate posta photo/video stories din tapzi-barber
 
 ### Infrastructure
@@ -99,17 +99,17 @@ Deferred to future milestone. Tracked but not in current roadmap.
 | STORY-05 | Phase 3 | Complete |
 | STORY-06 | Phase 3 | Pending |
 | STORY-07 | Phase 3 | Complete |
-| LIVE-01 | Phase 4 | Pending |
+| LIVE-01 | Phase 4 | Complete |
 | LIVE-02 | Phase 4 | Complete |
 | LIVE-03 | Phase 4 | Complete |
 | LIVE-04 | Phase 4 | Complete |
 | LIVE-05 | Phase 4 | Pending |
 | LIVE-06 | Phase 4 | Complete |
 | LIVE-07 | Phase 4 | Complete |
-| BARBER-01 | Phase 4 | Pending |
-| BARBER-02 | Phase 4 | Pending |
-| BARBER-03 | Phase 4 | Pending |
-| BARBER-04 | Phase 4 | Pending |
+| BARBER-01 | Phase 4 | Complete |
+| BARBER-02 | Phase 4 | Complete |
+| BARBER-03 | Phase 4 | Complete |
+| BARBER-04 | Phase 4 | Complete |
 | BARBER-05 | Phase 3 | Complete |
 | INFRA-01 | Phase 1 | Complete |
 | INFRA-02 | Phase 1 | Complete |

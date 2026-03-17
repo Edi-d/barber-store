@@ -66,7 +66,7 @@ Plans:
 Plans:
 - [x] 03-01-PLAN.md — Database schema extension (storage_path column) and pg_cron expiry cleanup job
 - [x] 03-02-PLAN.md — Story creation on tapzi-barber: photo + video with TUS resumable upload
-- [ ] 03-03-PLAN.md — Full-screen stories viewer on barber-store with Reanimated progress bar, gestures, video
+- [x] 03-03-PLAN.md — Full-screen stories viewer on barber-store with Reanimated progress bar, gestures, video
 - [ ] 03-04-PLAN.md — Stories row wired to real data with seen/unseen ring state and viewer integration
 
 ### Phase 4: Live Streaming
@@ -82,9 +82,9 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — LiveKit token Edge Function + lib/livekit.ts helper + registerGlobals + DB type alignment
-- [ ] 04-02-PLAN.md — Barber broadcast screen in tapzi-barber with camera preview, mute, flip, end
-- [ ] 04-03-PLAN.md — Client viewer screen with full-screen video, chat overlay, viewer count badge
+- [x] 04-01-PLAN.md — LiveKit token Edge Function + lib/livekit.ts helper + registerGlobals + DB type alignment
+- [x] 04-02-PLAN.md — Barber broadcast screen in tapzi-barber with camera preview, mute, flip, end
+- [x] 04-03-PLAN.md — Client viewer screen with full-screen video, chat overlay, viewer count badge
 - [ ] 04-04-PLAN.md — Live discovery wiring: LiveSection + useRealtimeLives hook on home screen
 
 ## Progress

@@ -118,12 +118,42 @@ ALL implementation work MUST use volt specialized subagents (voltagent-core-dev)
 
 </code_context>
 
+<cross_team>
+## Cross-Team Coordination: tapzi-barber
+
+### Shared Roadmap
+Tapzi-barber has roadmap at `~/Desktop/tapzi-barber/.planning/ROADMAP-SOCIAL.md`. Phase 2 is **client-only** — tapzi-barber team has no work in this phase.
+
+### Shared Database
+Both apps use the same Supabase instance. Migrations synced from tapzi-barber (renumbered 026-032) plus received migrations (renumbered 033-034):
+
+| # | Name | Relevant to Phase 2 |
+|---|------|---------------------|
+| 027 | social_completion | YES — creates notifications table with auto-triggers on likes/comments/follows. These triggers may generate realtime events. Also creates stories, bookmarks, blocks, reports tables. |
+| 028 | social_seed_data | YES — seed data for testing realtime (likes, comments, follows) |
+| 033 | lives_table | No — Phase 4 |
+| 034 | stories_video_support | No — Phase 3 |
+
+### Key DB Tables for Realtime (from migrations)
+- `content` — posts, likes_count/comments_count denormalized. Realtime UPDATE events on count changes.
+- `likes` — (user_id, content_id). Realtime INSERT/DELETE for is_liked state.
+- `comments` — (content_id, user_id, text, parent_id). Realtime INSERT for comment count.
+- `notifications` — auto-created by triggers on like/comment/follow (from migration 027). NOT subscribed in Phase 2 — future work.
+- `profiles` — followers_count/following_count updated by triggers (from migration 027).
+
+### Migration 033 Schema Conflict Note
+`lives` table exists from 001 with `host_id`. Migration 033 uses `CREATE TABLE IF NOT EXISTS` with `author_id` — won't overwrite existing schema. Current go-live.tsx uses `host_id`. This will need resolution in Phase 4.
+
+</cross_team>
+
 <specifics>
 ## Specific Ideas
 
-- Colegii de la tapzi-barber au pregatit migratiile 026-034 (social tables, lives, stories) dar nu au implementat inca Supabase Realtime — deci Phase 2 e greenfield
-- Baza de date e comuna intre barber-store si tapzi-barber — realtime events de la un app sunt vizibile in celalalt
-- Success criteria cer < 2 secunde latenta pe like count update
+- Tapzi-barber team has NO realtime code either — Phase 2 is greenfield for the entire project
+- DB is shared: realtime events from tapzi-barber (when barbers post/like) will be visible in barber-store feed
+- Success criteria require < 2 seconds latency on like count updates
+- Migration 027 (social_completion) includes notification triggers that fire on likes/comments — these won't interfere with realtime subscriptions but are worth knowing about
+- Seed data from migration 028 provides test content for verifying realtime works
 
 </specifics>
 
@@ -134,6 +164,7 @@ ALL implementation work MUST use volt specialized subagents (voltagent-core-dev)
 - Realtime for live viewer count (Supabase Presence) — Phase 4
 - Live chat via Supabase Broadcast — Phase 4
 - Push notifications for new posts — v2 milestone
+- Notification subscription (notifications table from migration 027) — future phase
 
 </deferred>
 

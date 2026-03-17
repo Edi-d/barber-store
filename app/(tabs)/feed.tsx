@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { View, FlatList, RefreshControl, Text, Pressable, ActivityIndicator, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useQuery, useInfiniteQuery, useMutation, useQueryClient, InfiniteData } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient, useQuery, InfiniteData } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { useAuthStore } from "@/stores/authStore";
@@ -12,6 +12,8 @@ import { NewPostsBanner } from "@/components/feed/NewPostsBanner";
 import { useRealtimeFeed } from "@/hooks/useRealtimeFeed";
 import { useRealtimeLikes } from "@/hooks/useRealtimeLikes";
 import { useRealtimeComments } from "@/hooks/useRealtimeComments";
+import { useStories, useMarkStoryViewed } from "@/hooks/useStories";
+import { StoryViewer } from "@/components/stories/StoryViewer";
 import { ContentWithAuthor, LiveWithHost } from "@/types/database";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { CommentsModal } from "@/components/feed/CommentsModal";
@@ -33,38 +35,11 @@ export default function FeedScreen() {
     flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
   }, [showNewPosts]);
 
-  // Fetch stories (recent creators)
-  const { data: stories } = useQuery({
-    queryKey: ["stories"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .in("role", ["creator", "admin"])
-        .limit(10);
-
-      if (error) throw error;
-      return data.map((p) => ({
-        id: p.id,
-        username: p.display_name || p.username,
-        avatar_url: p.avatar_url,
-        hasStory: true,
-      }));
-    },
-  });
-
-  // Placeholder stories for when no creators exist in DB
-  const placeholderStories = [
-    { id: "ps-1", username: "Alex P.", avatar_url: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200", hasStory: true },
-    { id: "ps-2", username: "Mihai I.", avatar_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200", hasStory: true },
-    { id: "ps-3", username: "Cristi B.", avatar_url: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200", hasStory: true },
-    { id: "ps-4", username: "Andrei M.", avatar_url: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200", hasStory: true },
-    { id: "ps-5", username: "Razvan D.", avatar_url: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=200", hasStory: true },
-    { id: "ps-6", username: "Stefan V.", avatar_url: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=200", hasStory: true },
-    { id: "ps-7", username: "Dan C.", avatar_url: "https://images.unsplash.com/photo-1534030347209-467a5b0ad3e6?w=200", hasStory: true },
-  ];
-
-  const displayStories = (stories && stories.length > 0) ? stories : placeholderStories;
+  // Stories via real Supabase data with seen/unseen state
+  const { data: storyGroups = [] } = useStories();
+  const markViewed = useMarkStoryViewed();
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerStartIndex, setViewerStartIndex] = useState(0);
 
   // Placeholder lives for when no active lives exist
   const placeholderLives: LiveWithHost[] = [
@@ -323,12 +298,10 @@ export default function FeedScreen() {
       {/* Stories Row */}
       <Animated.View entering={FadeInLeft.duration(400).delay(80)}>
         <StoriesRow
-          stories={displayStories}
-          onAddStory={() => {
-            // TODO: Add story
-          }}
-          onStoryPress={(story) => {
-            // TODO: View story
+          groups={storyGroups}
+          onGroupPress={(group, index) => {
+            setViewerStartIndex(index);
+            setViewerVisible(true);
           }}
         />
       </Animated.View>
@@ -500,6 +473,15 @@ export default function FeedScreen() {
         visible={!!commentsItem}
         item={commentsItem}
         onClose={() => setCommentsItem(null)}
+      />
+
+      {/* Story Viewer */}
+      <StoryViewer
+        visible={viewerVisible}
+        groups={storyGroups}
+        initialGroupIndex={viewerStartIndex}
+        onClose={() => setViewerVisible(false)}
+        onStoryViewed={(storyId) => markViewed.mutate(storyId)}
       />
     </SafeAreaView>
   );

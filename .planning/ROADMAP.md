@@ -12,7 +12,7 @@ This milestone connects real infrastructure to the existing UI shells in both ba
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Infrastructure Setup** - Activate Supabase Pro, LiveKit Cloud, and EAS dev build pipeline before any feature work starts
+- [x] **Phase 1: Infrastructure Setup** - Activate Supabase Pro, LiveKit Cloud, and EAS dev build pipeline before any feature work starts
 - [ ] **Phase 2: Realtime Feed** - Wire Supabase Realtime to the existing feed so likes, comments, and new posts appear instantly without refresh
 - [ ] **Phase 3: Stories** - Build the full stories pillar — creation, viewer with progress bar, 24h expiry, seen/unseen rings — on both apps
 - [ ] **Phase 4: Live Streaming** - Integrate LiveKit so barbers can broadcast and clients can watch with live chat and real viewer counts
@@ -31,9 +31,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Supabase Pro upgrade and Realtime validation
-- [ ] 01-02-PLAN.md — LiveKit Cloud account setup and credential storage
-- [ ] 01-03-PLAN.md — EAS dev build configuration for both apps
+- [x] 01-01-PLAN.md — Supabase Pro upgrade and Realtime validation
+- [x] 01-02-PLAN.md — LiveKit Cloud account setup and credential storage
+- [x] 01-03-PLAN.md — EAS dev build configuration for both apps (EAS build skipped; packages/plugins installed)
 
 ### Phase 2: Realtime Feed
 **Goal**: Clients see a live feed — new posts, like counts, and comment counts update automatically so the home screen feels alive without any manual refresh
@@ -44,12 +44,12 @@ Plans:
   2. When a new post is published, a "N new posts — tap to see" banner appears on the feed screen
   3. After signing out, no Realtime subscription activity appears in Supabase logs for the signed-out session
   4. A global subscription registry in `lib/realtime.ts` manages all channels, and `signOut()` calls cleanup on every open channel
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 02-01: Realtime infrastructure — `lib/realtime.ts` channel factory and subscription registry with logout cleanup
-- [ ] 02-02: Feed realtime hooks — `useRealtimeFeed`, `useRealtimeLikes`, `useRealtimeComments` wired to React Query cache
-- [ ] 02-03: New posts banner — "N new posts" banner UI on feed screen
+- [ ] 02-01-PLAN.md — Realtime infrastructure: channel registry, signOut cleanup, publication migration
+- [ ] 02-02-PLAN.md — Feed realtime hooks: useRealtimeFeed, useRealtimeLikes, useRealtimeComments wired to React Query cache
+- [ ] 02-03-PLAN.md — New posts banner: animated "N new posts" banner UI on feed screen
 
 ### Phase 3: Stories
 **Goal**: Barbers can post photo and video stories that clients can tap through with a progress bar, expire after 24 hours, and show an unseen ring on the avatar
@@ -79,13 +79,13 @@ Plans:
   3. The viewer count badge updates in real time as clients join and leave (Supabase Presence)
   4. A client can type a message in the live chat overlay and it appears for all other viewers immediately (Supabase Broadcast)
   5. The LiveSection on home shows only currently active live streams from the database, not hardcoded placeholder data
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 04-01: LiveKit token generation — `token-livekit` Supabase Edge Function + `lib/livekit.ts` connection helper
-- [ ] 04-02: Barber broadcast screen — go-live setup + live broadcast screen with camera preview, mute, flip, end (BARBER-01, BARBER-02, BARBER-03)
-- [ ] 04-03: Client viewer screen — `app/live/[id].tsx` full-screen viewer with VideoView, chat overlay, viewer count badge
-- [ ] 04-04: Live discovery wiring — LiveSection and live card data sourced from real DB rows + `useRealtimeLives` hook
+- [ ] 04-01-PLAN.md — LiveKit token Edge Function + lib/livekit.ts helper + registerGlobals + DB type alignment
+- [ ] 04-02-PLAN.md — Barber broadcast screen in tapzi-barber with camera preview, mute, flip, end
+- [ ] 04-03-PLAN.md — Client viewer screen with full-screen video, chat overlay, viewer count badge
+- [ ] 04-04-PLAN.md — Live discovery wiring: LiveSection + useRealtimeLives hook on home screen
 
 ## Progress
 
@@ -94,7 +94,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Infrastructure Setup | 1/3 | In Progress|  |
+| 1. Infrastructure Setup | 3/3 | Complete | 2026-03-17 |
 | 2. Realtime Feed | 0/3 | Not started | - |
 | 3. Stories | 0/4 | Not started | - |
 | 4. Live Streaming | 0/4 | Not started | - |

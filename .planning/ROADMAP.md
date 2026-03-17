@@ -61,13 +61,13 @@ Plans:
   3. Stories posted more than 24 hours ago do not appear in the stories row and are removed from storage by the hourly cron job
   4. An avatar with an unseen story shows a colored ring; after the client views it the ring disappears
   5. A 30-second video story uploads successfully on a mobile connection without hanging (TUS resumable upload + compression active)
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 03-01: Database and storage setup — `stories` table, Storage bucket, RLS policies, `expire-stories` Edge Function + pg_cron
-- [ ] 03-02: Story creation flows — photo and video capture on tapzi-barber (BARBER-05) with TUS upload and compression
-- [ ] 03-03: Stories viewer — full-screen Reanimated progress bar viewer on barber-store with tap, swipe, hold-to-pause
-- [ ] 03-04: Stories row and seen state — wire `StoriesRow.tsx` to real data, seen/unseen ring via `story_views` table
+- [ ] 03-01-PLAN.md — Database schema extension (storage_path column) and pg_cron expiry cleanup job
+- [ ] 03-02-PLAN.md — Story creation on tapzi-barber: photo + video with TUS resumable upload
+- [ ] 03-03-PLAN.md — Full-screen stories viewer on barber-store with Reanimated progress bar, gestures, video
+- [ ] 03-04-PLAN.md — Stories row wired to real data with seen/unseen ring state and viewer integration
 
 ### Phase 4: Live Streaming
 **Goal**: Barbers can go live with video and audio from tapzi-barber, and clients can watch the stream in real time with live chat and a viewer count that updates as people join and leave

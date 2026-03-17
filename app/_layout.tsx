@@ -17,13 +17,11 @@ import Animated, {
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { useAuthStore } from "@/stores/authStore";
+import Constants from "expo-constants";
 
-// LiveKit requires native modules — only available in dev/prod builds, not Expo Go
-try {
-  const { registerGlobals } = require("@livekit/react-native");
-  registerGlobals();
-} catch {
-  // Expo Go: native modules not linked, live streaming unavailable
+// LiveKit requires native modules — skip entirely in Expo Go
+if (Constants.appOwnership !== "expo") {
+  require("@livekit/react-native").registerGlobals();
 }
 
 SplashScreen.preventAutoHideAsync();

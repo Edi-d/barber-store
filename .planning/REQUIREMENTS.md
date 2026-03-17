@@ -21,7 +21,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [x] **STORY-03**: Clienții pot vizualiza stories cu progress bar, tap next/back, hold to pause
 - [x] **STORY-04**: Stories se grupează per creator cu swipe între creators
 - [x] **STORY-05**: Stories expiră automat după 24h (query filter + pg_cron cleanup + storage cleanup)
-- [ ] **STORY-06**: Ring colorat pe avatar indică story nevăzut (blue) vs văzut (none) via story_views table
+- [x] **STORY-06**: Ring colorat pe avatar indică story nevăzut (blue) vs văzut (none) via story_views table
 - [x] **STORY-07**: Video stories sunt comprimate înainte de upload (reduce bandwidth)
 
 ### Live Streaming
@@ -97,7 +97,7 @@ Deferred to future milestone. Tracked but not in current roadmap.
 | STORY-03 | Phase 3 | Complete |
 | STORY-04 | Phase 3 | Complete |
 | STORY-05 | Phase 3 | Complete |
-| STORY-06 | Phase 3 | Pending |
+| STORY-06 | Phase 3 | Complete |
 | STORY-07 | Phase 3 | Complete |
 | LIVE-01 | Phase 4 | Complete |
 | LIVE-02 | Phase 4 | Complete |

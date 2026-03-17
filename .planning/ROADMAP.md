@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Infrastructure Setup** - Activate Supabase Pro, LiveKit Cloud, and EAS dev build pipeline before any feature work starts
 - [ ] **Phase 2: Realtime Feed** - Wire Supabase Realtime to the existing feed so likes, comments, and new posts appear instantly without refresh
-- [ ] **Phase 3: Stories** - Build the full stories pillar — creation, viewer with progress bar, 24h expiry, seen/unseen rings — on both apps
+- [x] **Phase 3: Stories** - Build the full stories pillar — creation, viewer with progress bar, 24h expiry, seen/unseen rings — on both apps (completed 2026-03-17)
 - [ ] **Phase 4: Live Streaming** - Integrate LiveKit so barbers can broadcast and clients can watch with live chat and real viewer counts
 
 ## Phase Details
@@ -96,5 +96,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Infrastructure Setup | 3/3 | Complete | 2026-03-17 |
 | 2. Realtime Feed | 1/3 | In progress | - |
-| 3. Stories | 3/4 | In Progress |  |
+| 3. Stories | 4/4 | Complete   | 2026-03-17 |
 | 4. Live Streaming | 3/4 | In Progress|  |

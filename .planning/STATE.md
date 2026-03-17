@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 04-02-PLAN.md
-last_updated: "2026-03-17T19:59:01.044Z"
+stopped_at: Completed 03-04-PLAN.md (awaiting human verify checkpoint)
+last_updated: "2026-03-17T20:00:45.919Z"
 last_activity: 2026-03-17 — Completed 04-02 + 04-03 (Barber broadcast + Client viewer)
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 14
-  completed_plans: 11
+  completed_plans: 12
   percent: 93
 ---
 
@@ -58,6 +58,7 @@ Progress: [█████████░] 93% (13/14 plans)
 | 4. Live Streaming | 3/4 | 12min | 4min |
 | Phase 04-live-streaming P03 | 3 | 2 tasks | 4 files |
 | Phase 04-live-streaming P02 | 5 | 2 tasks | 6 files |
+| Phase 03-stories P04 | 2 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -88,6 +89,7 @@ Recent decisions affecting current work:
 - [Phase 02-02]: 100ms debounce for UPDATE events to batch rapid-fire likes on viral posts
 - [Phase 02-02]: showNewPosts uses invalidateQueries instead of manual prepend -- INSERT payload lacks joined author data
 - [Phase 04-02]: Camera flip uses restartTrack({facingMode}) not switchActiveDevice (iOS crash bug #218)
+- [Phase 03-stories]: queryKey ['stories', userId] namespaced by user for per-user seen state cache
 
 ### Pending Todos
 
@@ -101,6 +103,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-17T19:59:01.042Z
-Stopped at: Completed 04-02-PLAN.md
+Last session: 2026-03-17T20:00:45.917Z
+Stopped at: Completed 03-04-PLAN.md (awaiting human verify checkpoint)
 Resume file: None

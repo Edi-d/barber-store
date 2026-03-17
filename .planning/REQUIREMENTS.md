@@ -88,38 +88,38 @@ Deferred to future milestone. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| RT-01 | TBD | Pending |
-| RT-02 | TBD | Pending |
-| RT-03 | TBD | Pending |
-| RT-04 | TBD | Pending |
-| STORY-01 | TBD | Pending |
-| STORY-02 | TBD | Pending |
-| STORY-03 | TBD | Pending |
-| STORY-04 | TBD | Pending |
-| STORY-05 | TBD | Pending |
-| STORY-06 | TBD | Pending |
-| STORY-07 | TBD | Pending |
-| LIVE-01 | TBD | Pending |
-| LIVE-02 | TBD | Pending |
-| LIVE-03 | TBD | Pending |
-| LIVE-04 | TBD | Pending |
-| LIVE-05 | TBD | Pending |
-| LIVE-06 | TBD | Pending |
-| LIVE-07 | TBD | Pending |
-| BARBER-01 | TBD | Pending |
-| BARBER-02 | TBD | Pending |
-| BARBER-03 | TBD | Pending |
-| BARBER-04 | TBD | Pending |
-| BARBER-05 | TBD | Pending |
-| INFRA-01 | TBD | Pending |
-| INFRA-02 | TBD | Pending |
-| INFRA-03 | TBD | Pending |
+| RT-01 | Phase 2 | Pending |
+| RT-02 | Phase 2 | Pending |
+| RT-03 | Phase 2 | Pending |
+| RT-04 | Phase 2 | Pending |
+| STORY-01 | Phase 3 | Pending |
+| STORY-02 | Phase 3 | Pending |
+| STORY-03 | Phase 3 | Pending |
+| STORY-04 | Phase 3 | Pending |
+| STORY-05 | Phase 3 | Pending |
+| STORY-06 | Phase 3 | Pending |
+| STORY-07 | Phase 3 | Pending |
+| LIVE-01 | Phase 4 | Pending |
+| LIVE-02 | Phase 4 | Pending |
+| LIVE-03 | Phase 4 | Pending |
+| LIVE-04 | Phase 4 | Pending |
+| LIVE-05 | Phase 4 | Pending |
+| LIVE-06 | Phase 4 | Pending |
+| LIVE-07 | Phase 4 | Pending |
+| BARBER-01 | Phase 4 | Pending |
+| BARBER-02 | Phase 4 | Pending |
+| BARBER-03 | Phase 4 | Pending |
+| BARBER-04 | Phase 4 | Pending |
+| BARBER-05 | Phase 3 | Pending |
+| INFRA-01 | Phase 1 | Pending |
+| INFRA-02 | Phase 1 | Pending |
+| INFRA-03 | Phase 1 | Pending |
 
 **Coverage:**
 - v1 requirements: 26 total
-- Mapped to phases: 0
-- Unmapped: 26 ⚠️
+- Mapped to phases: 26
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-17*
-*Last updated: 2026-03-17 after initial definition*
+*Last updated: 2026-03-17 — traceability complete after roadmap creation*

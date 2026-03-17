@@ -27,9 +27,9 @@ Requirements for this milestone. Each maps to roadmap phases.
 ### Live Streaming
 
 - [ ] **LIVE-01**: Barberii pot starta un live broadcast video+audio (LiveKit integration)
-- [ ] **LIVE-02**: Clienții pot viziona live stream-uri în timp real cu video player
-- [ ] **LIVE-03**: Viewer count se actualizează realtime via Supabase Presence
-- [ ] **LIVE-04**: Text chat în timpul live-ului via Supabase Broadcast (ephemeral, fără persistare)
+- [x] **LIVE-02**: Clienții pot viziona live stream-uri în timp real cu video player
+- [x] **LIVE-03**: Viewer count se actualizează realtime via Supabase Presence
+- [x] **LIVE-04**: Text chat în timpul live-ului via Supabase Broadcast (ephemeral, fără persistare)
 - [ ] **LIVE-05**: Secțiunea de live-uri pe home se populează cu date reale (nu placeholder)
 - [x] **LIVE-06**: LiveKit token generation via Supabase Edge Function (server-side)
 - [x] **LIVE-07**: Expo dev build configurat cu LiveKit native modules
@@ -100,9 +100,9 @@ Deferred to future milestone. Tracked but not in current roadmap.
 | STORY-06 | Phase 3 | Pending |
 | STORY-07 | Phase 3 | Complete |
 | LIVE-01 | Phase 4 | Pending |
-| LIVE-02 | Phase 4 | Pending |
-| LIVE-03 | Phase 4 | Pending |
-| LIVE-04 | Phase 4 | Pending |
+| LIVE-02 | Phase 4 | Complete |
+| LIVE-03 | Phase 4 | Complete |
+| LIVE-04 | Phase 4 | Complete |
 | LIVE-05 | Phase 4 | Pending |
 | LIVE-06 | Phase 4 | Complete |
 | LIVE-07 | Phase 4 | Complete |

@@ -48,8 +48,8 @@ Plans:
 
 Plans:
 - [x] 02-01-PLAN.md — Realtime infrastructure: channel registry, signOut cleanup, publication migration
-- [ ] 02-02-PLAN.md — Feed realtime hooks: useRealtimeFeed, useRealtimeLikes, useRealtimeComments wired to React Query cache
-- [ ] 02-03-PLAN.md — New posts banner: animated "N new posts" banner UI on feed screen
+- [x] 02-02-PLAN.md — Feed realtime hooks: useRealtimeFeed, useRealtimeLikes, useRealtimeComments wired to React Query cache
+- [x] 02-03-PLAN.md — New posts banner: animated "N new posts" banner UI on feed screen
 
 ### Phase 3: Stories
 **Goal**: Barbers can post photo and video stories that clients can tap through with a progress bar, expire after 24 hours, and show an unseen ring on the avatar
@@ -97,4 +97,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Infrastructure Setup | 3/3 | Complete | 2026-03-17 |
 | 2. Realtime Feed | 1/3 | In progress | - |
 | 3. Stories | 3/4 | In Progress |  |
-| 4. Live Streaming | 0/4 | Not started | - |
+| 4. Live Streaming | 3/4 | In Progress|  |

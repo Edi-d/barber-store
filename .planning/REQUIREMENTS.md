@@ -46,7 +46,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 - [ ] **INFRA-01**: Supabase Pro upgrade activat (prerequisite pentru Realtime)
 - [ ] **INFRA-02**: Expo dev build setup cu EAS pe ambele app-uri (necesar pentru LiveKit native modules)
-- [ ] **INFRA-03**: LiveKit Cloud account setup cu API keys
+- [x] **INFRA-03**: LiveKit Cloud account setup cu API keys
 
 ## v2 Requirements
 
@@ -113,7 +113,7 @@ Deferred to future milestone. Tracked but not in current roadmap.
 | BARBER-05 | Phase 3 | Pending |
 | INFRA-01 | Phase 1 | Pending |
 | INFRA-02 | Phase 1 | Pending |
-| INFRA-03 | Phase 1 | Pending |
+| INFRA-03 | Phase 1 | Complete |
 
 **Coverage:**
 - v1 requirements: 26 total

@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-03-17T19:21:18.944Z"
-last_activity: 2026-03-17 — Completed 03-01 (stories schema extension + pg_cron expiry)
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-03-17T19:21:21.613Z"
+last_activity: 2026-03-17 — Completed 04-01 (LiveKit token infrastructure)
 progress:
   total_phases: 4
   completed_phases: 0
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** Clienții pot urmări barberii lor preferați în timp real — live streams, stories, și un feed social care se actualizează instant.
-**Current focus:** Phase 3 — Stories
+**Current focus:** Phase 4 — Live Streaming
 
 ## Current Position
 
-Phase: 3 of 4 (Stories)
-Plan: 1 of 4 in current phase (03-01 complete)
-Status: Executing Phase 3
-Last activity: 2026-03-17 — Completed 03-01 (stories schema extension + pg_cron expiry)
+Phase: 4 of 4 (Live Streaming)
+Plan: 1 of 4 in current phase (04-01 complete)
+Status: Executing Phase 4
+Last activity: 2026-03-17 — Completed 04-01 (LiveKit token infrastructure)
 
 Progress: [███░░░░░░░] 36% (5/14 plans)
 
@@ -52,7 +52,10 @@ Progress: [███░░░░░░░] 36% (5/14 plans)
 - Trend: -
 
 *Updated after each plan completion*
-| Phase 04-01 P01 | 4min | 2 tasks | 6 files |
+
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| 4. Live Streaming | 1/4 | 4min | 4min |
 
 ## Accumulated Context
 
@@ -71,6 +74,7 @@ Recent decisions affecting current work:
 - [02-01]: cleanupAllChannels calls removeAllChannels as safety net after clearing registry Map
 - [03-01]: storage_path stores relative bucket path, not full URL -- avoids brittle URL parsing in cleanup
 - [03-01]: SECURITY DEFINER on cleanup function to access storage.objects across RLS boundaries
+- [Phase 04-01]: LiveKit token TTL 2h, canPublish defaults false, room_name generated client-side with timestamp+userId
 
 ### Pending Todos
 
@@ -84,6 +88,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-17T19:19:17Z
-Stopped at: Completed 03-01-PLAN.md
-Resume file: .planning/phases/03-stories/03-02-PLAN.md
+Last session: 2026-03-17T19:21:21.611Z
+Stopped at: Completed 04-01-PLAN.md
+Resume file: .planning/phases/04-live-streaming/04-02-PLAN.md

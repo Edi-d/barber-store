@@ -11,8 +11,8 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 - [ ] **RT-01**: Feed-ul se actualizează automat când apar likes/comments noi (fără refresh manual)
 - [ ] **RT-02**: Posturi noi apar ca banner "N posturi noi — apasă pentru a vedea" fără refresh
-- [ ] **RT-03**: Subscription-urile Realtime se curăță corect la logout (fix security gap existent)
-- [ ] **RT-04**: Supabase Realtime subscription registry cu cleanup centralizat
+- [x] **RT-03**: Subscription-urile Realtime se curăță corect la logout (fix security gap existent)
+- [x] **RT-04**: Supabase Realtime subscription registry cu cleanup centralizat
 
 ### Stories
 
@@ -31,8 +31,8 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [ ] **LIVE-03**: Viewer count se actualizează realtime via Supabase Presence
 - [ ] **LIVE-04**: Text chat în timpul live-ului via Supabase Broadcast (ephemeral, fără persistare)
 - [ ] **LIVE-05**: Secțiunea de live-uri pe home se populează cu date reale (nu placeholder)
-- [ ] **LIVE-06**: LiveKit token generation via Supabase Edge Function (server-side)
-- [ ] **LIVE-07**: Expo dev build configurat cu LiveKit native modules
+- [x] **LIVE-06**: LiveKit token generation via Supabase Edge Function (server-side)
+- [x] **LIVE-07**: Expo dev build configurat cu LiveKit native modules
 
 ### Barber App (tapzi-barber)
 
@@ -90,8 +90,8 @@ Deferred to future milestone. Tracked but not in current roadmap.
 |-------------|-------|--------|
 | RT-01 | Phase 2 | Pending |
 | RT-02 | Phase 2 | Pending |
-| RT-03 | Phase 2 | Pending |
-| RT-04 | Phase 2 | Pending |
+| RT-03 | Phase 2 | Complete |
+| RT-04 | Phase 2 | Complete |
 | STORY-01 | Phase 3 | Pending |
 | STORY-02 | Phase 3 | Pending |
 | STORY-03 | Phase 3 | Pending |
@@ -104,8 +104,8 @@ Deferred to future milestone. Tracked but not in current roadmap.
 | LIVE-03 | Phase 4 | Pending |
 | LIVE-04 | Phase 4 | Pending |
 | LIVE-05 | Phase 4 | Pending |
-| LIVE-06 | Phase 4 | Pending |
-| LIVE-07 | Phase 4 | Pending |
+| LIVE-06 | Phase 4 | Complete |
+| LIVE-07 | Phase 4 | Complete |
 | BARBER-01 | Phase 4 | Pending |
 | BARBER-02 | Phase 4 | Pending |
 | BARBER-03 | Phase 4 | Pending |

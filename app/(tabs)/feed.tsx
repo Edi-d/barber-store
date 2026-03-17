@@ -56,37 +56,33 @@ export default function FeedScreen() {
   // Placeholder lives for when no active lives exist
   const placeholderLives: LiveWithHost[] = [
     {
-      id: "placeholder-1", host_id: "", title: "Join me, paint the arts 🎨",
+      id: "placeholder-1", author_id: "", title: "Join me, paint the arts",
       cover_url: "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=600",
-      is_public: true, status: "live", provider: null, ingest_url: null,
-      stream_key: null, playback_url: null, viewers_count: 41600,
+      room_name: "placeholder-1", status: "live", playback_url: null, viewers_count: 41600,
       started_at: new Date(Date.now() - 5 * 60000).toISOString(),
       ended_at: null, created_at: new Date().toISOString(),
       host: { id: "", username: "dianne", display_name: "Dianne", avatar_url: null, bio: null, role: "creator", created_at: "" },
     },
     {
-      id: "placeholder-2", host_id: "", title: "Live Session, Let's learn together 🔥",
+      id: "placeholder-2", author_id: "", title: "Live Session, Let's learn together",
       cover_url: "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=600",
-      is_public: true, status: "live", provider: null, ingest_url: null,
-      stream_key: null, playback_url: null, viewers_count: 21200,
+      room_name: "placeholder-2", status: "live", playback_url: null, viewers_count: 21200,
       started_at: new Date(Date.now() - 6 * 60000).toISOString(),
       ended_at: null, created_at: new Date().toISOString(),
       host: { id: "", username: "robert", display_name: "Robert", avatar_url: null, bio: null, role: "creator", created_at: "" },
     },
     {
-      id: "placeholder-3", host_id: "", title: "Fade Masterclass - Live Demo ✂️",
+      id: "placeholder-3", author_id: "", title: "Fade Masterclass - Live Demo",
       cover_url: "https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=600",
-      is_public: true, status: "live", provider: null, ingest_url: null,
-      stream_key: null, playback_url: null, viewers_count: 15800,
+      room_name: "placeholder-3", status: "live", playback_url: null, viewers_count: 15800,
       started_at: new Date(Date.now() - 12 * 60000).toISOString(),
       ended_at: null, created_at: new Date().toISOString(),
       host: { id: "", username: "alex", display_name: "Alex", avatar_url: null, bio: null, role: "creator", created_at: "" },
     },
     {
-      id: "placeholder-4", host_id: "", title: "Beard Styling Session 💈",
+      id: "placeholder-4", author_id: "", title: "Beard Styling Session",
       cover_url: "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600",
-      is_public: true, status: "live", provider: null, ingest_url: null,
-      stream_key: null, playback_url: null, viewers_count: 8900,
+      room_name: "placeholder-4", status: "live", playback_url: null, viewers_count: 8900,
       started_at: new Date(Date.now() - 18 * 60000).toISOString(),
       ended_at: null, created_at: new Date().toISOString(),
       host: { id: "", username: "cristi", display_name: "Cristi", avatar_url: null, bio: null, role: "creator", created_at: "" },
@@ -99,7 +95,7 @@ export default function FeedScreen() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("lives")
-        .select(`*, host:profiles!host_id(*)`)
+        .select(`*, host:profiles!author_id(*)`)
         .in("status", ["starting", "live"])
         .order("created_at", { ascending: false })
         .limit(6);

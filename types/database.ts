@@ -138,14 +138,11 @@ export interface Database {
       lives: {
         Row: {
           id: string;
-          host_id: string;
+          author_id: string;
           title: string;
           cover_url: string | null;
-          is_public: boolean;
+          room_name: string;
           status: LiveStatus;
-          provider: string | null;
-          ingest_url: string | null;
-          stream_key: string | null;
           playback_url: string | null;
           viewers_count: number;
           started_at: string | null;
@@ -154,14 +151,11 @@ export interface Database {
         };
         Insert: {
           id?: string;
-          host_id: string;
+          author_id: string;
           title: string;
           cover_url?: string | null;
-          is_public?: boolean;
+          room_name: string;
           status?: LiveStatus;
-          provider?: string | null;
-          ingest_url?: string | null;
-          stream_key?: string | null;
           playback_url?: string | null;
           viewers_count?: number;
           started_at?: string | null;
@@ -170,14 +164,11 @@ export interface Database {
         };
         Update: {
           id?: string;
-          host_id?: string;
+          author_id?: string;
           title?: string;
           cover_url?: string | null;
-          is_public?: boolean;
+          room_name?: string;
           status?: LiveStatus;
-          provider?: string | null;
-          ingest_url?: string | null;
-          stream_key?: string | null;
           playback_url?: string | null;
           viewers_count?: number;
           started_at?: string | null;
@@ -645,6 +636,9 @@ export interface SalonReview {
   salon_id: string;
   rating: number;
   comment: string | null;
+  photo_url: string | null;
+  owner_reply: string | null;
+  owner_reply_at: string | null;
   created_at: string;
 }
 

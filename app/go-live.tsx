@@ -19,7 +19,6 @@ export default function GoLiveScreen() {
   const { session, profile } = useAuthStore();
   const queryClient = useQueryClient();
   const [coverImage, setCoverImage] = useState<string | null>(null);
-  const [isPublic, setIsPublic] = useState(true);
 
   const {
     control,
@@ -41,7 +40,7 @@ export default function GoLiveScreen() {
       const { data, error } = await supabase
         .from("lives")
         .select("*")
-        .eq("host_id", session.user.id)
+        .eq("author_id", session.user.id)
         .in("status", ["starting", "live"])
         .order("created_at", { ascending: false })
         .limit(1)
@@ -58,13 +57,15 @@ export default function GoLiveScreen() {
     mutationFn: async (data: GoLiveForm) => {
       if (!session) throw new Error("Not authenticated");
 
+      const roomName = `live-${Date.now()}-${session.user.id.slice(0, 8)}`;
+
       const { data: live, error } = await supabase
         .from("lives")
         .insert({
-          host_id: session.user.id,
+          author_id: session.user.id,
           title: data.title,
           cover_url: coverImage,
-          is_public: isPublic,
+          room_name: roomName,
           status: "starting",
           started_at: new Date().toISOString(),
         })
@@ -136,7 +137,7 @@ export default function GoLiveScreen() {
         <Button
           variant="secondary"
           onPress={() => router.back()}
-          className="mt-6"
+          style={{ marginTop: 24 }}
         >
           Înapoi
         </Button>
@@ -251,63 +252,6 @@ export default function GoLiveScreen() {
                 )}
               />
 
-              {/* Visibility Toggle */}
-              <View className="mt-6">
-                <Text className="text-dark-700 font-semibold mb-3">
-                  Vizibilitate
-                </Text>
-                <View className="flex-row gap-3">
-                  <Pressable
-                    onPress={() => setIsPublic(true)}
-                    className={`flex-1 p-4 rounded-xl border-2 ${
-                      isPublic
-                        ? "border-primary-500 bg-primary-50"
-                        : "border-dark-300 bg-white"
-                    }`}
-                  >
-                    <Ionicons
-                      name="globe"
-                      size={24}
-                      color={isPublic ? "#0a66c2" : "#64748b"}
-                    />
-                    <Text
-                      className={`font-semibold mt-2 ${
-                        isPublic ? "text-dark-700" : "text-dark-500"
-                      }`}
-                    >
-                      Public
-                    </Text>
-                    <Text className="text-dark-500 text-sm mt-1">
-                      Oricine poate vedea
-                    </Text>
-                  </Pressable>
-
-                  <Pressable
-                    onPress={() => setIsPublic(false)}
-                    className={`flex-1 p-4 rounded-xl border-2 ${
-                      !isPublic
-                        ? "border-primary-500 bg-primary-50"
-                        : "border-dark-300 bg-white"
-                    }`}
-                  >
-                    <Ionicons
-                      name="lock-closed"
-                      size={24}
-                      color={!isPublic ? "#0a66c2" : "#64748b"}
-                    />
-                    <Text
-                      className={`font-semibold mt-2 ${
-                        !isPublic ? "text-dark-700" : "text-dark-500"
-                      }`}
-                    >
-                      Privat
-                    </Text>
-                    <Text className="text-dark-500 text-sm mt-1">
-                      Doar cu link
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
             </>
           )}
         </View>
@@ -320,7 +264,7 @@ export default function GoLiveScreen() {
             size="lg"
             onPress={handleSubmit((data) => startLiveMutation.mutate(data))}
             loading={startLiveMutation.isPending}
-            className="w-full"
+            style={{ width: '100%' }}
             icon={<Ionicons name="radio" size={20} color="white" />}
           >
             Start Live

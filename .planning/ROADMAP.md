@@ -28,12 +28,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. LiveKit Cloud dashboard shows an active project with API key and secret available
   3. Both barber-store and tapzi-barber have a working EAS dev build profile (`eas.json` with `developmentClient: true`)
   4. A dev build installs and runs on a physical device for both apps
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: Supabase Pro upgrade and Realtime validation
-- [ ] 01-02: LiveKit Cloud account setup and credential storage
-- [ ] 01-03: EAS dev build configuration for both apps
+- [ ] 01-01-PLAN.md — Supabase Pro upgrade and Realtime validation
+- [ ] 01-02-PLAN.md — LiveKit Cloud account setup and credential storage
+- [ ] 01-03-PLAN.md — EAS dev build configuration for both apps
 
 ### Phase 2: Realtime Feed
 **Goal**: Clients see a live feed — new posts, like counts, and comment counts update automatically so the home screen feels alive without any manual refresh

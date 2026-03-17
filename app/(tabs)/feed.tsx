@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { View, FlatList, RefreshControl, Text, Pressable, ActivityIndicator, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient, InfiniteData } from "@tanstack/react-query";
@@ -8,6 +8,8 @@ import { useAuthStore } from "@/stores/authStore";
 import { StoriesRow } from "@/components/feed/StoriesRow";
 import { LiveSection } from "@/components/feed/LiveSection";
 import { FeedCard } from "@/components/feed/FeedCard";
+import { NewPostsBanner } from "@/components/feed/NewPostsBanner";
+import { useRealtimeFeed } from "@/hooks/useRealtimeFeed";
 import { ContentWithAuthor, LiveWithHost } from "@/types/database";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { CommentsModal } from "@/components/feed/CommentsModal";
@@ -19,6 +21,13 @@ import Animated, {
 export default function FeedScreen() {
   const { session } = useAuthStore();
   const queryClient = useQueryClient();
+  const { newPostCount, showNewPosts } = useRealtimeFeed();
+  const flatListRef = useRef<FlatList>(null);
+
+  const handleShowNewPosts = useCallback(() => {
+    showNewPosts();
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+  }, [showNewPosts]);
 
   // Fetch stories (recent creators)
   const { data: stories } = useQuery({
@@ -336,6 +345,9 @@ export default function FeedScreen() {
           <Ionicons name="options-outline" size={20} color="#64748b" />
         </Pressable>
       </Animated.View>
+
+      {/* New Posts Banner */}
+      <NewPostsBanner count={newPostCount} onPress={handleShowNewPosts} />
     </View>
   );
 
@@ -429,6 +441,7 @@ export default function FeedScreen() {
 
       {/* Feed Content */}
       <FlatList
+        ref={flatListRef}
         data={feedItems}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={ListHeader}

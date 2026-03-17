@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-03-PLAN.md
-last_updated: "2026-03-17T19:30:36.693Z"
-last_activity: 2026-03-17 — Completed 04-01 (LiveKit token infrastructure)
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-03-17T19:30:35Z"
+last_activity: 2026-03-17 — Completed 03-02 (Story creation with TUS upload)
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 14
-  completed_plans: 8
-  percent: 50
+  completed_plans: 11
+  percent: 57
 ---
 
 # Project State
@@ -58,6 +58,7 @@ Progress: [█████░░░░░] 50% (7/14 plans)
 | 4. Live Streaming | 1/4 | 4min | 4min |
 | Phase 03-stories P03 | 3min | 2 tasks | 4 files |
 | Phase 02 P03 | 3min | 2 tasks | 2 files |
+| Phase 02 P02 | 6min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,8 @@ Recent decisions affecting current work:
 - [Phase 04-01]: LiveKit token TTL 2h, canPublish defaults false, room_name generated client-side with timestamp+userId
 - [Phase 03-03]: Gesture.Race(flingL, flingR, Exclusive(longPress, tap)) for gesture priority
 - [Phase 03-03]: Progress starts only after onMediaReady -- prevents bar racing ahead of loading media
+- [Phase 02-02]: 100ms debounce for UPDATE events to batch rapid-fire likes on viral posts
+- [Phase 02-02]: showNewPosts uses invalidateQueries instead of manual prepend -- INSERT payload lacks joined author data
 
 ### Pending Todos
 
@@ -92,6 +95,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-17T19:30:36.691Z
-Stopped at: Completed 02-03-PLAN.md
+Last session: 2026-03-17T19:31:52.061Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None

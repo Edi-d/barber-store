@@ -9,7 +9,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Realtime Infrastructure
 
-- [ ] **RT-01**: Feed-ul se actualizează automat când apar likes/comments noi (fără refresh manual)
+- [x] **RT-01**: Feed-ul se actualizează automat când apar likes/comments noi (fără refresh manual)
 - [x] **RT-02**: Posturi noi apar ca banner "N posturi noi — apasă pentru a vedea" fără refresh
 - [x] **RT-03**: Subscription-urile Realtime se curăță corect la logout (fix security gap existent)
 - [x] **RT-04**: Supabase Realtime subscription registry cu cleanup centralizat
@@ -88,7 +88,7 @@ Deferred to future milestone. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| RT-01 | Phase 2 | Pending |
+| RT-01 | Phase 2 | Complete |
 | RT-02 | Phase 2 | Complete |
 | RT-03 | Phase 2 | Complete |
 | RT-04 | Phase 2 | Complete |

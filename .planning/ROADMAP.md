@@ -65,7 +65,7 @@ Plans:
 
 Plans:
 - [x] 03-01-PLAN.md — Database schema extension (storage_path column) and pg_cron expiry cleanup job
-- [ ] 03-02-PLAN.md — Story creation on tapzi-barber: photo + video with TUS resumable upload
+- [x] 03-02-PLAN.md — Story creation on tapzi-barber: photo + video with TUS resumable upload
 - [ ] 03-03-PLAN.md — Full-screen stories viewer on barber-store with Reanimated progress bar, gestures, video
 - [ ] 03-04-PLAN.md — Stories row wired to real data with seen/unseen ring state and viewer integration
 
@@ -96,5 +96,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Infrastructure Setup | 3/3 | Complete | 2026-03-17 |
 | 2. Realtime Feed | 1/3 | In progress | - |
-| 3. Stories | 2/4 | In Progress|  |
+| 3. Stories | 3/4 | In Progress |  |
 | 4. Live Streaming | 0/4 | Not started | - |

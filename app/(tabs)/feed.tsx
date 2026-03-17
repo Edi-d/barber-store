@@ -10,6 +10,8 @@ import { LiveSection } from "@/components/feed/LiveSection";
 import { FeedCard } from "@/components/feed/FeedCard";
 import { NewPostsBanner } from "@/components/feed/NewPostsBanner";
 import { useRealtimeFeed } from "@/hooks/useRealtimeFeed";
+import { useRealtimeLikes } from "@/hooks/useRealtimeLikes";
+import { useRealtimeComments } from "@/hooks/useRealtimeComments";
 import { ContentWithAuthor, LiveWithHost } from "@/types/database";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { CommentsModal } from "@/components/feed/CommentsModal";
@@ -22,6 +24,8 @@ export default function FeedScreen() {
   const { session } = useAuthStore();
   const queryClient = useQueryClient();
   const { newPostCount, showNewPosts } = useRealtimeFeed();
+  useRealtimeLikes(session?.user.id);
+  useRealtimeComments();
   const flatListRef = useRef<FlatList>(null);
 
   const handleShowNewPosts = useCallback(() => {

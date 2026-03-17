@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { supabase } from "@/lib/supabase";
+import { cleanupAllChannels } from "@/lib/realtime";
 import { Profile } from "@/types/database";
 import { Session } from "@supabase/supabase-js";
 
@@ -94,6 +95,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signOut: async () => {
     set({ isSubmitting: true });
     try {
+      cleanupAllChannels(); // Clean up realtime channels before signing out
       await supabase.auth.signOut();
       set({ session: null, profile: null });
     } finally {
@@ -122,12 +124,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const { error } = await supabase
         .from("profiles")
-        .insert({
-          id: session.user.id,
+        .update({
           username: data.username,
           display_name: data.display_name,
           bio: data.bio || null,
-        });
+          onboarding_completed: true,
+        })
+        .eq("id", session.user.id);
       if (error) throw error;
 
       await get().fetchProfile();

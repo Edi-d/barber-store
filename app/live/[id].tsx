@@ -15,19 +15,51 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import {
-  LiveKitRoom,
-  useTracks,
-  VideoTrack,
-  AudioSession,
-} from "@livekit/react-native";
-import { Track } from "livekit-client";
+import Constants from "expo-constants";
 
 import { supabase } from "@/lib/supabase";
 import { fetchLiveKitToken, LIVEKIT_URL } from "@/lib/livekit";
 import { useAuthStore } from "@/stores/authStore";
 import { useLiveViewers } from "@/hooks/useLiveViewers";
 import { useLiveChat, type ChatMessage } from "@/hooks/useLiveChat";
+
+// ─── LiveKit conditional imports ─────────────────────────────
+// @livekit/react-native requires native modules that are not linked
+// in Expo Go. We guard the require() call so the module is only
+// loaded when running in a proper dev/production build.
+
+const isExpoGo = Constants.appOwnership === "expo";
+
+const LK = isExpoGo ? null : require("@livekit/react-native");
+const LiveKitRoom = LK?.LiveKitRoom as
+  | React.ComponentType<any>
+  | null
+  | undefined;
+const VideoTrack = LK?.VideoTrack as
+  | React.ComponentType<any>
+  | null
+  | undefined;
+const AudioSession = (LK?.AudioSession ?? {
+  startAudioSession: () => {},
+  stopAudioSession: () => {},
+}) as { startAudioSession: () => void; stopAudioSession: () => void };
+
+const Track = isExpoGo ? null : (require("livekit-client").Track as any);
+
+// useTracks must be called unconditionally inside components (Rules of Hooks).
+// This wrapper always returns an empty array in Expo Go so the hook call
+// itself is still unconditional — the branch is only on the return value.
+function useTracksWrapped(sources: any[]): any[] {
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  if (isExpoGo) {
+    // We cannot call the real hook in Expo Go (module not available),
+    // so we return a stable empty array. This is safe because isExpoGo
+    // is a module-level constant — the branch never changes at runtime.
+    return [];
+  }
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  return LK!.useTracks(sources);
+}
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -60,13 +92,13 @@ function ViewerContent({
   const { session, profile } = useAuthStore();
   const userId = session?.user?.id ?? "";
 
-  const tracks = useTracks([Track.Source.Camera]);
+  const tracks = useTracksWrapped([Track?.Source?.Camera]);
   const { messages, sendMessage } = useLiveChat(live.id);
   const [chatText, setChatText] = useState("");
   const flatListRef = useRef<FlatList>(null);
 
   // Find the remote (host) camera track
-  const hostTrack = tracks.find((t) => !t.participant?.isLocal);
+  const hostTrack = tracks.find((t: any) => !t.participant?.isLocal);
 
   const handleSend = useCallback(() => {
     const text = chatText.trim();
@@ -103,7 +135,7 @@ function ViewerContent({
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       {/* Video */}
-      {hostTrack ? (
+      {hostTrack && VideoTrack ? (
         <VideoTrack trackRef={hostTrack} style={StyleSheet.absoluteFill} />
       ) : (
         <View style={[StyleSheet.absoluteFill, styles.noVideoPlaceholder]}>
@@ -261,13 +293,42 @@ export default function LiveViewerScreen() {
     })();
   }, [id]);
 
-  // AudioSession for iOS
+  // AudioSession for iOS — stub is used in Expo Go so calls are always safe
   useEffect(() => {
     AudioSession.startAudioSession();
     return () => {
       AudioSession.stopAudioSession();
     };
   }, []);
+
+  // ── All hooks are above this line ──────────────────────────
+
+  // Expo Go guard: native modules not available, show placeholder
+  if (isExpoGo) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: "#111",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 16,
+        }}
+      >
+        <Feather name="video-off" size={48} color="rgba(255,255,255,0.4)" />
+        <Text
+          style={{
+            color: "#fff",
+            fontSize: 16,
+            textAlign: "center",
+            paddingHorizontal: 32,
+          }}
+        >
+          Live streaming necesita un dev build.{"\n"}Nu functioneaza in Expo Go.
+        </Text>
+      </View>
+    );
+  }
 
   // Loading state
   if (loading) {
@@ -298,7 +359,7 @@ export default function LiveViewerScreen() {
   }
 
   // Live view
-  if (live && token && serverUrl) {
+  if (live && token && serverUrl && LiveKitRoom) {
     return (
       <>
         <StatusBar hidden />

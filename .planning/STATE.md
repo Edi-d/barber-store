@@ -30,7 +30,7 @@ Plan: 1 of 4 in current phase (04-01 complete)
 Status: Executing Phase 4
 Last activity: 2026-03-17 — Completed 04-01 (LiveKit token infrastructure)
 
-Progress: [█████░░░░░] 50% (7/14 plans)
+Progress: [█████░░░░░] 57% (11/14 plans)
 
 ## Performance Metrics
 
@@ -45,7 +45,7 @@ Progress: [█████░░░░░] 50% (7/14 plans)
 |-------|-------|-------|----------|
 | 1. Infrastructure Setup | 3/3 | 11min | 3.7min |
 | 2. Realtime Feed | 3/3 | 10min | 3.3min |
-| 3. Stories | 1/4 | 4min | 4min |
+| 3. Stories | 3/4 | 14min | 4.7min |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -80,6 +80,8 @@ Recent decisions affecting current work:
 - [Phase 04-01]: LiveKit token TTL 2h, canPublish defaults false, room_name generated client-side with timestamp+userId
 - [Phase 03-03]: Gesture.Race(flingL, flingR, Exclusive(longPress, tap)) for gesture priority
 - [Phase 03-03]: Progress starts only after onMediaReady -- prevents bar racing ahead of loading media
+- [03-02]: TUS upload with 6MB chunks (Supabase minimum), quality:0.7 as Expo Go compression fallback
+- [03-02]: expo-av Video for video preview in CreateStory; MediaAsset type for typed media passing
 - [Phase 02-02]: 100ms debounce for UPDATE events to batch rapid-fire likes on viral posts
 - [Phase 02-02]: showNewPosts uses invalidateQueries instead of manual prepend -- INSERT payload lacks joined author data
 
@@ -95,6 +97,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-17T19:31:52.061Z
-Stopped at: Completed 02-02-PLAN.md
-Resume file: None
+Last session: 2026-03-17T19:30:35Z
+Stopped at: Completed 03-02-PLAN.md
+Resume file: .planning/phases/03-stories/03-04-PLAN.md

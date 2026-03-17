@@ -16,13 +16,13 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Stories
 
-- [ ] **STORY-01**: Barberii pot posta photo stories care apar în stories row
-- [ ] **STORY-02**: Barberii pot posta video stories (max 30s) cu upload resumabil (TUS)
+- [x] **STORY-01**: Barberii pot posta photo stories care apar în stories row
+- [x] **STORY-02**: Barberii pot posta video stories (max 30s) cu upload resumabil (TUS)
 - [x] **STORY-03**: Clienții pot vizualiza stories cu progress bar, tap next/back, hold to pause
 - [x] **STORY-04**: Stories se grupează per creator cu swipe între creators
 - [x] **STORY-05**: Stories expiră automat după 24h (query filter + pg_cron cleanup + storage cleanup)
 - [ ] **STORY-06**: Ring colorat pe avatar indică story nevăzut (blue) vs văzut (none) via story_views table
-- [ ] **STORY-07**: Video stories sunt comprimate înainte de upload (reduce bandwidth)
+- [x] **STORY-07**: Video stories sunt comprimate înainte de upload (reduce bandwidth)
 
 ### Live Streaming
 
@@ -40,7 +40,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [ ] **BARBER-02**: Live broadcast screen cu camera preview, controls (mute, flip camera), viewer count, end stream
 - [ ] **BARBER-03**: LiveKit publisher integration — barberul publică video+audio tracks
 - [ ] **BARBER-04**: Expo dev build pe tapzi-barber cu LiveKit native modules
-- [ ] **BARBER-05**: Story creation — barberul poate posta photo/video stories din tapzi-barber
+- [x] **BARBER-05**: Story creation — barberul poate posta photo/video stories din tapzi-barber
 
 ### Infrastructure
 
@@ -92,13 +92,13 @@ Deferred to future milestone. Tracked but not in current roadmap.
 | RT-02 | Phase 2 | Complete |
 | RT-03 | Phase 2 | Complete |
 | RT-04 | Phase 2 | Complete |
-| STORY-01 | Phase 3 | Pending |
-| STORY-02 | Phase 3 | Pending |
+| STORY-01 | Phase 3 | Complete |
+| STORY-02 | Phase 3 | Complete |
 | STORY-03 | Phase 3 | Complete |
 | STORY-04 | Phase 3 | Complete |
 | STORY-05 | Phase 3 | Complete |
 | STORY-06 | Phase 3 | Pending |
-| STORY-07 | Phase 3 | Pending |
+| STORY-07 | Phase 3 | Complete |
 | LIVE-01 | Phase 4 | Pending |
 | LIVE-02 | Phase 4 | Pending |
 | LIVE-03 | Phase 4 | Pending |
@@ -110,7 +110,7 @@ Deferred to future milestone. Tracked but not in current roadmap.
 | BARBER-02 | Phase 4 | Pending |
 | BARBER-03 | Phase 4 | Pending |
 | BARBER-04 | Phase 4 | Pending |
-| BARBER-05 | Phase 3 | Pending |
+| BARBER-05 | Phase 3 | Complete |
 | INFRA-01 | Phase 1 | Complete |
 | INFRA-02 | Phase 1 | Complete |
 | INFRA-03 | Phase 1 | Complete |

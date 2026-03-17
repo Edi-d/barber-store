@@ -20,7 +20,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [ ] **STORY-02**: Barberii pot posta video stories (max 30s) cu upload resumabil (TUS)
 - [ ] **STORY-03**: Clienții pot vizualiza stories cu progress bar, tap next/back, hold to pause
 - [ ] **STORY-04**: Stories se grupează per creator cu swipe între creators
-- [ ] **STORY-05**: Stories expiră automat după 24h (query filter + pg_cron cleanup + storage cleanup)
+- [x] **STORY-05**: Stories expiră automat după 24h (query filter + pg_cron cleanup + storage cleanup)
 - [ ] **STORY-06**: Ring colorat pe avatar indică story nevăzut (blue) vs văzut (none) via story_views table
 - [ ] **STORY-07**: Video stories sunt comprimate înainte de upload (reduce bandwidth)
 
@@ -44,8 +44,8 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Infrastructure
 
-- [ ] **INFRA-01**: Supabase Pro upgrade activat (prerequisite pentru Realtime)
-- [ ] **INFRA-02**: Expo dev build setup cu EAS pe ambele app-uri (necesar pentru LiveKit native modules)
+- [x] **INFRA-01**: Supabase Pro upgrade activat (prerequisite pentru Realtime)
+- [x] **INFRA-02**: Expo dev build setup cu EAS pe ambele app-uri (necesar pentru LiveKit native modules)
 - [x] **INFRA-03**: LiveKit Cloud account setup cu API keys
 
 ## v2 Requirements
@@ -96,7 +96,7 @@ Deferred to future milestone. Tracked but not in current roadmap.
 | STORY-02 | Phase 3 | Pending |
 | STORY-03 | Phase 3 | Pending |
 | STORY-04 | Phase 3 | Pending |
-| STORY-05 | Phase 3 | Pending |
+| STORY-05 | Phase 3 | Complete |
 | STORY-06 | Phase 3 | Pending |
 | STORY-07 | Phase 3 | Pending |
 | LIVE-01 | Phase 4 | Pending |
@@ -111,8 +111,8 @@ Deferred to future milestone. Tracked but not in current roadmap.
 | BARBER-03 | Phase 4 | Pending |
 | BARBER-04 | Phase 4 | Pending |
 | BARBER-05 | Phase 3 | Pending |
-| INFRA-01 | Phase 1 | Pending |
-| INFRA-02 | Phase 1 | Pending |
+| INFRA-01 | Phase 1 | Complete |
+| INFRA-02 | Phase 1 | Complete |
 | INFRA-03 | Phase 1 | Complete |
 
 **Coverage:**

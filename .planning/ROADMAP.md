@@ -47,7 +47,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Realtime infrastructure: channel registry, signOut cleanup, publication migration
+- [x] 02-01-PLAN.md — Realtime infrastructure: channel registry, signOut cleanup, publication migration
 - [ ] 02-02-PLAN.md — Feed realtime hooks: useRealtimeFeed, useRealtimeLikes, useRealtimeComments wired to React Query cache
 - [ ] 02-03-PLAN.md — New posts banner: animated "N new posts" banner UI on feed screen
 
@@ -64,7 +64,7 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Database schema extension (storage_path column) and pg_cron expiry cleanup job
+- [x] 03-01-PLAN.md — Database schema extension (storage_path column) and pg_cron expiry cleanup job
 - [ ] 03-02-PLAN.md — Story creation on tapzi-barber: photo + video with TUS resumable upload
 - [ ] 03-03-PLAN.md — Full-screen stories viewer on barber-store with Reanimated progress bar, gestures, video
 - [ ] 03-04-PLAN.md — Stories row wired to real data with seen/unseen ring state and viewer integration
@@ -95,6 +95,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Infrastructure Setup | 3/3 | Complete | 2026-03-17 |
-| 2. Realtime Feed | 0/3 | Not started | - |
-| 3. Stories | 0/4 | Not started | - |
+| 2. Realtime Feed | 1/3 | In progress | - |
+| 3. Stories | 1/4 | In progress | - |
 | 4. Live Streaming | 0/4 | Not started | - |

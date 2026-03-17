@@ -62,9 +62,10 @@ Clienții pot urmări barberii lor preferați în timp real — live streams, st
 
 ## Constraints
 
-- **Live provider**: Trebuie ales cel mai simplu și robust (Livekit vs Agora — de decis în research)
+- **Live provider**: LiveKit Cloud (ales după research — open-source, Expo plugin, activ, ieftin)
 - **Supabase Pro**: Necesar pentru realtime — userul va face upgrade
-- **Client-only perspective**: Barberii creează conținut, clienții doar consumă și interacționează
+- **Dual-app**: Implementare simultană pe `barber-store` (client) și `tapzi-barber` (barber). Ambele share aceeași DB Supabase.
+- **tapzi-barber state**: Are deja social tab, stories, feed, LiveSection UI, lives table, camera/audio permissions. Lipsește: go-live broadcast screen, LiveKit publisher.
 - **Approach**: Cel mai simplu și robust approach, folosind volt subagents pentru implementare
 - **Platform**: iOS + Android (via Expo), cu atenție la native modules pentru live streaming
 
@@ -72,7 +73,7 @@ Clienții pot urmări barberii lor preferați în timp real — live streams, st
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Live provider TBD | Livekit (open-source, free tier) vs Agora (managed, easy) — research needed | — Pending |
+| LiveKit Cloud | Open-source, Expo plugin, activ SDK, ieftin, no lock-in vs Agora (no plugin, stale, scump) | ✓ Good |
 | Supabase Pro upgrade | Necesar pentru Realtime subscriptions (live feed updates) | — Pending |
 | Stories 24h expiry | Standard UX pattern, reduce storage costs | — Pending |
 | Text-only live chat | Simplitate maximă, fără emoji reactions | ✓ Good |

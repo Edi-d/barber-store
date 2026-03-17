@@ -25,7 +25,7 @@ export function LiveSection({ lives, onSeeAll }: LiveSectionProps) {
   if (lives.length === 0) return null;
 
   return (
-    <View className="py-4 bg-white">
+    <View className="py-4" style={{ backgroundColor: "#F0F4F8" }}>
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 mb-3">
         <View className="flex-row items-center">
@@ -59,9 +59,7 @@ export function LiveSection({ lives, onSeeAll }: LiveSectionProps) {
 function LiveCard({ live }: { live: LiveWithHost }) {
   return (
     <Pressable
-      onPress={() => {
-        // TODO: Navigate to live stream viewer
-      }}
+      onPress={() => router.push(`/live/${live.id}` as any)}
       className="overflow-hidden rounded-2xl"
       style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}
     >

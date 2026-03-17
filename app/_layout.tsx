@@ -163,6 +163,10 @@ function RootLayoutNav() {
         <Stack.Screen name="checkout" />
         <Stack.Screen name="orders" />
         <Stack.Screen name="go-live" />
+        <Stack.Screen
+          name="live/[id]"
+          options={{ animation: "slide_from_bottom" }}
+        />
         <Stack.Screen name="settings" />
       </Stack>
     </>

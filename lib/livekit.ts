@@ -14,8 +14,10 @@ export async function fetchLiveKitToken(
     throw new Error("Not authenticated");
   }
 
+  const { data: { user } } = await supabase.auth.getUser();
+
   const { data, error } = await supabase.functions.invoke("token-livekit", {
-    body: { room_name: roomName, can_publish: canPublish },
+    body: { room: roomName, identity: user?.id, canPublish },
   });
 
   if (error) {

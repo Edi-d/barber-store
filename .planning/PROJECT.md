@@ -66,7 +66,14 @@ Clienții pot urmări barberii lor preferați în timp real — live streams, st
 - **Supabase Pro**: Necesar pentru realtime — userul va face upgrade
 - **Dual-app**: Implementare simultană pe `barber-store` (client) și `tapzi-barber` (barber). Ambele share aceeași DB Supabase.
 - **tapzi-barber state**: Are deja social tab, stories, feed, LiveSection UI, lives table, camera/audio permissions. Lipsește: go-live broadcast screen, LiveKit publisher.
-- **Approach**: Cel mai simplu și robust approach, folosind volt subagents pentru implementare
+- **Approach**: Cel mai simplu și robust approach
+- **Execution**: GSD orchestrează (plan, verify), volt subagents implementează (write code). Fiecare task se dispatch la agentul specializat potrivit:
+  - `voltagent-core-dev:mobile-developer` — Expo/EAS, native modules, platform config
+  - `voltagent-core-dev:frontend-developer` — React Native screens, components, UI
+  - `voltagent-core-dev:backend-developer` — Edge Functions, DB migrations, server-side
+  - `voltagent-core-dev:fullstack-developer` — Features spanning DB + API + UI
+  - `voltagent-core-dev:websocket-engineer` — Realtime, LiveKit, WebSocket integration
+  - Parallel dispatch when tasks are independent
 - **Platform**: iOS + Android (via Expo), cu atenție la native modules pentru live streaming
 
 ## Key Decisions

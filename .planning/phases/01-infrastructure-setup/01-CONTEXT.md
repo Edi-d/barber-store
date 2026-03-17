@@ -33,6 +33,13 @@ User skipped discussion — all infrastructure decisions are at Claude's discret
 - API keys stored server-side only (Edge Functions for secrets)
 - EXPO_PUBLIC_ prefix for client-safe env vars
 
+### Execution Pattern: Volt Subagents
+ALL implementation work MUST use volt specialized subagents (voltagent-core-dev). GSD orchestrates, volt agents implement:
+- `voltagent-core-dev:mobile-developer` — Expo/EAS config, native module setup, dev build configuration
+- `voltagent-core-dev:backend-developer` — Edge Functions, DB migrations, Supabase server-side
+- `voltagent-core-dev:fullstack-developer` — Features spanning both DB and app config
+- Use parallel volt agents when tasks are independent
+
 </decisions>
 
 <canonical_refs>

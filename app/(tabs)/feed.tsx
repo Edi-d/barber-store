@@ -15,7 +15,7 @@ import { useRealtimeComments } from "@/hooks/useRealtimeComments";
 import { useRealtimeLives } from "@/hooks/useRealtimeLives";
 import { useStories, useMarkStoryViewed } from "@/hooks/useStories";
 import { StoryViewer } from "@/components/stories/StoryViewer";
-import { ContentWithAuthor } from "@/types/database";
+import { ContentWithAuthor, LiveWithHost } from "@/types/database";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { CommentsModal } from "@/components/feed/CommentsModal";
 import Animated, {
@@ -42,8 +42,71 @@ export default function FeedScreen() {
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerStartIndex, setViewerStartIndex] = useState(0);
 
-  // Realtime lives — subscribes to Supabase and keeps list in sync
-  const { lives: displayLives } = useRealtimeLives();
+  // Realtime lives — subscribes to Supabase and keeps list in sync.
+  // When no one is streaming, fall back to placeholder cards so the section
+  // is always visible and the feed doesn't look empty.
+  const { lives: realtimeLives } = useRealtimeLives();
+
+  const placeholderLives: LiveWithHost[] = [
+    {
+      id: "placeholder-1",
+      author_id: "",
+      title: "Join me, paint the arts",
+      cover_url: "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=600",
+      room_name: "placeholder-1",
+      status: "live",
+      playback_url: null,
+      viewers_count: 41600,
+      started_at: new Date(Date.now() - 5 * 60000).toISOString(),
+      ended_at: null,
+      created_at: new Date().toISOString(),
+      host: { id: "", username: "dianne", display_name: "Dianne", avatar_url: null, bio: null, role: "creator", created_at: "" },
+    },
+    {
+      id: "placeholder-2",
+      author_id: "",
+      title: "Live Session, Let's learn together",
+      cover_url: "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=600",
+      room_name: "placeholder-2",
+      status: "live",
+      playback_url: null,
+      viewers_count: 21200,
+      started_at: new Date(Date.now() - 6 * 60000).toISOString(),
+      ended_at: null,
+      created_at: new Date().toISOString(),
+      host: { id: "", username: "robert", display_name: "Robert", avatar_url: null, bio: null, role: "creator", created_at: "" },
+    },
+    {
+      id: "placeholder-3",
+      author_id: "",
+      title: "Fade Masterclass - Live Demo",
+      cover_url: "https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=600",
+      room_name: "placeholder-3",
+      status: "live",
+      playback_url: null,
+      viewers_count: 15800,
+      started_at: new Date(Date.now() - 12 * 60000).toISOString(),
+      ended_at: null,
+      created_at: new Date().toISOString(),
+      host: { id: "", username: "alex", display_name: "Alex", avatar_url: null, bio: null, role: "creator", created_at: "" },
+    },
+    {
+      id: "placeholder-4",
+      author_id: "",
+      title: "Beard Styling Session",
+      cover_url: "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600",
+      room_name: "placeholder-4",
+      status: "live",
+      playback_url: null,
+      viewers_count: 8900,
+      started_at: new Date(Date.now() - 18 * 60000).toISOString(),
+      ended_at: null,
+      created_at: new Date().toISOString(),
+      host: { id: "", username: "cristi", display_name: "Cristi", avatar_url: null, bio: null, role: "creator", created_at: "" },
+    },
+  ];
+
+  const displayLives = realtimeLives.length > 0 ? realtimeLives : placeholderLives;
 
   const PAGE_SIZE = 10;
 
@@ -263,7 +326,7 @@ export default function FeedScreen() {
       {/* All Feeds Header */}
       <Animated.View
         entering={FadeInDown.duration(400).delay(650)}
-        className="flex-row items-center justify-between px-4 py-3"
+        className="flex-row items-center justify-between px-4 pt-2 pb-3"
         style={{ backgroundColor: "#F0F4F8" }}
       >
         <Text className="text-dark-700 text-lg font-bold">All Feeds</Text>

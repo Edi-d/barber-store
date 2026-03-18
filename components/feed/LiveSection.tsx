@@ -22,7 +22,7 @@ function formatViewers(count: number): string {
 }
 
 export function LiveSection({ lives, onSeeAll }: LiveSectionProps) {
-  if (lives.length === 0) return null;
+  if (!lives || lives.length === 0) return null;
 
   return (
     <View className="py-4" style={{ backgroundColor: "#F0F4F8" }}>
@@ -109,15 +109,15 @@ function LiveCard({ live }: { live: LiveWithHost }) {
         {/* Host Info */}
         <View className="flex-row items-center">
           <Avatar
-            source={live.host.avatar_url}
-            name={live.host.display_name || live.host.username}
+            source={live.host?.avatar_url}
+            name={live.host?.display_name || live.host?.username}
             size="xs"
             useDefaultAvatar={true}
           />
           <Text className="text-white/90 text-xs font-medium ml-2" numberOfLines={1}>
-            {live.host.display_name || live.host.username}
+            {live.host?.display_name || live.host?.username}
           </Text>
-          {(live.host.role === "creator" || live.host.role === "admin") && (
+          {(live.host?.role === "creator" || live.host?.role === "admin") && (
             <View className="ml-1 w-3.5 h-3.5 bg-primary-500 rounded-full items-center justify-center">
               <Ionicons name="checkmark" size={8} color="white" />
             </View>

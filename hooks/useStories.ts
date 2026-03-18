@@ -28,17 +28,19 @@ export function useMarkStoryViewed() {
   return useMutation({
     mutationFn: async (storyId: string) => {
       const viewerId = session?.user?.id;
-      if (!viewerId) return;
-      await supabase
+      if (!viewerId) throw new Error("Not authenticated");
+      const { error } = await supabase
         .from('story_views')
         .upsert(
           { story_id: storyId, viewer_id: viewerId },
-          { onConflict: 'story_id,viewer_id' }
+          { onConflict: 'story_id,viewer_id', ignoreDuplicates: true }
         );
+      if (error) throw error;
     },
     onSuccess: () => {
-      // Invalidate to refresh seen/unseen state
-      queryClient.invalidateQueries({ queryKey: ['stories'] });
+      // Invalidate to refresh seen/unseen state, scoped to current user
+      const userId = session?.user?.id;
+      queryClient.invalidateQueries({ queryKey: ['stories', userId] });
     },
   });
 }

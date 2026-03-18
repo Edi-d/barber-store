@@ -64,9 +64,9 @@ export function useStoryViewer(groups: StoryGroup[], onClose: () => void) {
   }, [getDuration, progress]);
 
   const pause = useCallback(() => {
-    setIsPaused(true);
-    remainingDuration.current = getDuration() * (1 - progress.value);
     cancelAnimation(progress);
+    remainingDuration.current = getDuration() * (1 - progress.value);
+    setIsPaused(true);
   }, [getDuration, progress]);
 
   const resume = useCallback(() => {
@@ -112,10 +112,12 @@ export function useStoryViewer(groups: StoryGroup[], onClose: () => void) {
       progress.value = 0;
       setStoryIndex((i) => i - 1);
     } else if (creatorIndex > 0) {
-      const prevGroup = groups[creatorIndex - 1];
       progress.value = 0;
-      setStoryIndex(prevGroup.stories.length - 1);
-      setCreatorIndex((i) => i - 1);
+      setCreatorIndex((i) => {
+        const prevGroup = groups[i - 1];
+        setStoryIndex(prevGroup ? prevGroup.stories.length - 1 : 0);
+        return i - 1;
+      });
     } else {
       // Restart current story
       progress.value = 0;
@@ -147,8 +149,8 @@ export function useStoryViewer(groups: StoryGroup[], onClose: () => void) {
 
   const onMediaReady = useCallback(() => {
     setMediaReady(true);
-    startProgress();
-  }, [startProgress]);
+    if (!isPaused) startProgress();
+  }, [startProgress, isPaused]);
 
   const onVideoEnd = useCallback(() => {
     goToNextStory();
@@ -161,6 +163,7 @@ export function useStoryViewer(groups: StoryGroup[], onClose: () => void) {
       setIsPaused(false);
       setMediaReady(false);
       progress.value = 0;
+      remainingDuration.current = PHOTO_DURATION;
     },
     [progress]
   );

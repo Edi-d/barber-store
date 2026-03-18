@@ -47,20 +47,18 @@ export function removeChannel(name: string): void {
 }
 
 /**
- * Removes every channel from Supabase and clears the registry.
- * Also calls supabase.removeAllChannels() as a safety net to catch
- * any channels created outside the registry.
+ * Removes every channel tracked by the registry from Supabase and clears
+ * the registry. Does NOT call supabase.removeAllChannels() — that would
+ * also tear down the internal auth state change channel managed by the
+ * Supabase client itself.
  */
 export function cleanupAllChannels(): void {
   const count = channels.size;
 
-  channels.forEach((channel) => {
+  channels.forEach((channel, name) => {
     supabase.removeChannel(channel);
+    channels.delete(name);
   });
-  channels.clear();
-
-  // Safety net: remove any channels not tracked by the registry
-  supabase.removeAllChannels();
 
   if (__DEV__) {
     console.log(`[Realtime] All channels cleaned up (${count} removed)`);

@@ -3,8 +3,6 @@ import { useQueryClient, InfiniteData } from '@tanstack/react-query';
 import { getOrCreateChannel, removeChannel } from '@/lib/realtime';
 import { ContentWithAuthor } from '@/types/database';
 
-const CHANNEL_NAME = 'feed:likes';
-
 /**
  * Subscribes to likes table INSERT/DELETE for the current user.
  * Updates is_liked state in the ["feed"] React Query cache.
@@ -12,6 +10,10 @@ const CHANNEL_NAME = 'feed:likes';
  * The filter `user_id=eq.${userId}` means we only receive events for
  * the CURRENT user's likes -- this confirms/corrects the optimistic
  * update already done by the like mutation in feed.tsx.
+ *
+ * The channel name includes userId so that logging out and back in as
+ * a different user always creates a fresh channel with the correct filter
+ * rather than reusing a stale one.
  */
 export function useRealtimeLikes(userId: string | undefined): void {
   const queryClient = useQueryClient();
@@ -19,7 +21,8 @@ export function useRealtimeLikes(userId: string | undefined): void {
   useEffect(() => {
     if (!userId) return;
 
-    const channel = getOrCreateChannel(CHANNEL_NAME)
+    const channelName = `feed:likes:${userId}`;
+    const channel = getOrCreateChannel(channelName)
       .on(
         'postgres_changes',
         {
@@ -57,6 +60,7 @@ export function useRealtimeLikes(userId: string | undefined): void {
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
+          if (!payload.old || !('content_id' in payload.old)) return;
           const contentId = (payload.old as { content_id: string }).content_id;
           queryClient.setQueryData<InfiniteData<ContentWithAuthor[]>>(
             ['feed'],
@@ -78,12 +82,12 @@ export function useRealtimeLikes(userId: string | undefined): void {
       )
       .subscribe((status, err) => {
         if (__DEV__) {
-          console.log('[Realtime] feed:likes status:', status, err);
+          console.log(`[Realtime] ${channelName} status:`, status, err);
         }
       });
 
     return () => {
-      removeChannel(CHANNEL_NAME);
+      removeChannel(channelName);
     };
   }, [userId, queryClient]);
 }

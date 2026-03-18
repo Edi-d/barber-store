@@ -29,6 +29,7 @@ export function useRealtimeComments(): void {
           table: 'comments',
         },
         (payload) => {
+          if (!payload.new || !('content_id' in payload.new)) return;
           const contentId = (payload.new as { content_id: string }).content_id;
 
           // Increment comments_count in feed cache

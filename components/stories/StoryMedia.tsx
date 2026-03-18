@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Image,
   StyleSheet,
@@ -23,6 +23,13 @@ export function StoryMedia({
   onVideoEnd,
 }: StoryMediaProps) {
   const [isLoading, setIsLoading] = useState(true);
+  const videoRef = useRef<Video>(null);
+
+  useEffect(() => {
+    return () => {
+      videoRef.current?.unloadAsync();
+    };
+  }, []);
 
   const handleReady = () => {
     setIsLoading(false);
@@ -33,6 +40,7 @@ export function StoryMedia({
     <View style={StyleSheet.absoluteFill}>
       {type === "video" ? (
         <Video
+          ref={videoRef}
           source={{ uri }}
           resizeMode={ResizeMode.COVER}
           shouldPlay={!isPaused}

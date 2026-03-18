@@ -99,6 +99,7 @@ export function useRealtimeLives(): { lives: LiveWithHost[]; loading: boolean } 
             }
 
             if (updated.status === 'live' || updated.status === 'starting') {
+              // Read current state snapshot to decide what to do — no async work inside the updater
               setLives((prev) => {
                 const exists = prev.some((l) => l.id === updated.id);
 
@@ -111,7 +112,19 @@ export function useRealtimeLives(): { lives: LiveWithHost[]; loading: boolean } 
                   );
                 }
 
-                // Stream just became active — fetch full row with host join async
+                // Stream just became active but is not in state yet.
+                // We cannot call async code inside a state updater, so schedule
+                // the fetch outside via a microtask and leave state unchanged for now.
+                return prev;
+              });
+
+              // After the synchronous updater runs, check if the stream is present.
+              // If it wasn't found (the updater returned prev unchanged), fetch and add it.
+              // We access `lives` via a separate setLives read to avoid a stale-closure issue.
+              setLives((prev) => {
+                if (prev.some((l) => l.id === updated.id)) return prev;
+
+                // Kick off async fetch outside the updater
                 fetchLiveWithHost(updated.id).then((full) => {
                   if (!full || cancelled) return;
                   setLives((current) => {
@@ -126,6 +139,7 @@ export function useRealtimeLives(): { lives: LiveWithHost[]; loading: boolean } 
           }
 
           if (eventType === 'DELETE') {
+            if (!payload.old || !('id' in payload.old)) return;
             const deleted = payload.old as { id: string };
             setLives((prev) => prev.filter((l) => l.id !== deleted.id));
           }

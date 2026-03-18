@@ -92,6 +92,7 @@ export function useRealtimeFeed() {
           table: 'content',
         },
         (payload) => {
+          if (!payload.old || !('id' in payload.old)) return;
           const deletedId = (payload.old as { id: string }).id;
           queryClient.setQueryData<InfiniteData<ContentWithAuthor[]>>(
             ['feed'],

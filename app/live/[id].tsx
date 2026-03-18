@@ -47,19 +47,14 @@ const AudioSession = (LK?.AudioSession ?? {
 const Track = isExpoGo ? null : (require("livekit-client").Track as any);
 
 // useTracks must be called unconditionally inside components (Rules of Hooks).
-// This wrapper always returns an empty array in Expo Go so the hook call
-// itself is still unconditional — the branch is only on the return value.
-function useTracksWrapped(sources: any[]): any[] {
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  if (isExpoGo) {
-    // We cannot call the real hook in Expo Go (module not available),
-    // so we return a stable empty array. This is safe because isExpoGo
-    // is a module-level constant — the branch never changes at runtime.
-    return [];
-  }
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  return LK!.useTracks(sources);
+// isExpoGo is a module-level constant so the selected hook never changes
+// between renders — both branches satisfy the rules-of-hooks constraint.
+function useTracksNoop(): any[] {
+  return [];
 }
+const useTracksHook: (sources: any[]) => any[] = isExpoGo
+  ? useTracksNoop
+  : (LK!.useTracks as (sources: any[]) => any[]);
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -92,7 +87,8 @@ function ViewerContent({
   const { session, profile } = useAuthStore();
   const userId = session?.user?.id ?? "";
 
-  const tracks = useTracksWrapped([Track?.Source?.Camera]);
+  const sources = Track ? [Track.Source.Camera] : [];
+  const tracks = useTracksHook(sources);
   const { messages, sendMessage } = useLiveChat(live.id);
   const [chatText, setChatText] = useState("");
   const flatListRef = useRef<FlatList>(null);
@@ -254,6 +250,8 @@ export default function LiveViewerScreen() {
   useEffect(() => {
     if (!id) return;
 
+    let cancelled = false;
+
     (async () => {
       try {
         const { data, error: fetchErr } = await supabase
@@ -264,6 +262,8 @@ export default function LiveViewerScreen() {
           .eq("id", id)
           .single();
 
+        if (cancelled) return;
+
         if (fetchErr || !data) {
           setError("Stream not found");
           setLoading(false);
@@ -273,24 +273,32 @@ export default function LiveViewerScreen() {
         const liveData = data as any as LiveData;
 
         if (liveData.status !== "live" && liveData.status !== "starting") {
+          if (cancelled) return;
           setError("Streamul s-a incheiat");
           setLive(liveData);
           setLoading(false);
           return;
         }
 
+        if (cancelled) return;
         setLive(liveData);
 
         // Fetch viewer token
         const tokenResult = await fetchLiveKitToken(liveData.room_name, false);
+        if (cancelled) return;
         setToken(tokenResult.token);
         setServerUrl(tokenResult.serverUrl);
         setLoading(false);
       } catch (err: any) {
+        if (cancelled) return;
         setError(err.message || "Eroare la conectare");
         setLoading(false);
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   // AudioSession for iOS — stub is used in Expo Go so calls are always safe

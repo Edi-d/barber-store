@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { View, FlatList, RefreshControl, Text, Pressable, ActivityIndicator, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useInfiniteQuery, useMutation, useQueryClient, useQuery, InfiniteData } from "@tanstack/react-query";
@@ -43,7 +43,7 @@ export default function FeedScreen() {
   const [viewerStartIndex, setViewerStartIndex] = useState(0);
 
   // Realtime lives — subscribes to Supabase and keeps list in sync
-  const { lives: displayLives, loading: livesLoading } = useRealtimeLives();
+  const { lives: displayLives } = useRealtimeLives();
 
   const PAGE_SIZE = 10;
 
@@ -241,14 +241,14 @@ export default function FeedScreen() {
     if (item) setCommentsItem(item);
   };
 
-  // Header Component
-  const ListHeader = () => (
+  // Header memoized to prevent remounting on every render (which would re-trigger entering animations)
+  const listHeader = useMemo(() => (
     <View>
       {/* Stories Row */}
       <Animated.View entering={FadeInLeft.duration(400).delay(80)}>
         <StoriesRow
           groups={storyGroups}
-          onGroupPress={(group, index) => {
+          onGroupPress={(_group, index) => {
             setViewerStartIndex(index);
             setViewerVisible(true);
           }}
@@ -275,7 +275,7 @@ export default function FeedScreen() {
       {/* New Posts Banner */}
       <NewPostsBanner count={newPostCount} onPress={handleShowNewPosts} />
     </View>
-  );
+  ), [storyGroups, displayLives, newPostCount, handleShowNewPosts]);
 
   if (isLoading) {
     return (
@@ -370,7 +370,7 @@ export default function FeedScreen() {
         ref={flatListRef}
         data={feedItems}
         keyExtractor={(item) => item.id}
-        ListHeaderComponent={ListHeader}
+        ListHeaderComponent={() => listHeader}
         renderItem={({ item }) => (
           <FeedCard
             item={item}

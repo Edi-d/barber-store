@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Image, Dimensions } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -21,7 +21,7 @@ import { timeAgo } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const IMAGE_HEIGHT = SCREEN_WIDTH * 0.55;
+const IMAGE_RATIO = 1; // square like Instagram
 
 const SPRING_BOUNCY = { damping: 6, stiffness: 200, mass: 0.5 };
 const SPRING_SETTLE = { damping: 14, stiffness: 180, mass: 0.6 };
@@ -51,6 +51,12 @@ export function FeedCard({ item, onLike, onComment, onShare, isFollowing, onFoll
   const isOwnPost = session?.user.id === item.author_id;
   const [liked, setLiked] = useState(item.is_liked || false);
   const [displayLikes, setDisplayLikes] = useState(item.likes_count);
+
+  // Sync local state when realtime updates change the parent data
+  useEffect(() => {
+    setLiked(item.is_liked || false);
+    setDisplayLikes(item.likes_count);
+  }, [item.is_liked, item.likes_count]);
 
   /* ── Debounce ref ── */
   const lastLikeTime = useRef(0);
@@ -492,11 +498,11 @@ const styles = StyleSheet.create({
   postImageWrap: {
     position: 'relative',
     width: '100%',
-    height: IMAGE_HEIGHT,
+    aspectRatio: IMAGE_RATIO,
   },
   postImage: {
     width: '100%',
-    height: IMAGE_HEIGHT,
+    height: '100%',
   },
   heartOverlay: {
     ...StyleSheet.absoluteFillObject,

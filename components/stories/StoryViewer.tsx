@@ -15,6 +15,7 @@ import {
   GestureDetector,
   Directions,
 } from "react-native-gesture-handler";
+import { runOnJS } from "react-native-reanimated";
 
 import { StoryMedia } from "./StoryMedia";
 import { StoryProgressBar } from "./StoryProgressBar";
@@ -119,33 +120,42 @@ export function StoryViewer({
   // -- Gestures ---------------------------------------------------------------
 
   const tap = Gesture.Tap().onEnd((event) => {
-    const x = event.x;
-    if (x < SCREEN_WIDTH / 3) {
-      goToPrevStory();
+    "worklet";
+    if (event.x < SCREEN_WIDTH / 3) {
+      runOnJS(goToPrevStory)();
     } else {
-      goToNextStory();
+      runOnJS(goToNextStory)();
     }
   });
 
   const longPress = Gesture.LongPress()
     .minDuration(200)
     .onStart(() => {
-      pause();
+      "worklet";
+      runOnJS(pause)();
     })
     .onEnd(() => {
-      resume();
+      "worklet";
+      runOnJS(resume)();
     });
 
   const flingLeft = Gesture.Fling()
     .direction(Directions.LEFT)
     .onEnd(() => {
-      goToNextCreator();
+      "worklet";
+      // resume() in case a long-press was active when the fling won the Race
+      // (long-press onEnd is never called when cancelled by a competing gesture)
+      runOnJS(resume)();
+      runOnJS(goToNextCreator)();
     });
 
   const flingRight = Gesture.Fling()
     .direction(Directions.RIGHT)
     .onEnd(() => {
-      goToPrevCreator();
+      "worklet";
+      // Same guard: ensure playback resumes if long-press was interrupted
+      runOnJS(resume)();
+      runOnJS(goToPrevCreator)();
     });
 
   const composed = Gesture.Race(

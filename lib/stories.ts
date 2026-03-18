@@ -31,12 +31,22 @@ export async function fetchStoriesWithSeenState(viewerId: string): Promise<Story
 
   if (error || !data) return [];
 
+  const rows = data as any[];
+
   // Group by author
   const authorMap = new Map<string, StoryGroup>();
 
-  for (const story of data) {
+  for (const story of rows) {
     const authorId = (story.author as any)?.id ?? story.author_id;
-    const isSeen = (story.views as any[])?.some((v: any) => v.viewer_id === viewerId) ?? false;
+    // PostgREST may return a single object or null instead of an array when
+    // there are 0 or 1 matching rows for the LEFT JOIN relation.
+    // Normalize to an array before checking the current viewer's ID.
+    const views: any[] = Array.isArray(story.views)
+      ? story.views
+      : story.views
+      ? [story.views]
+      : [];
+    const isSeen = views.some((v: any) => v.viewer_id === viewerId);
 
     if (!authorMap.has(authorId)) {
       const author = story.author as any;

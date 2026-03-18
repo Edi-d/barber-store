@@ -1,5 +1,5 @@
 import { Pressable, Text } from "react-native";
-import Animated, { SlideInUp, SlideOutUp } from "react-native-reanimated";
+import Animated, { SlideInUp, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 
 interface NewPostsBannerProps {
@@ -8,13 +8,17 @@ interface NewPostsBannerProps {
 }
 
 export function NewPostsBanner({ count, onPress }: NewPostsBannerProps) {
-  if (count === 0) return null;
+  const visible = count > 0;
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: withTiming(visible ? 1 : 0, { duration: 200 }),
+    pointerEvents: visible ? "auto" : "none",
+  }));
 
   return (
     <Animated.View
       entering={SlideInUp.springify().damping(14).stiffness(180)}
-      exiting={SlideOutUp.duration(200)}
-      style={{ marginHorizontal: 16, marginVertical: 8 }}
+      style={[{ marginHorizontal: 16, marginVertical: 8 }, animatedStyle]}
     >
       <Pressable
         onPress={onPress}

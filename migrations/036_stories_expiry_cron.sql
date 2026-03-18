@@ -2,7 +2,12 @@
 -- Hourly job that deletes expired stories and their storage files.
 
 -- Enable pg_cron if not already (Supabase Pro has it available)
-CREATE EXTENSION IF NOT EXISTS pg_cron;
+DO $$
+BEGIN
+  CREATE EXTENSION IF NOT EXISTS pg_cron;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'pg_cron not available — story expiry cron not installed (requires Supabase Pro)';
+END $$;
 
 -- Cleanup function: deletes storage objects then story rows
 CREATE OR REPLACE FUNCTION cleanup_expired_stories()
@@ -32,8 +37,13 @@ END;
 $$;
 
 -- Schedule hourly at minute 0
-SELECT cron.schedule(
-  'cleanup-expired-stories',
-  '0 * * * *',
-  'SELECT cleanup_expired_stories();'
-);
+DO $$
+BEGIN
+  PERFORM cron.schedule(
+    'cleanup-expired-stories',
+    '0 * * * *',
+    'SELECT cleanup_expired_stories();'
+  );
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'pg_cron not available — skipping cron.schedule (requires Supabase Pro)';
+END $$;

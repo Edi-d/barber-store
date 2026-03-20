@@ -730,24 +730,8 @@ export default function DiscoverScreen() {
                             </View>
                           )}
                         </View>
-                        <View className="flex-1">
-                          <View className="flex-row items-center gap-1.5">
-                            <Text className="text-dark-700 font-bold text-[15px] flex-1" numberOfLines={1}>{salon.name}</Text>
-                            {salon.is_promoted && (
-                              <View
-                                className="bg-amber-100 px-2 py-0.5"
-                                style={{
-                                  borderTopLeftRadius: 10,
-                                  borderTopRightRadius: 5,
-                                  borderBottomRightRadius: 10,
-                                  borderBottomLeftRadius: 10,
-                                }}
-                              >
-                                <Text className="text-amber-700 text-[9px] font-bold">BOOST</Text>
-                              </View>
-                            )}
-                            {salon.is_available_now && <View className="w-2 h-2 rounded-full bg-emerald-400" />}
-                          </View>
+                        <View className="flex-1 mr-3">
+                          <Text className="text-dark-700 font-bold text-[15px]" numberOfLines={1}>{salon.name}</Text>
                           <View className="flex-row items-center mt-0.5 gap-2">
                             {salon.rating_avg != null && (
                               <View className="flex-row items-center">
@@ -768,7 +752,25 @@ export default function DiscoverScreen() {
                             )}
                           </View>
                         </View>
-                        <Text className="text-dark-700 text-sm font-semibold ml-2">{salon.avg_price_label}</Text>
+                        <View className="items-end gap-1.5">
+                          <View className="flex-row items-center gap-1.5">
+                            {salon.is_promoted && (
+                              <View
+                                className="bg-amber-100 px-2 py-0.5"
+                                style={{
+                                  borderTopLeftRadius: 10,
+                                  borderTopRightRadius: 5,
+                                  borderBottomRightRadius: 10,
+                                  borderBottomLeftRadius: 10,
+                                }}
+                              >
+                                <Text className="text-amber-700 text-[9px] font-bold">BOOST</Text>
+                              </View>
+                            )}
+                            {salon.is_available_now && <View className="w-2.5 h-2.5 rounded-full bg-emerald-400" />}
+                          </View>
+                          <Text className="text-dark-700 text-sm font-semibold">{salon.avg_price_label}</Text>
+                        </View>
                       </View>
                     </Pressable>
                   ))}
@@ -863,24 +865,8 @@ export default function DiscoverScreen() {
                             </View>
                           )}
                         </View>
-                        <View className="flex-1">
-                          <View className="flex-row items-center gap-1.5">
-                            <Text className="text-dark-700 font-bold text-[15px] flex-1" numberOfLines={1}>{salon.name}</Text>
-                            {salon.is_promoted && (
-                              <View
-                                className="bg-amber-100 px-2 py-0.5"
-                                style={{
-                                  borderTopLeftRadius: 10,
-                                  borderTopRightRadius: 5,
-                                  borderBottomRightRadius: 10,
-                                  borderBottomLeftRadius: 10,
-                                }}
-                              >
-                                <Text className="text-amber-700 text-[9px] font-bold">BOOST</Text>
-                              </View>
-                            )}
-                            {salon.is_available_now && <View className="w-2 h-2 rounded-full bg-emerald-400" />}
-                          </View>
+                        <View className="flex-1 mr-3">
+                          <Text className="text-dark-700 font-bold text-[15px]" numberOfLines={1}>{salon.name}</Text>
                           <View className="flex-row items-center mt-0.5 gap-2">
                             {salon.rating_avg != null && (
                               <View className="flex-row items-center">
@@ -896,9 +882,6 @@ export default function DiscoverScreen() {
                                 {salon.distance_km < 1 ? `${Math.round(salon.distance_km * 1000)}m` : `${salon.distance_km.toFixed(1)}km`}
                               </Text>
                             )}
-                            {salon.travel_time_min != null && (
-                              <Text className="text-dark-400 text-[11px]">· {salon.travel_time_min} min</Text>
-                            )}
                           </View>
                           {(salon.city || salon.address) && (
                             <Text className="text-dark-400 text-[11px] mt-0.5" numberOfLines={1}>
@@ -906,7 +889,25 @@ export default function DiscoverScreen() {
                             </Text>
                           )}
                         </View>
-                        <Text className="text-dark-700 text-sm font-semibold ml-2">{salon.avg_price_label}</Text>
+                        <View className="items-end gap-1.5">
+                          <View className="flex-row items-center gap-1.5">
+                            {salon.is_promoted && (
+                              <View
+                                className="bg-amber-100 px-2 py-0.5"
+                                style={{
+                                  borderTopLeftRadius: 10,
+                                  borderTopRightRadius: 5,
+                                  borderBottomRightRadius: 10,
+                                  borderBottomLeftRadius: 10,
+                                }}
+                              >
+                                <Text className="text-amber-700 text-[9px] font-bold">BOOST</Text>
+                              </View>
+                            )}
+                            {salon.is_available_now && <View className="w-2.5 h-2.5 rounded-full bg-emerald-400" />}
+                          </View>
+                          <Text className="text-dark-700 text-sm font-semibold">{salon.avg_price_label}</Text>
+                        </View>
                       </View>
                     </Pressable>
                   ))}

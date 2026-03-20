@@ -734,7 +734,15 @@ export default function DiscoverScreen() {
                           <View className="flex-row items-center gap-1.5">
                             <Text className="text-dark-700 font-bold text-[15px] flex-1" numberOfLines={1}>{salon.name}</Text>
                             {salon.is_promoted && (
-                              <View className="bg-amber-100 px-2 py-0.5 rounded-md">
+                              <View
+                                className="bg-amber-100 px-2 py-0.5"
+                                style={{
+                                  borderTopLeftRadius: 10,
+                                  borderTopRightRadius: 5,
+                                  borderBottomRightRadius: 10,
+                                  borderBottomLeftRadius: 10,
+                                }}
+                              >
                                 <Text className="text-amber-700 text-[9px] font-bold">BOOST</Text>
                               </View>
                             )}
@@ -859,7 +867,15 @@ export default function DiscoverScreen() {
                           <View className="flex-row items-center gap-1.5">
                             <Text className="text-dark-700 font-bold text-[15px] flex-1" numberOfLines={1}>{salon.name}</Text>
                             {salon.is_promoted && (
-                              <View className="bg-amber-100 px-2 py-0.5 rounded-md">
+                              <View
+                                className="bg-amber-100 px-2 py-0.5"
+                                style={{
+                                  borderTopLeftRadius: 10,
+                                  borderTopRightRadius: 5,
+                                  borderBottomRightRadius: 10,
+                                  borderBottomLeftRadius: 10,
+                                }}
+                              >
                                 <Text className="text-amber-700 text-[9px] font-bold">BOOST</Text>
                               </View>
                             )}

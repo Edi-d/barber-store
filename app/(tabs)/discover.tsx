@@ -554,9 +554,15 @@ export default function DiscoverScreen() {
               style={{ ...bubbleRadii, ...cardShadow }}
             >
               <View
-                className={`w-10 h-10 rounded-xl items-center justify-center mr-3 ${
+                className={`w-10 h-10 items-center justify-center mr-3 ${
                   filterAvailableNow ? "bg-emerald-500" : "bg-primary-500"
                 }`}
+                style={{
+                  borderTopLeftRadius: 14,
+                  borderTopRightRadius: 7,
+                  borderBottomRightRadius: 14,
+                  borderBottomLeftRadius: 14,
+                }}
               >
                 <Ionicons
                   name={filterAvailableNow ? "checkmark-circle" : "flash"}

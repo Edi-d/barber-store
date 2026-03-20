@@ -25,7 +25,7 @@ export function LiveSection({ lives, onSeeAll }: LiveSectionProps) {
   if (!lives || lives.length === 0) return null;
 
   return (
-    <View className="pt-2 pb-0" style={{ backgroundColor: "#F0F4F8" }}>
+    <View className="pt-1 pb-4" style={{ backgroundColor: "#F0F4F8" }}>
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 mb-3">
         <View className="flex-row items-center">

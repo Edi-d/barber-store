@@ -11,7 +11,7 @@ export function StoriesRow({ groups, onGroupPress }: StoriesRowProps) {
   if (groups.length === 0) return null;
 
   return (
-    <View className="py-3 border-b border-dark-300" style={{ backgroundColor: "#F0F4F8" }}>
+    <View className="pt-3 pb-4" style={{ backgroundColor: "#F0F4F8" }}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}

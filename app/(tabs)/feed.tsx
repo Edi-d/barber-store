@@ -112,7 +112,7 @@ function ModalLiveCard({ live }: { live: LiveWithHost }) {
 
       {/* Top Row - LIVE badge + viewer count */}
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 10, zIndex: 10 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#ef4444", paddingHorizontal: 7, paddingVertical: 4, borderRadius: 6 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#ef4444", paddingHorizontal: 7, paddingVertical: 4, borderTopLeftRadius: 8, borderTopRightRadius: 4, borderBottomRightRadius: 8, borderBottomLeftRadius: 8 }}>
           <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "#fff", marginRight: 5 }} />
           <Text style={{ color: "#fff", fontSize: 10, fontFamily: "EuclidCircularA-Bold", letterSpacing: 0.5 }}>LIVE</Text>
         </View>

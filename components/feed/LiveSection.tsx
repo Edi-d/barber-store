@@ -88,7 +88,8 @@ function LiveCard({ live }: { live: LiveWithHost }) {
 
       {/* Top Row - LIVE badge + Viewer count */}
       <View className="flex-row items-center justify-between p-3 z-10">
-        <View className="flex-row items-center bg-red-500 px-2 py-1 rounded-md">
+        <View className="flex-row items-center bg-red-500 px-2 py-1"
+          style={{ borderTopLeftRadius: 8, borderTopRightRadius: 4, borderBottomRightRadius: 8, borderBottomLeftRadius: 8 }}>
           <View className="w-1.5 h-1.5 rounded-full bg-white mr-1.5" />
           <Text className="text-white text-[10px] font-bold tracking-wide">LIVE</Text>
         </View>

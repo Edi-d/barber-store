@@ -23,6 +23,39 @@ import Animated, {
   FadeInLeft,
 } from "react-native-reanimated";
 
+const EMPTY_STORIES: any[] = [];
+
+const PLACEHOLDER_LIVES: LiveWithHost[] = [
+  {
+    id: "placeholder-1", author_id: "", title: "Join me, paint the arts",
+    cover_url: "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=600",
+    room_name: "placeholder-1", status: "live", playback_url: null, viewers_count: 41600,
+    started_at: "2026-01-01T00:00:00Z", ended_at: null, created_at: "2026-01-01T00:00:00Z",
+    host: { id: "", username: "dianne", display_name: "Dianne", avatar_url: null, bio: null, role: "creator", created_at: "" },
+  },
+  {
+    id: "placeholder-2", author_id: "", title: "Live Session, Let's learn together",
+    cover_url: "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=600",
+    room_name: "placeholder-2", status: "live", playback_url: null, viewers_count: 21200,
+    started_at: "2026-01-01T00:00:00Z", ended_at: null, created_at: "2026-01-01T00:00:00Z",
+    host: { id: "", username: "robert", display_name: "Robert", avatar_url: null, bio: null, role: "creator", created_at: "" },
+  },
+  {
+    id: "placeholder-3", author_id: "", title: "Fade Masterclass - Live Demo",
+    cover_url: "https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=600",
+    room_name: "placeholder-3", status: "live", playback_url: null, viewers_count: 15800,
+    started_at: "2026-01-01T00:00:00Z", ended_at: null, created_at: "2026-01-01T00:00:00Z",
+    host: { id: "", username: "alex", display_name: "Alex", avatar_url: null, bio: null, role: "creator", created_at: "" },
+  },
+  {
+    id: "placeholder-4", author_id: "", title: "Beard Styling Session",
+    cover_url: "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600",
+    room_name: "placeholder-4", status: "live", playback_url: null, viewers_count: 8900,
+    started_at: "2026-01-01T00:00:00Z", ended_at: null, created_at: "2026-01-01T00:00:00Z",
+    host: { id: "", username: "cristi", display_name: "Cristi", avatar_url: null, bio: null, role: "creator", created_at: "" },
+  },
+];
+
 export default function FeedScreen() {
   const { session } = useAuthStore();
   const queryClient = useQueryClient();
@@ -37,7 +70,7 @@ export default function FeedScreen() {
   }, [showNewPosts]);
 
   // Stories via real Supabase data with seen/unseen state
-  const { data: storyGroups = [] } = useStories();
+  const { data: storyGroups = EMPTY_STORIES } = useStories();
   const markViewed = useMarkStoryViewed();
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerStartIndex, setViewerStartIndex] = useState(0);
@@ -47,66 +80,7 @@ export default function FeedScreen() {
   // is always visible and the feed doesn't look empty.
   const { lives: realtimeLives } = useRealtimeLives();
 
-  const placeholderLives: LiveWithHost[] = [
-    {
-      id: "placeholder-1",
-      author_id: "",
-      title: "Join me, paint the arts",
-      cover_url: "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=600",
-      room_name: "placeholder-1",
-      status: "live",
-      playback_url: null,
-      viewers_count: 41600,
-      started_at: new Date(Date.now() - 5 * 60000).toISOString(),
-      ended_at: null,
-      created_at: new Date().toISOString(),
-      host: { id: "", username: "dianne", display_name: "Dianne", avatar_url: null, bio: null, role: "creator", created_at: "" },
-    },
-    {
-      id: "placeholder-2",
-      author_id: "",
-      title: "Live Session, Let's learn together",
-      cover_url: "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=600",
-      room_name: "placeholder-2",
-      status: "live",
-      playback_url: null,
-      viewers_count: 21200,
-      started_at: new Date(Date.now() - 6 * 60000).toISOString(),
-      ended_at: null,
-      created_at: new Date().toISOString(),
-      host: { id: "", username: "robert", display_name: "Robert", avatar_url: null, bio: null, role: "creator", created_at: "" },
-    },
-    {
-      id: "placeholder-3",
-      author_id: "",
-      title: "Fade Masterclass - Live Demo",
-      cover_url: "https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=600",
-      room_name: "placeholder-3",
-      status: "live",
-      playback_url: null,
-      viewers_count: 15800,
-      started_at: new Date(Date.now() - 12 * 60000).toISOString(),
-      ended_at: null,
-      created_at: new Date().toISOString(),
-      host: { id: "", username: "alex", display_name: "Alex", avatar_url: null, bio: null, role: "creator", created_at: "" },
-    },
-    {
-      id: "placeholder-4",
-      author_id: "",
-      title: "Beard Styling Session",
-      cover_url: "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600",
-      room_name: "placeholder-4",
-      status: "live",
-      playback_url: null,
-      viewers_count: 8900,
-      started_at: new Date(Date.now() - 18 * 60000).toISOString(),
-      ended_at: null,
-      created_at: new Date().toISOString(),
-      host: { id: "", username: "cristi", display_name: "Cristi", avatar_url: null, bio: null, role: "creator", created_at: "" },
-    },
-  ];
-
-  const displayLives = realtimeLives.length > 0 ? realtimeLives : placeholderLives;
+  const displayLives = realtimeLives.length > 0 ? realtimeLives : PLACEHOLDER_LIVES;
 
   const PAGE_SIZE = 10;
 
@@ -433,7 +407,7 @@ export default function FeedScreen() {
         ref={flatListRef}
         data={feedItems}
         keyExtractor={(item) => item.id}
-        ListHeaderComponent={() => listHeader}
+        ListHeaderComponent={listHeader}
         renderItem={({ item }) => (
           <FeedCard
             item={item}

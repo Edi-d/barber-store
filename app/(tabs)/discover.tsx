@@ -709,12 +709,12 @@ export default function DiscoverScreen() {
                       onPress={() => router.push(`/salon/${salon.id}` as any)}
                     >
                       <View className="flex-row items-center">
-                        <View className="w-14 h-14 overflow-hidden bg-dark-200 mr-3.5" style={bubbleRadiiSm}>
+                        <View className="w-16 h-16 overflow-hidden bg-dark-200 mr-3.5" style={bubbleRadiiSm}>
                           {salon.avatar_url ? (
                             <Image source={{ uri: salon.avatar_url }} className="w-full h-full" resizeMode="cover" />
                           ) : (
                             <View className="w-full h-full items-center justify-center bg-primary-50">
-                              <Ionicons name="cut" size={20} color="#0a85f4" />
+                              <Ionicons name="cut" size={24} color="#0a85f4" />
                             </View>
                           )}
                         </View>
@@ -834,12 +834,12 @@ export default function DiscoverScreen() {
                       onPress={() => router.push(`/salon/${salon.id}` as any)}
                     >
                       <View className="flex-row items-center">
-                        <View className="w-14 h-14 overflow-hidden bg-dark-200 mr-3.5" style={bubbleRadiiSm}>
+                        <View className="w-16 h-16 overflow-hidden bg-dark-200 mr-3.5" style={bubbleRadiiSm}>
                           {salon.avatar_url ? (
                             <Image source={{ uri: salon.avatar_url }} className="w-full h-full" resizeMode="cover" />
                           ) : (
                             <View className="w-full h-full items-center justify-center bg-primary-50">
-                              <Ionicons name="cut" size={20} color="#0a85f4" />
+                              <Ionicons name="cut" size={24} color="#0a85f4" />
                             </View>
                           )}
                         </View>

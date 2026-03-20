@@ -124,7 +124,7 @@ export default function CourseDetailScreen() {
           <View className="flex-row gap-2 mb-3">
             {course.is_premium && (
               <Badge variant="warning" size="sm">
-                <Ionicons name="diamond" size={12} color="white" /> Premium
+                <Ionicons name="diamond" size={12} color="white" /> PRO
               </Badge>
             )}
             <Badge variant="default" size="sm">
@@ -181,9 +181,15 @@ export default function CourseDetailScreen() {
                       className="flex-row items-center bg-white rounded-xl p-4 border border-dark-300"
                     >
                       <View
-                        className={`w-8 h-8 rounded-full items-center justify-center mr-3 ${
+                        className={`w-9 h-9 items-center justify-center mr-3 ${
                           isCompleted ? "bg-green-600" : "bg-dark-200"
                         }`}
+                        style={{
+                          borderTopLeftRadius: 12,
+                          borderTopRightRadius: 6,
+                          borderBottomRightRadius: 12,
+                          borderBottomLeftRadius: 12,
+                        }}
                       >
                         {isCompleted ? (
                           <Ionicons name="checkmark" size={18} color="white" />
@@ -226,7 +232,7 @@ export default function CourseDetailScreen() {
       <View className="px-6 py-4 border-t border-dark-300 bg-white">
         <Button
           size="lg"
-          className="w-full"
+          style={{ width: '100%' }}
           onPress={() => {
             // Find first incomplete lesson or first lesson
             for (const module of course.modules || []) {

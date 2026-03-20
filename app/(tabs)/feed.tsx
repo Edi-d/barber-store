@@ -326,7 +326,7 @@ export default function FeedScreen() {
       {/* All Feeds Header */}
       <Animated.View
         entering={FadeInDown.duration(400).delay(650)}
-        className="flex-row items-center justify-between px-4 pt-3 pb-2"
+        className="flex-row items-center justify-between px-4 pt-2 pb-1"
         style={{ backgroundColor: "#F0F4F8" }}
       >
         <Text className="text-dark-700 text-lg font-bold">All Feeds</Text>

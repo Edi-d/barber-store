@@ -12,13 +12,16 @@ export function NewPostsBanner({ count, onPress }: NewPostsBannerProps) {
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: withTiming(visible ? 1 : 0, { duration: 200 }),
+    height: visible ? undefined : withTiming(0, { duration: 200 }),
+    marginVertical: visible ? 8 : withTiming(0, { duration: 200 }),
+    overflow: "hidden" as const,
     pointerEvents: visible ? "auto" : "none",
   }));
 
   return (
     <Animated.View
       entering={SlideInUp.springify().damping(14).stiffness(180)}
-      style={[{ marginHorizontal: 16, marginVertical: 8 }, animatedStyle]}
+      style={[{ marginHorizontal: 16 }, animatedStyle]}
     >
       <Pressable
         onPress={onPress}

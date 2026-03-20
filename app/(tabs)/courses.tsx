@@ -602,6 +602,8 @@ const styles = StyleSheet.create({
   listThumb: {
     width: 100,
     height: 100,
+    borderTopLeftRadius: Bubble.radii.topLeft,
+    borderBottomLeftRadius: Bubble.radii.bottomLeft,
   },
   listThumbPlaceholder: {
     backgroundColor: "#EFF6FF",

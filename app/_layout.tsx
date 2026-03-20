@@ -19,9 +19,13 @@ import * as SplashScreen from "expo-splash-screen";
 import { useAuthStore } from "@/stores/authStore";
 import Constants from "expo-constants";
 
-// LiveKit requires native modules — skip entirely in Expo Go
-if (Constants.appOwnership !== "expo") {
-  require("@livekit/react-native").registerGlobals();
+// LiveKit requires native modules — skip in Expo Go and builds without LiveKit compiled
+try {
+  if (Constants.appOwnership !== "expo") {
+    require("@livekit/react-native").registerGlobals();
+  }
+} catch {
+  // Native module not available in this build
 }
 
 SplashScreen.preventAutoHideAsync();

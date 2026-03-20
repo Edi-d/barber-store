@@ -178,7 +178,13 @@ export default function CourseDetailScreen() {
                     <Pressable
                       key={lesson.id}
                       onPress={() => router.push(`/lesson/${lesson.id}`)}
-                      className="flex-row items-center bg-white rounded-xl p-4 border border-dark-300"
+                      className="flex-row items-center bg-white p-4 border border-dark-300"
+                      style={{
+                        borderTopLeftRadius: 18,
+                        borderTopRightRadius: 8,
+                        borderBottomRightRadius: 18,
+                        borderBottomLeftRadius: 18,
+                      }}
                     >
                       <View
                         className={`w-9 h-9 items-center justify-center mr-3 ${

@@ -567,19 +567,23 @@ export default function SalonDetailScreen() {
               contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}
             >
               {teamBarbers.map((barber) => (
-                <View key={barber.id} className="w-[120px] items-center bg-white border border-dark-200 p-3"
+                <Pressable
+                  key={barber.id}
+                  className="w-[140px] bg-white border border-dark-200 overflow-hidden active:opacity-90"
                   style={{
-                    borderTopLeftRadius: 18,
-                    borderTopRightRadius: 8,
-                    borderBottomRightRadius: 18,
-                    borderBottomLeftRadius: 18,
-                  }}>
-                  <View className="w-16 h-16 overflow-hidden bg-dark-200 mb-2"
+                    borderTopLeftRadius: 25,
+                    borderTopRightRadius: 12,
+                    borderBottomRightRadius: 25,
+                    borderBottomLeftRadius: 25,
+                  }}
+                >
+                  {/* Avatar — full-width top image, no inner padding */}
+                  <View className="w-full aspect-square overflow-hidden bg-dark-200"
                     style={{
-                      borderTopLeftRadius: 18,
-                      borderTopRightRadius: 8,
-                      borderBottomRightRadius: 18,
-                      borderBottomLeftRadius: 18,
+                      borderTopLeftRadius: 24,
+                      borderTopRightRadius: 11,
+                      borderBottomRightRadius: 0,
+                      borderBottomLeftRadius: 0,
                     }}>
                     {barber.avatar_url ? (
                       <Image
@@ -588,27 +592,31 @@ export default function SalonDetailScreen() {
                         resizeMode="cover"
                       />
                     ) : (
-                      <View className="w-full h-full items-center justify-center bg-primary-100">
-                        <Text className="text-primary-600 font-bold text-lg">
+                      <View className="w-full h-full items-center justify-center bg-primary-50">
+                        <Text className="text-primary-500 font-bold text-2xl">
                           {getInitials(barber.name)}
                         </Text>
                       </View>
                     )}
                   </View>
-                  <Text className="text-dark-700 font-bold text-xs text-center" numberOfLines={1}>
-                    {barber.name}
-                  </Text>
-                  {barber.role && (
-                    <Text className="text-dark-400 text-[10px] mt-0.5">
-                      {barber.role === "owner" ? "Proprietar" : "Frizer"}
+
+                  {/* Info — compact text block below image */}
+                  <View className="px-3 pt-2.5 pb-3">
+                    <Text className="text-dark-700 font-bold text-[13px]" numberOfLines={1}>
+                      {barber.name}
                     </Text>
-                  )}
-                  {barber.specialties?.[0] && (
-                    <Text className="text-primary-500 text-[10px] mt-0.5">
-                      {barber.specialties[0]}
-                    </Text>
-                  )}
-                </View>
+                    {barber.role && (
+                      <Text className="text-dark-400 text-[11px] mt-0.5">
+                        {barber.role === "owner" ? "Proprietar" : "Frizer"}
+                      </Text>
+                    )}
+                    {barber.specialties?.[0] && (
+                      <Text className="text-primary-500 text-[11px] font-medium mt-0.5" numberOfLines={1}>
+                        {barber.specialties[0]}
+                      </Text>
+                    )}
+                  </View>
+                </Pressable>
               ))}
             </ScrollView>
           </View>

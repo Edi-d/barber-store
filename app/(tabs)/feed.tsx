@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useMemo } from "react";
-import { View, FlatList, RefreshControl, Text, Pressable, ActivityIndicator, Image } from "react-native";
+import { View, FlatList, RefreshControl, Text, Pressable, ActivityIndicator, Image, Modal, Dimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useInfiniteQuery, useMutation, useQueryClient, useQuery, InfiniteData } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -18,6 +18,11 @@ import { StoryViewer } from "@/components/stories/StoryViewer";
 import { ContentWithAuthor, LiveWithHost } from "@/types/database";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { CommentsModal } from "@/components/feed/CommentsModal";
+import { Avatar } from "@/components/ui";
+import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
+import { timeAgo } from "@/lib/utils";
+import { Bubble } from "@/constants/theme";
 import Animated, {
   FadeInDown,
   FadeInLeft,
@@ -56,6 +61,198 @@ const PLACEHOLDER_LIVES: LiveWithHost[] = [
   },
 ];
 
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+const MODAL_CARD_GAP = 12;
+const MODAL_PADDING = 16;
+const SCREEN_WIDTH = Dimensions.get("window").width;
+const MODAL_CARD_WIDTH = (SCREEN_WIDTH - MODAL_PADDING * 2 - MODAL_CARD_GAP) / 2;
+const MODAL_CARD_HEIGHT = 200;
+
+function formatViewersModal(count: number): string {
+  if (count >= 1000) return `${(count / 1000).toFixed(1)}k`;
+  return count.toString();
+}
+
+function ModalLiveCard({ live }: { live: LiveWithHost }) {
+  const isPlaceholder = live.id.startsWith("placeholder");
+
+  return (
+    <Pressable
+      onPress={isPlaceholder ? undefined : () => router.push(`/live/${live.id}` as any)}
+      style={{
+        width: MODAL_CARD_WIDTH,
+        height: MODAL_CARD_HEIGHT,
+        overflow: "hidden",
+        borderTopLeftRadius: Bubble.radiiSm.borderTopLeftRadius,
+        borderTopRightRadius: Bubble.radiiSm.borderTopRightRadius,
+        borderBottomRightRadius: Bubble.radiiSm.borderBottomRightRadius,
+        borderBottomLeftRadius: Bubble.radiiSm.borderBottomLeftRadius,
+      }}
+    >
+      {/* Background Image */}
+      {live.cover_url ? (
+        <Image
+          source={{ uri: live.cover_url }}
+          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, width: "100%", height: "100%" }}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "#E8F3FF", alignItems: "center", justifyContent: "center" }}>
+          <Ionicons name="radio" size={40} color="#0a66c2" />
+        </View>
+      )}
+
+      {/* Gradient Overlay */}
+      <LinearGradient
+        colors={["rgba(0,0,0,0.1)", "rgba(0,0,0,0.15)", "rgba(0,0,0,0.65)"]}
+        locations={[0, 0.4, 1]}
+        style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+      />
+
+      {/* Top Row - LIVE badge + viewer count */}
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 10, zIndex: 10 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#ef4444", paddingHorizontal: 7, paddingVertical: 4, borderRadius: 6 }}>
+          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "#fff", marginRight: 5 }} />
+          <Text style={{ color: "#fff", fontSize: 10, fontFamily: "EuclidCircularA-Bold", letterSpacing: 0.5 }}>LIVE</Text>
+        </View>
+        {live.viewers_count > 0 && (
+          <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "rgba(0,0,0,0.4)", paddingHorizontal: 7, paddingVertical: 3, borderRadius: 99 }}>
+            <Ionicons name="people" size={11} color="white" />
+            <Text style={{ color: "#fff", fontSize: 11, fontFamily: "EuclidCircularA-Medium", marginLeft: 4 }}>
+              {formatViewersModal(live.viewers_count)}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Bottom Content */}
+      <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 10, zIndex: 10 }}>
+        <Text
+          style={{ color: "#fff", fontFamily: "EuclidCircularA-SemiBold", fontSize: 13, marginBottom: 8, lineHeight: 17 }}
+          numberOfLines={2}
+        >
+          {live.title}
+        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Avatar
+            source={live.host?.avatar_url}
+            name={live.host?.display_name || live.host?.username}
+            size="xs"
+            useDefaultAvatar={true}
+          />
+          <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 11, fontFamily: "EuclidCircularA-Medium", marginLeft: 6, flex: 1 }} numberOfLines={1}>
+            {live.host?.display_name || live.host?.username}
+          </Text>
+          {(live.host?.role === "creator" || live.host?.role === "admin") && (
+            <View style={{ marginLeft: 4, width: 14, height: 14, backgroundColor: "#0a66c2", borderRadius: 7, alignItems: "center", justifyContent: "center" }}>
+              <Ionicons name="checkmark" size={8} color="white" />
+            </View>
+          )}
+        </View>
+        {live.started_at && (
+          <Text style={{ color: "rgba(255,255,255,0.55)", fontSize: 10, fontFamily: "EuclidCircularA-Regular", marginTop: 3 }}>
+            {timeAgo(live.started_at)}
+          </Text>
+        )}
+      </View>
+    </Pressable>
+  );
+}
+
+interface AllLivesModalProps {
+  visible: boolean;
+  lives: LiveWithHost[];
+  onClose: () => void;
+}
+
+function AllLivesModal({ visible, lives, onClose }: AllLivesModalProps) {
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#F0F4F8" }} edges={["top", "bottom"]}>
+        {/* Header */}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingHorizontal: 20,
+            paddingVertical: 14,
+            backgroundColor: "#F0F4F8",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Text
+              style={{
+                fontFamily: "EuclidCircularA-Bold",
+                fontSize: 20,
+                color: "#191919",
+              }}
+            >
+              Creatori Live
+            </Text>
+            <View
+              style={{
+                marginLeft: 8,
+                backgroundColor: "#0A66C2",
+                borderRadius: 99,
+                paddingHorizontal: 8,
+                paddingVertical: 2,
+                minWidth: 28,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: "#fff", fontSize: 12, fontFamily: "EuclidCircularA-Bold" }}>
+                {lives.length}
+              </Text>
+            </View>
+          </View>
+
+          {/* Close button */}
+          <Pressable
+            onPress={onClose}
+            style={{
+              width: 38,
+              height: 38,
+              borderTopLeftRadius: Bubble.radiiSm.borderTopLeftRadius,
+              borderTopRightRadius: Bubble.radiiSm.borderTopRightRadius,
+              borderBottomRightRadius: Bubble.radiiSm.borderBottomRightRadius,
+              borderBottomLeftRadius: Bubble.radiiSm.borderBottomLeftRadius,
+              backgroundColor: "#fff",
+              borderWidth: 1,
+              borderColor: "rgba(255,255,255,0.9)",
+              borderBottomWidth: 1.5,
+              borderBottomColor: "rgba(10,102,194,0.18)",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Ionicons name="close" size={20} color="#191919" />
+          </Pressable>
+        </View>
+
+        {/* Grid */}
+        <FlatList
+          data={lives}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          contentContainerStyle={{ paddingHorizontal: MODAL_PADDING, paddingTop: 4, paddingBottom: 32, gap: MODAL_CARD_GAP }}
+          columnWrapperStyle={{ gap: MODAL_CARD_GAP }}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item }) => <ModalLiveCard live={item} />}
+        />
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+// ─── Screen ──────────────────────────────────────────────────────────────────
+
 export default function FeedScreen() {
   const { session } = useAuthStore();
   const queryClient = useQueryClient();
@@ -74,6 +271,7 @@ export default function FeedScreen() {
   const markViewed = useMarkStoryViewed();
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerStartIndex, setViewerStartIndex] = useState(0);
+  const [livesModalVisible, setLivesModalVisible] = useState(false);
 
   // Realtime lives — subscribes to Supabase and keeps list in sync.
   // When no one is streaming, fall back to placeholder cards so the section
@@ -294,7 +492,7 @@ export default function FeedScreen() {
 
       {/* Live Section */}
       <Animated.View entering={FadeInDown.duration(450).delay(500)}>
-        <LiveSection lives={displayLives} onSeeAll={() => {}} />
+        <LiveSection lives={displayLives} onSeeAll={() => setLivesModalVisible(true)} />
       </Animated.View>
 
       {/* All Feeds Header */}
@@ -468,6 +666,13 @@ export default function FeedScreen() {
         initialGroupIndex={viewerStartIndex}
         onClose={() => setViewerVisible(false)}
         onStoryViewed={(storyId) => markViewed.mutate(storyId)}
+      />
+
+      {/* All Lives Modal */}
+      <AllLivesModal
+        visible={livesModalVisible}
+        lives={displayLives}
+        onClose={() => setLivesModalVisible(false)}
       />
     </SafeAreaView>
   );

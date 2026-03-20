@@ -200,7 +200,10 @@ function AllLivesModal({ visible, lives, onClose }: AllLivesModalProps) {
               style={{
                 marginLeft: 8,
                 backgroundColor: "#0A66C2",
-                borderRadius: 99,
+                borderTopLeftRadius: 10,
+                borderTopRightRadius: 5,
+                borderBottomRightRadius: 10,
+                borderBottomLeftRadius: 10,
                 paddingHorizontal: 8,
                 paddingVertical: 2,
                 minWidth: 28,

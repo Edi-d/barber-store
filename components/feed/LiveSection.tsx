@@ -30,7 +30,8 @@ export function LiveSection({ lives, onSeeAll }: LiveSectionProps) {
       <View className="flex-row items-center justify-between px-4 mb-3">
         <View className="flex-row items-center">
           <Text className="text-dark-700 text-lg font-bold">Creatori Live</Text>
-          <View className="ml-2 bg-primary-500 rounded-full px-2 py-0.5 min-w-[28px] items-center">
+          <View className="ml-2 bg-primary-500 px-2 py-0.5 min-w-[28px] items-center"
+            style={{ borderTopLeftRadius: 10, borderTopRightRadius: 5, borderBottomRightRadius: 10, borderBottomLeftRadius: 10 }}>
             <Text className="text-white text-xs font-bold">{lives.length}</Text>
           </View>
         </View>

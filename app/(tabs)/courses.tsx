@@ -1,12 +1,39 @@
-import { View, Text, FlatList, RefreshControl, Pressable, Image, ScrollView, ActivityIndicator } from "react-native";
+import { useEffect } from "react";
+import {
+  View,
+  Text,
+  RefreshControl,
+  Pressable,
+  Image,
+  ScrollView,
+  ActivityIndicator,
+  StyleSheet,
+  Platform,
+  Dimensions,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/authStore";
-import { Card, Badge } from "@/components/ui";
+import { Badge } from "@/components/ui";
 import { Course } from "@/types/database";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import Animated, {
+  FadeInDown,
+  FadeInRight,
+  useSharedValue,
+  useAnimatedStyle,
+  withDelay,
+  withTiming,
+  Easing,
+} from "react-native-reanimated";
+import { Bubble, Colors } from "@/constants/theme";
+
+const { width: SCREEN_W } = Dimensions.get("window");
+const FEATURED_W = SCREEN_W * 0.72;
+const FEATURED_H = 200;
 
 export default function CoursesScreen() {
   const { session } = useAuthStore();
@@ -42,14 +69,14 @@ export default function CoursesScreen() {
 
       return data.map((course) => {
         const totalLessons = course.modules?.reduce(
-          (acc, mod) => acc + (mod.lessons?.length || 0),
+          (acc: number, mod: any) => acc + (mod.lessons?.length || 0),
           0
         ) || 0;
 
-        const completedLessons = course.modules?.reduce((acc, mod) => {
+        const completedLessons = course.modules?.reduce((acc: number, mod: any) => {
           return (
             acc +
-            (mod.lessons?.filter((l) => progressMap.has(l.id)).length || 0)
+            (mod.lessons?.filter((l: any) => progressMap.has(l.id)).length || 0)
           );
         }, 0) || 0;
 
@@ -62,252 +89,639 @@ export default function CoursesScreen() {
     },
   });
 
-  // Split courses into categories
   const premiumCourses = courses?.filter((c) => c.is_premium) || [];
-  const freeCourses = courses?.filter((c) => !c.is_premium) || [];
   const inProgressCourses = courses?.filter((c) => c.completed_count > 0 && c.completed_count < c.lessons_count) || [];
 
   if (isLoading) {
     return (
       <View className="flex-1 bg-white items-center justify-center">
-        <ActivityIndicator size="large" color="#0a66c2" />
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-dark-200" edges={["top"]}>
-      {/* Header - 45px */}
-      <View className="h-[50px] flex-row items-center justify-between px-4 border-b border-dark-300 bg-white">
-        <View className="flex-row items-center">
-          <Image
-            source={require("@/assets/image-removebg-preview.png")}
-            style={{ width: 100, height: 36 }}
-            resizeMode="contain"
-          />
-          <Text className="text-dark-700 text-xl font-bold ml-2">Academy</Text>
-        </View>
-        <Pressable className="w-10 h-10 bg-dark-200 rounded-full items-center justify-center">
-          <Ionicons name="search-outline" size={22} color="#64748b" />
-        </Pressable>
-      </View>
+    <View style={{ flex: 1, backgroundColor: Colors.background }}>
+      <SafeAreaView edges={["top"]} style={{ backgroundColor: Colors.background }}>
+        {/* Header */}
+        <Animated.View entering={FadeInDown.duration(350)}>
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <Image
+                source={require("@/assets/logo-text.png")}
+                style={{ width: 100, height: 32 }}
+                resizeMode="contain"
+              />
+              <Text style={styles.headerTitle}>Academy</Text>
+            </View>
+            <Pressable style={styles.searchBtn}>
+              <Feather name="search" size={20} color="#191919" />
+            </Pressable>
+          </View>
+        </Animated.View>
+      </SafeAreaView>
 
       <ScrollView
-        className="flex-1"
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 120 }}
         refreshControl={
-          <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={refetch}
-            tintColor="#0a66c2"
-          />
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.primary} />
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Continue Learning Section */}
+        {/* Continue Learning */}
         {inProgressCourses.length > 0 && (
-          <View className="py-4">
-            <SectionHeader title="Continue Learning" icon="play-circle" />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
-            >
-              {inProgressCourses.map((course) => (
-                <CourseCardHorizontal key={course.id} course={course} />
-              ))}
-            </ScrollView>
-          </View>
+          <Animated.View entering={FadeInDown.duration(400).delay(100)}>
+            <View style={styles.sectionSpacing}>
+              <SectionHeader title="Continuă" icon="play-circle" />
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 20, gap: 14 }}
+              >
+                {inProgressCourses.map((course, i) => (
+                  <FeaturedCard key={course.id} course={course} index={i} />
+                ))}
+              </ScrollView>
+            </View>
+          </Animated.View>
         )}
 
         {/* Premium Courses */}
         {premiumCourses.length > 0 && (
-          <View className="py-4">
-            <SectionHeader title="Premium Courses" icon="diamond" iconColor="#d4af37" />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
-            >
-              {premiumCourses.map((course) => (
-                <CourseCardHorizontal key={course.id} course={course} />
-              ))}
-            </ScrollView>
-          </View>
+          <Animated.View entering={FadeInDown.duration(400).delay(200)}>
+            <View style={styles.sectionSpacing}>
+              <SectionHeader title="Premium Courses" icon="diamond" iconColor="#d4af37" />
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 20, gap: 14 }}
+              >
+                {premiumCourses.map((course, i) => (
+                  <FeaturedCard key={course.id} course={course} index={i} />
+                ))}
+              </ScrollView>
+            </View>
+          </Animated.View>
         )}
 
         {/* All Courses */}
-        <View className="py-4">
-          <SectionHeader title="All Courses" />
-          <View className="px-4 gap-3">
-            {courses?.map((course) => (
-              <CourseCardVertical key={course.id} course={course} />
-            ))}
+        <Animated.View entering={FadeInDown.duration(400).delay(350)}>
+          <View style={styles.sectionSpacing}>
+            <SectionHeader title="Toate Cursurile" />
+            <View style={{ paddingHorizontal: 20, gap: 14 }}>
+              {courses?.map((course, i) => (
+                <CourseListCard key={course.id} course={course} index={i} />
+              ))}
+            </View>
           </View>
-        </View>
+        </Animated.View>
 
         {/* Empty State */}
         {(!courses || courses.length === 0) && (
-          <View className="items-center justify-center py-12 bg-white rounded-xl mx-4">
-            <Ionicons name="school-outline" size={64} color="#64748b" />
-            <Text className="text-dark-700 text-lg font-bold mt-4">
-              Niciun curs disponibil
-            </Text>
-            <Text className="text-dark-500 mt-2">
-              Revino curând pentru cursuri noi
-            </Text>
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIcon}>
+              <Ionicons name="school-outline" size={48} color={Colors.primary} />
+            </View>
+            <Text style={styles.emptyTitle}>Niciun curs disponibil</Text>
+            <Text style={styles.emptySubtitle}>Revino curând pentru cursuri noi</Text>
           </View>
         )}
-
-        <View className="h-6" />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-function SectionHeader({ 
-  title, 
-  icon, 
-  iconColor = "#0a66c2",
-  onSeeAll 
-}: { 
-  title: string; 
+/* ─── Section Header ─── */
+function SectionHeader({
+  title,
+  icon,
+  iconColor = Colors.primary,
+  onSeeAll,
+}: {
+  title: string;
   icon?: keyof typeof Ionicons.glyphMap;
   iconColor?: string;
   onSeeAll?: () => void;
 }) {
   return (
-    <View className="flex-row items-center justify-between px-4 mb-3">
-      <View className="flex-row items-center">
+    <View style={styles.sectionHeader}>
+      <View style={styles.sectionHeaderLeft}>
         {icon && (
-          <Ionicons name={icon} size={20} color={iconColor} style={{ marginRight: 8 }} />
+          <View style={[styles.sectionIconBg, { backgroundColor: iconColor + "18" }]}>
+            <Ionicons name={icon} size={16} color={iconColor} />
+          </View>
         )}
-        <Text className="text-dark-700 text-lg font-bold">{title}</Text>
+        <Text style={styles.sectionTitle}>{title}</Text>
       </View>
       {onSeeAll && (
-        <Pressable onPress={onSeeAll} className="flex-row items-center">
-          <Text className="text-primary-500 text-sm font-medium">See all</Text>
-          <Ionicons name="chevron-forward" size={16} color="#0a66c2" />
+        <Pressable onPress={onSeeAll} style={styles.seeAllBtn}>
+          <Text style={styles.seeAllText}>See all</Text>
+          <Ionicons name="chevron-forward" size={14} color={Colors.primary} />
         </Pressable>
       )}
     </View>
   );
 }
 
-function CourseCardHorizontal({ course }: { course: Course & { lessons_count: number; completed_count: number } }) {
+/* ─── Featured Card (horizontal scroll) ─── */
+function FeaturedCard({
+  course,
+  index,
+}: {
+  course: Course & { lessons_count: number; completed_count: number };
+  index: number;
+}) {
   const progress = course.lessons_count > 0
     ? Math.round((course.completed_count / course.lessons_count) * 100)
     : 0;
 
+  const entrance = useSharedValue(0);
+  useEffect(() => {
+    entrance.value = withDelay(
+      80 * index,
+      withTiming(1, { duration: 400, easing: Easing.out(Easing.cubic) })
+    );
+  }, []);
+
+  const animStyle = useAnimatedStyle(() => ({
+    opacity: entrance.value,
+    transform: [
+      { translateX: (1 - entrance.value) * 40 },
+      { scale: 0.92 + entrance.value * 0.08 },
+    ],
+  }));
+
   return (
-    <Pressable
-      onPress={() => router.push(`/course/${course.id}`)}
-      className="w-64 bg-white rounded-2xl overflow-hidden border border-dark-300"
-    >
-      {/* Cover Image */}
-      {course.cover_url ? (
-        <Image
-          source={{ uri: course.cover_url }}
-          className="w-full h-32"
-          resizeMode="cover"
-        />
-      ) : (
-        <View className="w-full h-32 bg-primary-100 items-center justify-center">
-          <Ionicons name="school" size={40} color="#0a66c2" />
-        </View>
-      )}
-
-      {/* Premium Badge */}
-      {course.is_premium && (
-        <View className="absolute top-2 right-2">
-          <Badge variant="warning" size="sm">
-            <Ionicons name="diamond" size={10} color="white" /> Premium
-          </Badge>
-        </View>
-      )}
-
-      {/* Content */}
-      <View className="p-3">
-        <Text className="text-dark-700 font-semibold" numberOfLines={2}>
-          {course.title}
-        </Text>
-        <Text className="text-dark-500 text-xs mt-1">
-          {course.lessons_count} lecții
-        </Text>
-
-        {/* Progress Bar */}
-        {progress > 0 && (
-          <View className="mt-2">
-            <View className="h-1.5 bg-dark-300 rounded-full overflow-hidden">
-              <View
-                className="h-full bg-primary-500 rounded-full"
-                style={{ width: `${progress}%` }}
-              />
-            </View>
-            <Text className="text-primary-500 text-xs mt-1">{progress}% complete</Text>
+    <Animated.View style={animStyle}>
+      <Pressable
+        onPress={() => router.push(`/course/${course.id}`)}
+        style={styles.featuredCard}
+      >
+        {/* Cover */}
+        {course.cover_url ? (
+          <Image
+            source={{ uri: course.cover_url }}
+            style={styles.featuredImage}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={[styles.featuredImage, styles.featuredPlaceholder]}>
+            <Ionicons name="school" size={40} color={Colors.primary} />
           </View>
         )}
-      </View>
-    </Pressable>
-  );
-}
 
-function CourseCardVertical({ course }: { course: Course & { lessons_count: number; completed_count: number } }) {
-  const progress = course.lessons_count > 0
-    ? Math.round((course.completed_count / course.lessons_count) * 100)
-    : 0;
-
-  return (
-    <Pressable
-      onPress={() => router.push(`/course/${course.id}`)}
-      className="flex-row bg-white rounded-2xl overflow-hidden border border-dark-300"
-    >
-      {/* Thumbnail */}
-      {course.cover_url ? (
-        <Image
-          source={{ uri: course.cover_url }}
-          className="w-28 h-28"
-          resizeMode="cover"
+        {/* Gradient overlay */}
+        <LinearGradient
+          colors={["transparent", "rgba(0,0,0,0.7)"]}
+          style={styles.featuredGradient}
         />
-      ) : (
-        <View className="w-28 h-28 bg-primary-100 items-center justify-center">
-          <Ionicons name="school" size={32} color="#0a66c2" />
-        </View>
-      )}
 
-      {/* Content */}
-      <View className="flex-1 p-3 justify-between">
-        <View>
-          <View className="flex-row items-center gap-2 mb-1">
-            {course.is_premium && (
-              <Badge variant="warning" size="sm">Premium</Badge>
-            )}
+        {/* Premium badge */}
+        {course.is_premium && (
+          <View style={styles.premiumBadge}>
+            <Ionicons name="diamond" size={11} color="#d4af37" />
+            <Text style={styles.premiumText}>PRO</Text>
           </View>
-          <Text className="text-dark-700 font-semibold" numberOfLines={2}>
+        )}
+
+        {/* Bottom content */}
+        <View style={styles.featuredBottom}>
+          <Text style={styles.featuredTitle} numberOfLines={2}>
             {course.title}
           </Text>
-          <Text className="text-dark-500 text-sm mt-1" numberOfLines={1}>
-            {course.lessons_count} lecții • {course.description?.slice(0, 30)}...
-          </Text>
-        </View>
+          <View style={styles.featuredMeta}>
+            <Ionicons name="book-outline" size={12} color="rgba(255,255,255,0.8)" />
+            <Text style={styles.featuredMetaText}>
+              {course.lessons_count} lecții
+            </Text>
+          </View>
 
-        {/* Progress */}
-        {progress > 0 ? (
-          <View className="flex-row items-center">
-            <View className="flex-1 h-1.5 bg-dark-300 rounded-full overflow-hidden mr-2">
-              <View
-                className="h-full bg-primary-500 rounded-full"
-                style={{ width: `${progress}%` }}
-              />
+          {/* Progress bar */}
+          {progress > 0 && (
+            <View style={styles.progressContainer}>
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { width: `${progress}%` }]} />
+              </View>
+              <Text style={styles.progressText}>{progress}%</Text>
             </View>
-            <Text className="text-primary-500 text-xs">{progress}%</Text>
-          </View>
-        ) : (
-          <View className="flex-row items-center">
-            <Ionicons name="time-outline" size={14} color="#64748b" />
-            <Text className="text-dark-500 text-xs ml-1">Not started</Text>
-          </View>
-        )}
-      </View>
-    </Pressable>
+          )}
+        </View>
+      </Pressable>
+    </Animated.View>
   );
 }
+
+/* ─── Course List Card (vertical list) ─── */
+function CourseListCard({
+  course,
+  index,
+}: {
+  course: Course & { lessons_count: number; completed_count: number };
+  index: number;
+}) {
+  const progress = course.lessons_count > 0
+    ? Math.round((course.completed_count / course.lessons_count) * 100)
+    : 0;
+
+  const entrance = useSharedValue(0);
+  useEffect(() => {
+    entrance.value = withDelay(
+      60 * index,
+      withTiming(1, { duration: 400, easing: Easing.out(Easing.cubic) })
+    );
+  }, []);
+
+  const animStyle = useAnimatedStyle(() => ({
+    opacity: entrance.value,
+    transform: [{ translateY: (1 - entrance.value) * 20 }],
+  }));
+
+  return (
+    <Animated.View style={animStyle}>
+      <Pressable
+        onPress={() => router.push(`/course/${course.id}`)}
+        style={styles.listCard}
+      >
+        {/* Thumbnail */}
+        {course.cover_url ? (
+          <Image
+            source={{ uri: course.cover_url }}
+            style={styles.listThumb}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={[styles.listThumb, styles.listThumbPlaceholder]}>
+            <Ionicons name="school" size={28} color={Colors.primary} />
+          </View>
+        )}
+
+        {/* Content */}
+        <View style={styles.listContent}>
+          <View>
+            {course.is_premium && (
+              <View style={styles.listPremiumBadge}>
+                <Ionicons name="diamond" size={10} color="#d4af37" />
+                <Text style={styles.listPremiumText}>PRO</Text>
+              </View>
+            )}
+            <Text style={styles.listTitle} numberOfLines={2}>
+              {course.title}
+            </Text>
+            <Text style={styles.listMeta} numberOfLines={1}>
+              {course.lessons_count} lecții
+              {course.description ? ` · ${course.description.slice(0, 35)}...` : ""}
+            </Text>
+          </View>
+
+          {/* Progress or status */}
+          {progress > 0 ? (
+            <View style={styles.listProgressRow}>
+              <View style={styles.listProgressTrack}>
+                <View style={[styles.listProgressFill, { width: `${progress}%` }]} />
+              </View>
+              <Text style={styles.listProgressText}>{progress}%</Text>
+            </View>
+          ) : (
+            <View style={styles.listStatusRow}>
+              <View style={styles.listStatusDot} />
+              <Text style={styles.listStatusText}>Not started</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Arrow */}
+        <View style={styles.listArrow}>
+          <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+/* ─── Styles ─── */
+const styles = StyleSheet.create({
+  /* Header */
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontFamily: "EuclidCircularA-Bold",
+    color: "#1E293B",
+    marginLeft: 8,
+  },
+  searchBtn: {
+    width: 40,
+    height: 40,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 8,
+    borderBottomRightRadius: 18,
+    borderBottomLeftRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.65)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.9)",
+    borderBottomWidth: 1.5,
+    borderBottomColor: "rgba(10,102,194,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  /* Section */
+  sectionSpacing: {
+    paddingTop: 20,
+    paddingBottom: 4,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    marginBottom: 14,
+  },
+  sectionHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  sectionIconBg: {
+    width: 28,
+    height: 28,
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 5,
+    borderBottomRightRadius: 10,
+    borderBottomLeftRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  sectionTitle: {
+    fontSize: 19,
+    fontFamily: "EuclidCircularA-Bold",
+    color: "#1E293B",
+  },
+  seeAllBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  seeAllText: {
+    fontSize: 13,
+    fontFamily: "EuclidCircularA-SemiBold",
+    color: Colors.primary,
+    marginRight: 2,
+  },
+
+  /* Featured Card */
+  featuredCard: {
+    width: FEATURED_W,
+    height: FEATURED_H,
+    ...Bubble.radiiLg,
+    overflow: "hidden",
+    backgroundColor: "#fff",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#1E293B",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.10,
+        shadowRadius: 16,
+      },
+      android: { elevation: 6 },
+    }),
+  },
+  featuredImage: {
+    width: "100%",
+    height: "100%",
+    position: "absolute",
+  },
+  featuredPlaceholder: {
+    backgroundColor: "#EFF6FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  featuredGradient: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: "65%",
+  },
+  premiumBadge: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(15, 15, 25, 0.75)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 6,
+    borderBottomRightRadius: 12,
+    borderBottomLeftRadius: 12,
+    gap: 5,
+    borderWidth: 1,
+    borderColor: "rgba(212,175,55,0.35)",
+  },
+  premiumText: {
+    fontSize: 10,
+    fontFamily: "EuclidCircularA-Bold",
+    color: "#d4af37",
+    letterSpacing: 1.2,
+  },
+  featuredBottom: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 14,
+  },
+  featuredTitle: {
+    fontSize: 16,
+    fontFamily: "EuclidCircularA-Bold",
+    color: "#fff",
+    marginBottom: 6,
+  },
+  featuredMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  featuredMetaText: {
+    fontSize: 12,
+    fontFamily: "EuclidCircularA-Medium",
+    color: "rgba(255,255,255,0.8)",
+  },
+  progressContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    gap: 8,
+  },
+  progressTrack: {
+    flex: 1,
+    height: 4,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#34D399",
+    borderRadius: 2,
+  },
+  progressText: {
+    fontSize: 11,
+    fontFamily: "EuclidCircularA-Bold",
+    color: "#34D399",
+  },
+
+  /* List Card */
+  listCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    ...Bubble.radii,
+    overflow: "hidden",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#1E293B",
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: { elevation: 2 },
+    }),
+  },
+  listThumb: {
+    width: 100,
+    height: 100,
+  },
+  listThumbPlaceholder: {
+    backgroundColor: "#EFF6FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  listContent: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    justifyContent: "space-between",
+    minHeight: 100,
+  },
+  listPremiumBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(15, 15, 25, 0.75)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 5,
+    borderBottomRightRadius: 10,
+    borderBottomLeftRadius: 10,
+    gap: 4,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: "rgba(212,175,55,0.35)",
+  },
+  listPremiumText: {
+    fontSize: 10,
+    fontFamily: "EuclidCircularA-Bold",
+    color: "#d4af37",
+    letterSpacing: 1.2,
+  },
+  listTitle: {
+    fontSize: 15,
+    fontFamily: "EuclidCircularA-SemiBold",
+    color: "#1E293B",
+    lineHeight: 20,
+  },
+  listMeta: {
+    fontSize: 12,
+    fontFamily: "EuclidCircularA-Regular",
+    color: "#94A3B8",
+    marginTop: 3,
+  },
+  listProgressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    gap: 8,
+  },
+  listProgressTrack: {
+    flex: 1,
+    height: 4,
+    backgroundColor: "#E2E8F0",
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+  listProgressFill: {
+    height: "100%",
+    backgroundColor: Colors.primary,
+    borderRadius: 2,
+  },
+  listProgressText: {
+    fontSize: 11,
+    fontFamily: "EuclidCircularA-Bold",
+    color: Colors.primary,
+  },
+  listStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    gap: 6,
+  },
+  listStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#CBD5E1",
+  },
+  listStatusText: {
+    fontSize: 12,
+    fontFamily: "EuclidCircularA-Medium",
+    color: "#94A3B8",
+  },
+  listArrow: {
+    paddingRight: 14,
+  },
+
+  /* Empty State */
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 48,
+    paddingHorizontal: 24,
+    marginHorizontal: 20,
+    marginTop: 20,
+    backgroundColor: "#fff",
+    ...Bubble.radii,
+  },
+  emptyIcon: {
+    width: 80,
+    height: 80,
+    ...Bubble.radiiLg,
+    backgroundColor: "#EFF6FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontFamily: "EuclidCircularA-Bold",
+    color: "#1E293B",
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    fontFamily: "EuclidCircularA-Regular",
+    color: "#94A3B8",
+    marginTop: 6,
+  },
+});

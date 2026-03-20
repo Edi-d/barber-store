@@ -247,7 +247,15 @@ export default function DiscoverScreen() {
 
   const handleMarkerPress = (salon: SalonWithDistance) => {
     setSelectedSalon(salon);
-    bottomSheetRef.current?.snapToIndex(0);
+    if (salon.latitude != null && salon.longitude != null) {
+      mapRef.current?.animateToRegion({
+        latitude: salon.latitude,
+        longitude: salon.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      }, 300);
+    }
+    bottomSheetRef.current?.snapToIndex(1);
   };
 
   const goToMyLocation = useCallback(() => {
@@ -315,18 +323,20 @@ export default function DiscoverScreen() {
             showsMyLocationButton={false}
             mapPadding={{ top: 70, right: 0, bottom: SCREEN_HEIGHT * 0.32, left: 0 }}
           >
-            {sortedSalons.map((salon) => (
+            {sortedSalons
+              .filter((salon) => salon.latitude != null && salon.longitude != null)
+              .map((salon) => (
               <Marker
                 key={salon.id}
                 coordinate={{
-                  latitude: salon.latitude!,
-                  longitude: salon.longitude!,
+                  latitude: salon.latitude as number,
+                  longitude: salon.longitude as number,
                 }}
                 onPress={() => handleMarkerPress(salon)}
               >
                 <View className="items-center">
                   <View
-                    className={`w-11 h-11 rounded-full items-center justify-center ${
+                    className={`w-11 h-11 items-center justify-center ${
                       selectedSalon?.id === salon.id
                         ? "bg-primary-500"
                         : salon.is_available_now
@@ -334,6 +344,8 @@ export default function DiscoverScreen() {
                         : "bg-white border-2 border-dark-300"
                     }`}
                     style={{
+                      ...Bubble.radiiSm,
+                      transform: selectedSalon?.id === salon.id ? [{ scale: 1.15 }] : [],
                       shadowColor: "#000",
                       shadowOffset: { width: 0, height: 2 },
                       shadowOpacity: 0.15,

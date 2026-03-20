@@ -329,7 +329,7 @@ export default function FeedScreen() {
         className="flex-row items-center justify-between px-4 pt-2 pb-1"
         style={{ backgroundColor: "#F0F4F8" }}
       >
-        <Text className="text-dark-700 text-lg font-bold">All Feeds</Text>
+        <Text className="text-dark-700 text-lg font-bold">Toate postarile</Text>
         <Pressable className="flex-row items-center">
           <Ionicons name="options-outline" size={20} color="#64748b" />
         </Pressable>

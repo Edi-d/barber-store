@@ -29,14 +29,14 @@ export function LiveSection({ lives, onSeeAll }: LiveSectionProps) {
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 mb-3">
         <View className="flex-row items-center">
-          <Text className="text-dark-700 text-lg font-bold">Creator on Live</Text>
+          <Text className="text-dark-700 text-lg font-bold">Creatori Live</Text>
           <View className="ml-2 bg-primary-500 rounded-full px-2 py-0.5 min-w-[28px] items-center">
             <Text className="text-white text-xs font-bold">{lives.length}</Text>
           </View>
         </View>
         {onSeeAll && (
           <Pressable onPress={onSeeAll} className="flex-row items-center">
-            <Text className="text-primary-500 text-sm font-medium">See all</Text>
+            <Text className="text-primary-500 text-sm font-medium">Vezi tot</Text>
             <Ionicons name="chevron-forward" size={16} color="#0a66c2" />
           </Pressable>
         )}

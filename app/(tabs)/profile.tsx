@@ -1,35 +1,47 @@
-import { View, Text, ScrollView, Pressable, RefreshControl } from "react-native";
+import React, { useRef, useEffect } from "react";
+import { View, ScrollView, Pressable, RefreshControl, ActivityIndicator, StyleSheet, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/authStore";
 import { supabase } from "@/lib/supabase";
-import { Avatar, Badge, Button, Card } from "@/components/ui";
+import { AnimatedScreen } from "@/components/ui/AnimatedScreen";
 import { Ionicons } from "@expo/vector-icons";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import { Colors, Bubble, Shadows, Spacing } from "@/constants/theme";
+import { useTutorialContext } from "@/components/tutorial/TutorialProvider";
+
+import { ProfileHero } from "@/components/profile/ProfileHero";
+import { ProfileMenu } from "@/components/profile/ProfileMenu";
 
 export default function ProfileScreen() {
   const { profile, session } = useAuthStore();
+  const { registerRef, unregisterRef } = useTutorialContext();
 
-  // Fetch user stats
+  const heroRef = useRef<View>(null);
+  const menuAppointmentsRef = useRef<View>(null);
+  const menuTutorialsRef = useRef<View>(null);
+
+  useEffect(() => {
+    registerRef("profile-hero", heroRef);
+    registerRef("profile-menu-appointments", menuAppointmentsRef);
+    registerRef("profile-menu-tutorials", menuTutorialsRef);
+    return () => {
+      unregisterRef("profile-hero");
+      unregisterRef("profile-menu-appointments");
+      unregisterRef("profile-menu-tutorials");
+    };
+  }, [registerRef, unregisterRef]);
+
   const { data: stats, refetch, isRefetching } = useQuery({
     queryKey: ["profile-stats", session?.user.id],
     queryFn: async () => {
       if (!session) return null;
-
-      const [ordersResult, progressResult, contentResult, appointmentsResult] = await Promise.all([
+      const [ordersResult, appointmentsResult] = await Promise.all([
         supabase
           .from("orders")
           .select("id", { count: "exact", head: true })
           .eq("user_id", session.user.id),
-        supabase
-          .from("lesson_progress")
-          .select("lesson_id", { count: "exact", head: true })
-          .eq("user_id", session.user.id)
-          .eq("completed", true),
-        supabase
-          .from("content")
-          .select("id", { count: "exact", head: true })
-          .eq("author_id", session.user.id),
         supabase
           .from("appointments")
           .select("id", { count: "exact", head: true })
@@ -37,11 +49,8 @@ export default function ProfileScreen() {
           .in("status", ["pending", "confirmed"])
           .gte("scheduled_at", new Date().toISOString()),
       ]);
-
       return {
         orders: ordersResult.count || 0,
-        lessonsCompleted: progressResult.count || 0,
-        posts: contentResult.count || 0,
         upcomingAppointments: appointmentsResult.count || 0,
       };
     },
@@ -50,152 +59,138 @@ export default function ProfileScreen() {
 
   if (!profile) {
     return (
-      <View className="flex-1 bg-white items-center justify-center">
-        <Text className="text-dark-700">Loading...</Text>
+      <View style={s.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
 
-  const isCreator = profile.role === "creator" || profile.role === "admin";
+  const menuItems = [
+    {
+      icon: "calendar",
+      label: "Programările mele",
+      onPress: () => router.push("/appointments"),
+      badge: stats?.upcomingAppointments,
+      iconColor: Colors.primary,
+      iconBgColor: "rgba(10,102,194,0.1)",
+      tutorialRef: menuAppointmentsRef,
+    },
+    {
+      icon: "cart",
+      label: "Comenzile mele",
+      onPress: () => router.push("/orders"),
+      iconColor: Colors.indigo,
+      iconBgColor: "rgba(99,102,241,0.1)",
+    },
+    {
+      icon: "play-circle",
+      label: "Tutoriale aplicație",
+      onPress: () => router.push("/tutorials"),
+      iconColor: "#FF0033",
+      iconBgColor: "rgba(255,0,51,0.1)",
+      tutorialRef: menuTutorialsRef,
+    },
+    {
+      icon: "chatbubble-ellipses",
+      label: "Ajutor & Suport",
+      onPress: () => router.push("/support"),
+      iconColor: "#16a34a",
+      iconBgColor: "rgba(22,163,74,0.1)",
+    },
+  ];
 
   return (
-    <SafeAreaView className="flex-1 bg-dark-200" edges={["top"]}>
-      <ScrollView
-        className="flex-1"
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={refetch}
-            tintColor="#0a66c2"
-          />
-        }
-      >
-        {/* Header with Settings */}
-        <View className="flex-row justify-end px-4 py-2 bg-white">
-          <Pressable
-            onPress={() => router.push("/settings")}
-            className="w-10 h-10 bg-dark-200 rounded-full items-center justify-center"
-          >
-            <Ionicons name="settings-outline" size={22} color="#64748b" />
-          </Pressable>
-        </View>
-
-        {/* Profile Info */}
-        <View className="items-center px-6 pb-6 bg-white">
-          <Avatar
-            source={profile.avatar_url}
-            name={profile.display_name || profile.username}
-            size="xl"
-            className="mb-4"
-            useDefaultAvatar={true}
-          />
-          <View className="flex-row items-center gap-2">
-            <Text className="text-dark-700 text-2xl font-bold">
-              {profile.display_name || profile.username}
-            </Text>
-            {isCreator && (
-              <Badge variant="primary" size="sm">
-                <Ionicons name="checkmark-circle" size={12} color="white" /> Creator
-              </Badge>
-            )}
-          </View>
-          <Text className="text-dark-500 text-base mt-1">
-            @{profile.username}
-          </Text>
-          {profile.bio && (
-            <Text className="text-dark-600 text-center mt-3 px-4">
-              {profile.bio}
-            </Text>
-          )}
-        </View>
-
-        {/* Stats */}
-        <View className="flex-row justify-around px-6 py-4 border-y border-dark-300 bg-white">
-          <StatItem value={stats?.posts || 0} label="Postări" />
-          <StatItem value={stats?.lessonsCompleted || 0} label="Lecții" />
-          <StatItem value={stats?.orders || 0} label="Comenzi" />
-        </View>
-
-        {/* Actions */}
-        <View className="px-6 py-6 gap-4">
-          {/* Go Live Button (Creator only) */}
-          {isCreator && (
-            <Button
-              onPress={() => router.push("/go-live")}
-              size="lg"
-              className="w-full"
-              icon={<Ionicons name="radio" size={20} color="white" />}
-            >
-              Go Live
-            </Button>
-          )}
-
-          {/* Quick Links */}
-          <Card className="gap-0 p-0 overflow-hidden">
-            <ProfileMenuItem
-              icon="calendar"
-              label="Programările mele"
-              onPress={() => router.push("/appointments")}
-              badge={stats?.upcomingAppointments}
+    <AnimatedScreen>
+      <SafeAreaView style={s.safeArea} edges={["top"]}>
+        <ScrollView
+          style={s.scrollView}
+          contentContainerStyle={{ paddingBottom: 120 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={refetch}
+              tintColor={Colors.primary}
             />
-            <ProfileMenuItem
-              icon="cart"
-              label="Comenzile mele"
-              onPress={() => router.push("/orders")}
+          }
+        >
+          {/* Header */}
+          <Animated.View entering={FadeInDown.duration(350)}>
+            <View style={s.header}>
+              <Image
+                source={require("@/assets/logo-text.png")}
+                style={s.headerLogo}
+                resizeMode="contain"
+              />
+              <Pressable
+                onPress={() => router.push("/settings")}
+                className="w-10 h-10 items-center justify-center active:opacity-70"
+                style={s.settingsBtn}
+              >
+                <Ionicons name="settings-outline" size={20} color={Colors.text} />
+              </Pressable>
+            </View>
+          </Animated.View>
+
+          {/* Profile Hero Card */}
+          <Animated.View entering={FadeInDown.duration(400).delay(80)} style={{ marginTop: 4 }}>
+            <View ref={heroRef}>
+            <ProfileHero
+              avatarUrl={profile.avatar_url}
+              displayName={profile.display_name || profile.username}
+              username={profile.username}
+              bio={profile.bio}
+              isCreator={isCreator}
+              followers={profile.followers_count ?? 0}
+              following={profile.following_count ?? 0}
+              onEditProfile={() => router.push("/settings")}
             />
-            <ProfileMenuItem
-              icon="school"
-              label="Cursurile mele"
-              onPress={() => router.push("/(tabs)/courses")}
-            />
-            <ProfileMenuItem
-              icon="heart"
-              label="Apreciate"
-              onPress={() => {}}
-              hideBorder
-            />
-          </Card>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+            </View>
+          </Animated.View>
+
+          {/* Menu */}
+          <Animated.View entering={FadeInDown.duration(400).delay(160)} style={s.sectionGap}>
+            <ProfileMenu items={menuItems} />
+          </Animated.View>
+        </ScrollView>
+      </SafeAreaView>
+    </AnimatedScreen>
   );
 }
 
-function StatItem({ value, label }: { value: number; label: string }) {
-  return (
-    <View className="items-center">
-      <Text className="text-dark-700 text-xl font-bold">{value}</Text>
-      <Text className="text-dark-500 text-sm">{label}</Text>
-    </View>
-  );
-}
-
-function ProfileMenuItem({
-  icon,
-  label,
-  onPress,
-  hideBorder = false,
-  badge,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-  hideBorder?: boolean;
-  badge?: number;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      className={`flex-row items-center px-4 py-4 ${!hideBorder && "border-b border-dark-300"}`}
-    >
-      <Ionicons name={icon} size={22} color="#64748b" />
-      <Text className="text-dark-700 flex-1 ml-3 text-base">{label}</Text>
-      {badge && badge > 0 ? (
-        <View className="bg-primary-500 px-2 py-0.5 rounded-full mr-2">
-          <Text className="text-white text-xs font-bold">{badge}</Text>
-        </View>
-      ) : null}
-      <Ionicons name="chevron-forward" size={20} color="#64748b" />
-    </Pressable>
-  );
-}
+const s = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: Colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  scrollView: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+  },
+  headerLogo: {
+    width: 100,
+    height: 32,
+  },
+  settingsBtn: {
+    backgroundColor: "rgba(255,255,255,0.65)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.9)",
+    ...Bubble.radiiSm,
+    ...Bubble.accent,
+  },
+  sectionGap: {
+    marginTop: 14,
+  },
+});

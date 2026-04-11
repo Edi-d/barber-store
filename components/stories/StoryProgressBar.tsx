@@ -1,11 +1,10 @@
 import React from "react";
-import { View, StyleSheet, Dimensions } from "react-native";
+import { View, StyleSheet, useWindowDimensions } from "react-native";
 import Animated, {
   useAnimatedStyle,
   type SharedValue,
 } from "react-native-reanimated";
 
-const SCREEN_WIDTH = Dimensions.get("window").width;
 const HORIZONTAL_PADDING = 8 * 2;
 const GAP = 3;
 
@@ -23,9 +22,10 @@ export function StoryProgressBar({
   progress,
   barWidth,
 }: StoryProgressBarProps) {
+  const { width: screenWidth } = useWindowDimensions();
   const resolvedBarWidth =
     barWidth ??
-    (SCREEN_WIDTH - HORIZONTAL_PADDING - GAP * (totalSegments - 1)) /
+    (screenWidth - HORIZONTAL_PADDING - GAP * (totalSegments - 1)) /
       totalSegments;
 
   return (

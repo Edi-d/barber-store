@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -6,94 +6,318 @@ import {
   Pressable,
   ActivityIndicator,
   Alert,
-  Image,
+  StyleSheet,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/authStore";
 import { Barber, BarberService } from "@/types/database";
 import { formatPrice } from "@/lib/utils";
-import { generateTimeSlots, getNext14Days, formatCalendarDay, TimeSlot } from "@/lib/booking";
+import { generateTimeSlots, getNext14Days, formatCalendarDay, findFirstAvailableDate } from "@/lib/booking";
 import { Ionicons } from "@expo/vector-icons";
-import { Input } from "@/components/ui";
+import * as Haptics from "expo-haptics";
+import { Button } from "@/components/ui/Button";
+import { Bubble, Colors, Typography, Shadows } from "@/constants/theme";
+import { useTutorialContext } from "@/components/tutorial/TutorialProvider";
+
+// ── Animated components ──────────────────────────────────────────────────────
+import { BookingStepIndicator } from "@/components/shared/BookingStepIndicator";
+import { BarberCard } from "@/components/shared/BarberCard";
+import { ServiceCard } from "@/components/shared/ServiceCard";
+import { BookingDatePicker } from "@/components/shared/BookingDatePicker";
+import { BookingTimeGrid } from "@/components/shared/BookingTimeGrid";
+import { BookingConfirmation } from "@/components/shared/BookingConfirmation";
+import { BookingSuccess, BookingSuccessResult } from "@/components/shared/BookingSuccess";
+import { BookingFloatingBar } from "@/components/shared/BookingFloatingBar";
 
 type BookingStep = 1 | 2 | 3 | 4;
 
 const STEP_TITLES: Record<BookingStep, string> = {
   1: "Alege Frizer",
-  2: "Alege Serviciu",
+  2: "Alege Servicii",
   3: "Alege Data & Ora",
   4: "Confirmare",
 };
 
+const squircleSm = { ...Bubble.radiiSm };
+
 export default function BookAppointmentScreen() {
   const { session } = useAuthStore();
   const queryClient = useQueryClient();
+  const { salonId: rawSalonId, serviceId, barberId } = useLocalSearchParams<{
+    salonId?: string;
+    serviceId?: string;
+    barberId?: string;
+  }>();
+  const salonId = rawSalonId && rawSalonId.length > 0 ? rawSalonId : undefined;
 
   const [step, setStep] = useState<BookingStep>(1);
   const [selectedBarber, setSelectedBarber] = useState<Barber | null>(null);
-  const [selectedService, setSelectedService] = useState<BarberService | null>(null);
+  const [selectedServices, setSelectedServices] = useState<BarberService[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paramsApplied, setParamsApplied] = useState(false);
+  const [bookingResult, setBookingResult] =
+    useState<BookingSuccessResult | null>(null);
 
-  // Fetch barbers
+  // ── Tutorial refs ────────────────────────────────────────────────────────
+  const { registerRef, unregisterRef } = useTutorialContext();
+
+  // Step 1
+  const stepIndicatorRef = useRef<View>(null);
+  const barberCardRef = useRef<View>(null);
+  const barberSelectedRef = useRef<View>(null);
+  // Step 2
+  const serviceCardRef = useRef<View>(null);
+  const serviceCheckboxRef = useRef<View>(null);
+  const floatingBarRef = useRef<View>(null);
+  const continueBtnRef = useRef<View>(null);
+  // Step 3
+  const datePickerRef = useRef<View>(null);
+  const timeMorningRef = useRef<View>(null);
+  const timeAfternoonRef = useRef<View>(null);
+  const timeCtaRef = useRef<View>(null);
+  // Step 4 — passed down to BookingConfirmation
+  const summaryCardRef = useRef<View>(null);
+  const notesInputRef = useRef<View>(null);
+  const confirmBtnRef = useRef<View>(null);
+
+  useEffect(() => {
+    registerRef("booking-step-indicator", stepIndicatorRef);
+    registerRef("booking-barber-card", barberCardRef);
+    registerRef("booking-barber-selected", barberSelectedRef);
+    registerRef("booking-service-card", serviceCardRef);
+    registerRef("booking-service-checkbox", serviceCheckboxRef);
+    registerRef("booking-floating-bar", floatingBarRef);
+    registerRef("booking-continue-btn", continueBtnRef);
+    registerRef("booking-date-picker", datePickerRef);
+    registerRef("booking-time-morning", timeMorningRef);
+    registerRef("booking-time-afternoon", timeAfternoonRef);
+    registerRef("booking-time-cta", timeCtaRef);
+    registerRef("booking-summary-card", summaryCardRef);
+    registerRef("booking-notes-input", notesInputRef);
+    registerRef("booking-confirm-btn", confirmBtnRef);
+
+    return () => {
+      unregisterRef("booking-step-indicator");
+      unregisterRef("booking-barber-card");
+      unregisterRef("booking-barber-selected");
+      unregisterRef("booking-service-card");
+      unregisterRef("booking-service-checkbox");
+      unregisterRef("booking-floating-bar");
+      unregisterRef("booking-continue-btn");
+      unregisterRef("booking-date-picker");
+      unregisterRef("booking-time-morning");
+      unregisterRef("booking-time-afternoon");
+      unregisterRef("booking-time-cta");
+      unregisterRef("booking-summary-card");
+      unregisterRef("booking-notes-input");
+      unregisterRef("booking-confirm-btn");
+    };
+  }, [registerRef, unregisterRef]);
+
+  // ── Derived totals ───────────────────────────────────────────────────────
+  const totalDurationMin = useMemo(
+    () => selectedServices.reduce((acc, s) => acc + s.duration_min, 0),
+    [selectedServices]
+  );
+  const totalPriceCents = useMemo(
+    () => selectedServices.reduce((acc, s) => acc + s.price_cents, 0),
+    [selectedServices]
+  );
+  const primaryCurrency = useMemo(
+    () => selectedServices[0]?.currency ?? "RON",
+    [selectedServices]
+  );
+
+  // ── Queries ──────────────────────────────────────────────────────────────
   const { data: barbers, isLoading: barbersLoading } = useQuery({
-    queryKey: ["barbers"],
+    queryKey: ["barbers", salonId || "all"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("barbers")
         .select("*")
         .eq("active", true)
         .order("name");
+      if (salonId) query = query.eq("salon_id", salonId);
+      const { data, error } = await query;
       if (error) throw error;
       return data as Barber[];
     },
   });
 
-  // Fetch services
   const { data: services, isLoading: servicesLoading } = useQuery({
-    queryKey: ["barber-services"],
+    queryKey: ["barber-services", salonId || "all"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("barber_services")
         .select("*")
         .eq("active", true)
         .order("price_cents");
+      if (salonId) query = query.eq("salon_id", salonId);
+      const { data, error } = await query;
       if (error) throw error;
       return data as BarberService[];
     },
   });
 
-  // Fetch time slots when barber, service, and date are selected
   const { data: timeSlots, isLoading: slotsLoading } = useQuery({
-    queryKey: ["time-slots", selectedBarber?.id, selectedDate?.toISOString(), selectedService?.duration_min],
+    queryKey: [
+      "time-slots",
+      selectedBarber?.id,
+      selectedDate?.toISOString(),
+      totalDurationMin,
+    ],
     queryFn: async () => {
-      if (!selectedBarber || !selectedDate || !selectedService) return [];
-      return generateTimeSlots(selectedBarber.id, selectedDate, selectedService.duration_min);
+      if (!selectedBarber || !selectedDate || totalDurationMin === 0) return [];
+      return generateTimeSlots(
+        selectedBarber.id,
+        selectedDate,
+        totalDurationMin
+      );
     },
-    enabled: !!selectedBarber && !!selectedDate && !!selectedService,
+    enabled: !!selectedBarber && !!selectedDate && totalDurationMin > 0,
   });
 
-  const next14Days = getNext14Days();
+  // Find first available date (checks schedule + appointments)
+  const { data: firstAvailableData } = useQuery({
+    queryKey: ["first-available-date", selectedBarber?.id, totalDurationMin],
+    queryFn: () => findFirstAvailableDate(selectedBarber!.id, totalDurationMin || 30),
+    enabled: !!selectedBarber && totalDurationMin > 0,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
 
-  const goNext = () => {
-    if (step < 4) setStep((step + 1) as BookingStep);
-  };
+  // Auto-select first available date when entering step 3
+  useEffect(() => {
+    if (step === 3 && firstAvailableData && !selectedDate) {
+      if (firstAvailableData.date) {
+        setSelectedDate(firstAvailableData.date);
+        setSelectedTime(null);
+      }
+    }
+  }, [step, firstAvailableData]);
 
-  const goBack = () => {
-    if (step > 1) {
+  // ── Auto-apply route params ────────────────────────────────────────────
+  useEffect(() => {
+    if (paramsApplied || !barbers) return;
+
+    // If barberId is provided, pre-select that barber and skip to step 2
+    if (barberId) {
+      const barber = barbers.find((b) => b.id === barberId);
+      if (barber) {
+        setSelectedBarber(barber);
+        if (serviceId && services) {
+          const service = services.find((s) => s.id === serviceId);
+          if (service) {
+            setSelectedServices([service]);
+            setStep(3); // Skip to date/time
+          } else {
+            setStep(2); // Go to services
+          }
+        } else {
+          setStep(2); // Go to services
+        }
+        setParamsApplied(true);
+        return;
+      }
+    }
+
+    if (salonId && barbers.length === 1) {
+      setSelectedBarber(barbers[0]);
+      if (serviceId && services) {
+        const service = services.find((s) => s.id === serviceId);
+        if (service) {
+          setSelectedServices([service]);
+          setStep(3);
+        } else {
+          setStep(2);
+        }
+      } else {
+        setStep(2);
+      }
+      setParamsApplied(true);
+      return;
+    }
+
+    if (salonId && barbers.length > 1) {
+      if (serviceId && services) {
+        const service = services.find((s) => s.id === serviceId);
+        if (service) setSelectedServices([service]);
+      }
+      setStep(1);
+      setParamsApplied(true);
+      return;
+    }
+
+    if (!salonId) {
+      setParamsApplied(true);
+    }
+  }, [barberId, salonId, serviceId, barbers, services, paramsApplied]);
+
+  // ── Navigation ─────────────────────────────────────────────────────────
+  const goNext = useCallback(() => {
+    if (step === 1) {
+      if (selectedServices.length > 0) {
+        setStep(3);
+      } else {
+        setStep(2);
+      }
+    } else if (step < 4) {
+      setStep((step + 1) as BookingStep);
+    }
+  }, [step, selectedServices]);
+
+  const goBack = useCallback(() => {
+    if (
+      step === 3 &&
+      selectedServices.length > 0 &&
+      salonId &&
+      barbers &&
+      barbers.length > 1
+    ) {
+      setStep(1);
+    } else if (step === 2 && salonId && barbers && barbers.length === 1) {
+      router.back();
+    } else if (
+      step === 3 &&
+      salonId &&
+      barbers &&
+      barbers.length === 1 &&
+      selectedServices.length > 0
+    ) {
+      router.back();
+    } else if (step > 1) {
       setStep((step - 1) as BookingStep);
     } else {
       router.back();
     }
-  };
+  }, [step, salonId, barbers, selectedServices]);
 
+  // ── Toggle service selection ───────────────────────────────────────────
+  const toggleService = useCallback((service: BarberService) => {
+    setSelectedServices((prev) => {
+      const exists = prev.some((s) => s.id === service.id);
+      if (exists) return prev.filter((s) => s.id !== service.id);
+      return [...prev, service];
+    });
+    setSelectedTime(null);
+  }, []);
+
+  // ── Submit ─────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
-    if (!session || !selectedBarber || !selectedService || !selectedDate || !selectedTime) return;
+    if (
+      !session ||
+      !selectedBarber ||
+      selectedServices.length === 0 ||
+      !selectedDate ||
+      !selectedTime
+    )
+      return;
 
     setIsSubmitting(true);
     try {
@@ -101,464 +325,577 @@ export default function BookAppointmentScreen() {
       const scheduledAt = new Date(selectedDate);
       scheduledAt.setHours(hours, minutes, 0, 0);
 
-      const { error } = await supabase.from("appointments").insert({
-        user_id: session.user.id,
-        barber_id: selectedBarber.id,
-        service_id: selectedService.id,
-        scheduled_at: scheduledAt.toISOString(),
-        duration_min: selectedService.duration_min,
-        status: "pending",
-        notes: notes.trim() || null,
-        total_cents: selectedService.price_cents,
-        currency: selectedService.currency,
+      // Race condition guard — overlap check, not just exact-timestamp match.
+      // Fetch all pending/confirmed appointments for this barber on the same day
+      // and check whether any of them overlaps the new slot window.
+      const newSlotStart = scheduledAt.getTime();
+      const newSlotEnd = newSlotStart + totalDurationMin * 60_000;
+
+      const dayStart = new Date(scheduledAt);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(scheduledAt);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const { data: dayAppointments, error: checkError } = await supabase
+        .from("appointments")
+        .select("id, scheduled_at, duration_min")
+        .eq("barber_id", selectedBarber.id)
+        .in("status", ["pending", "confirmed"])
+        .gte("scheduled_at", dayStart.toISOString())
+        .lte("scheduled_at", dayEnd.toISOString());
+
+      if (checkError) throw checkError;
+
+      const hasOverlap = (dayAppointments ?? []).some((apt) => {
+        const aptStart = new Date(apt.scheduled_at).getTime();
+        const aptEnd = aptStart + apt.duration_min * 60_000;
+        // Two intervals overlap when: A starts before B ends AND A ends after B starts
+        return newSlotStart < aptEnd && newSlotEnd > aptStart;
       });
+
+      if (hasOverlap) {
+        Alert.alert(
+          "Interval indisponibil",
+          "Acest interval nu mai este disponibil. Te rugăm să alegi alt interval.",
+          [{ text: "OK" }]
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
+      const { data: inserted, error } = await supabase
+        .from("appointments")
+        .insert({
+          user_id: session.user.id,
+          barber_id: selectedBarber.id,
+          service_id: selectedServices[0].id,
+          scheduled_at: scheduledAt.toISOString(),
+          duration_min: totalDurationMin,
+          status: "pending",
+          notes: notes.trim() || null,
+          total_cents: totalPriceCents,
+          currency: primaryCurrency,
+        })
+        .select("id")
+        .single();
 
       if (error) throw error;
 
-      // Invalidate appointments cache
+      // Insert junction rows for every selected service (migration 047)
+      const serviceRows = selectedServices.map((s, index) => ({
+        appointment_id: inserted.id,
+        service_id: s.id,
+        duration_min: s.duration_min,
+        price_cents: s.price_cents,
+        sort_order: index,
+      }));
+
+      const { error: servicesError } = await supabase
+        .from("appointment_services")
+        .insert(serviceRows);
+
+      if (servicesError) throw servicesError;
+
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
 
-      Alert.alert(
-        "Programare creată! ✅",
-        `Programarea ta la ${selectedBarber.name} pentru ${selectedService.name} a fost trimisă. Vei primi confirmarea în curând.`,
-        [{ text: "OK", onPress: () => router.replace("/appointments") }]
-      );
+      setBookingResult({
+        id: inserted.id,
+        barberName: selectedBarber.name,
+        serviceNames: selectedServices.map((s) => s.name),
+        date: scheduledAt,
+        time: selectedTime,
+        totalPriceCents,
+        currency: primaryCurrency,
+        totalDurationMin,
+      });
     } catch (err) {
-      Alert.alert("Eroare", "Nu am putut crea programarea. Încearcă din nou.");
+      Alert.alert(
+        "Eroare",
+        "Nu am putut crea programarea. Încearcă din nou."
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Stepper indicator
-  const StepIndicator = () => (
-    <View className="flex-row items-center justify-center px-4 py-3 bg-white">
-      {([1, 2, 3, 4] as BookingStep[]).map((s, i) => (
-        <View key={s} className="flex-row items-center">
-          <View
-            className={`w-8 h-8 rounded-full items-center justify-center ${
-              s === step
-                ? "bg-primary-500"
-                : s < step
-                ? "bg-primary-500"
-                : "bg-dark-200"
-            }`}
-          >
-            {s < step ? (
-              <Ionicons name="checkmark" size={16} color="white" />
-            ) : (
-              <Text
-                className={`text-sm font-bold ${
-                  s === step ? "text-white" : "text-dark-500"
-                }`}
-              >
-                {s}
-              </Text>
-            )}
-          </View>
-          {i < 3 && (
-            <View
-              className={`w-8 h-0.5 ${
-                s < step ? "bg-primary-500" : "bg-dark-300"
-              }`}
-            />
-          )}
-        </View>
-      ))}
-    </View>
-  );
+  const handleAddToCalendar = () => {
+    if (!bookingResult) return;
+    Alert.alert(
+      "Calendar",
+      "Funcționalitate disponibilă în curând.",
+      [{ text: "OK" }]
+    );
+  };
 
-  // Step 1: Select Barber
-  const BarberSelection = () => (
-    <View className="px-4 py-2">
-      <Text className="text-dark-700 font-bold text-lg mb-1">Alege frizerul tău</Text>
-      <Text className="text-dark-500 text-sm mb-4">Selectează un frizer disponibil</Text>
+  // ── Services summary for step 3 info chip ──────────────────────────────
+  const servicesSummary = useMemo(() => {
+    if (selectedServices.length === 0) return "";
+    if (selectedServices.length === 1) return selectedServices[0].name;
+    return selectedServices.map((s) => s.name).join(", ");
+  }, [selectedServices]);
 
-      {barbersLoading ? (
-        <ActivityIndicator size="large" color="#0a66c2" className="my-8" />
-      ) : (
-        <View className="gap-3">
-          {barbers?.map((barber) => (
-            <Pressable
-              key={barber.id}
-              onPress={() => {
-                setSelectedBarber(barber);
-                goNext();
-              }}
-              className={`flex-row items-center p-4 rounded-2xl border-2 bg-white ${
-                selectedBarber?.id === barber.id
-                  ? "border-primary-500 bg-primary-50"
-                  : "border-dark-200"
-              }`}
-            >
-              {/* Avatar */}
-              <View className="w-14 h-14 rounded-full overflow-hidden bg-dark-200 mr-4">
-                {barber.avatar_url ? (
-                  <Image
-                    source={{ uri: barber.avatar_url }}
-                    className="w-full h-full"
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View className="w-full h-full items-center justify-center bg-primary-100">
-                    <Ionicons name="person" size={24} color="#0a66c2" />
-                  </View>
-                )}
-              </View>
+  // ── Formatted date for sticky bar ──────────────────────────────────────
+  const formattedSelectedDate = useMemo(() => {
+    if (!selectedDate) return "";
+    return selectedDate.toLocaleDateString("ro-RO", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    });
+  }, [selectedDate]);
 
-              {/* Info */}
-              <View className="flex-1">
-                <Text className="text-dark-700 font-bold text-base">{barber.name}</Text>
-                {barber.bio && (
-                  <Text className="text-dark-500 text-sm mt-0.5" numberOfLines={2}>
-                    {barber.bio}
-                  </Text>
-                )}
-                {barber.city && (
-                  <View className="flex-row items-center mt-1.5">
-                    <Ionicons name="location-outline" size={14} color="#64748b" />
-                    <Text className="text-dark-400 text-xs ml-1">
-                      {barber.address ? `${barber.address}, ${barber.city}` : barber.city}
-                    </Text>
-                  </View>
-                )}
-                {barber.specialties && barber.specialties.length > 0 && (
-                  <View className="flex-row flex-wrap gap-1 mt-2">
-                    {barber.specialties.slice(0, 3).map((spec) => (
-                      <View key={spec} className="bg-primary-50 px-2 py-0.5 rounded-full">
-                        <Text className="text-primary-600 text-[10px] font-medium">{spec}</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </View>
-
-              {/* Arrow */}
-              <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
-            </Pressable>
-          ))}
-        </View>
-      )}
-    </View>
-  );
-
-  // Step 2: Select Service
-  const ServiceSelection = () => (
-    <View className="px-4 py-2">
-      <Text className="text-dark-700 font-bold text-lg mb-1">Alege serviciul</Text>
-      <Text className="text-dark-500 text-sm mb-4">
-        Cu {selectedBarber?.name}
-      </Text>
-
-      {servicesLoading ? (
-        <ActivityIndicator size="large" color="#0a66c2" className="my-8" />
-      ) : (
-        <View className="gap-3">
-          {services?.map((service) => (
-            <Pressable
-              key={service.id}
-              onPress={() => {
-                setSelectedService(service);
-                goNext();
-              }}
-              className={`p-4 rounded-2xl border-2 bg-white ${
-                selectedService?.id === service.id
-                  ? "border-primary-500 bg-primary-50"
-                  : "border-dark-200"
-              }`}
-            >
-              <View className="flex-row items-start justify-between">
-                <View className="flex-1 mr-3">
-                  <Text className="text-dark-700 font-bold text-base">{service.name}</Text>
-                  {service.description && (
-                    <Text className="text-dark-500 text-sm mt-1" numberOfLines={2}>
-                      {service.description}
-                    </Text>
-                  )}
-                  <View className="flex-row items-center mt-2 gap-3">
-                    <View className="flex-row items-center">
-                      <Ionicons name="time-outline" size={14} color="#64748b" />
-                      <Text className="text-dark-500 text-xs ml-1">{service.duration_min} min</Text>
-                    </View>
-                  </View>
-                </View>
-                <View className="items-end">
-                  <Text className="text-primary-500 font-bold text-lg">
-                    {formatPrice(service.price_cents, service.currency)}
-                  </Text>
-                </View>
-              </View>
-            </Pressable>
-          ))}
-        </View>
-      )}
-    </View>
-  );
-
-  // Step 3: Select Date & Time
-  const DateTimeSelection = () => (
-    <View className="py-2">
-      <View className="px-4">
-        <Text className="text-dark-700 font-bold text-lg mb-1">Alege data și ora</Text>
-        <Text className="text-dark-500 text-sm mb-4">
-          {selectedService?.name} • {selectedService?.duration_min} min
-        </Text>
-      </View>
-
-      {/* Date Picker - Horizontal Calendar */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
-        className="mb-5"
+  // ══════════════════════════════════════════════════════════════════════════
+  // SUCCESS SCREEN
+  // ══════════════════════════════════════════════════════════════════════════
+  if (bookingResult) {
+    return (
+      <SafeAreaView
+        style={{ flex: 1, backgroundColor: "#f8fbff" }}
+        edges={["top"]}
       >
-        {next14Days.map((day) => {
-          const { dayName, dayNumber, monthName } = formatCalendarDay(day);
-          const isSelected = selectedDate?.toDateString() === day.toDateString();
-          const isSunday = day.getDay() === 0;
+        <BookingSuccess
+          result={bookingResult}
+          onAddToCalendar={handleAddToCalendar}
+          onViewAppointments={() => {
+            router.replace("/appointments" as any);
+          }}
+          onBookAnother={() => {
+            setBookingResult(null);
+            setStep(1);
+            setSelectedBarber(null);
+            setSelectedServices([]);
+            setSelectedDate(null);
+            setSelectedTime(null);
+            setNotes("");
+          }}
+          onGoHome={() => {
+            router.replace("/(tabs)/discover" as any);
+          }}
+          formatPrice={formatPrice}
+        />
+      </SafeAreaView>
+    );
+  }
 
-          return (
-            <Pressable
-              key={day.toISOString()}
-              onPress={() => {
-                if (!isSunday) {
-                  setSelectedDate(day);
-                  setSelectedTime(null); // Reset time when date changes
-                }
-              }}
-              className={`w-16 py-3 rounded-2xl items-center ${
-                isSelected
-                  ? "bg-primary-500"
-                  : isSunday
-                  ? "bg-dark-100 opacity-40"
-                  : "bg-white border border-dark-200"
-              }`}
-            >
-              <Text
-                className={`text-[10px] font-medium ${
-                  isSelected ? "text-white" : isSunday ? "text-dark-400" : "text-dark-500"
-                }`}
-              >
-                {dayName}
-              </Text>
-              <Text
-                className={`text-xl font-bold mt-0.5 ${
-                  isSelected ? "text-white" : isSunday ? "text-dark-400" : "text-dark-700"
-                }`}
-              >
-                {dayNumber}
-              </Text>
-              <Text
-                className={`text-[10px] ${
-                  isSelected ? "text-white/80" : isSunday ? "text-dark-400" : "text-dark-400"
-                }`}
-              >
-                {monthName}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-
-      {/* Time Slots */}
-      <View className="px-4">
-        {!selectedDate ? (
-          <View className="items-center py-8">
-            <Ionicons name="calendar-outline" size={48} color="#94a3b8" />
-            <Text className="text-dark-500 mt-3">Selectează o dată mai întâi</Text>
-          </View>
-        ) : slotsLoading ? (
-          <ActivityIndicator size="large" color="#0a66c2" className="my-8" />
-        ) : !timeSlots || timeSlots.length === 0 ? (
-          <View className="items-center py-8">
-            <Ionicons name="time-outline" size={48} color="#94a3b8" />
-            <Text className="text-dark-500 mt-3 text-center">
-              Frizerul nu lucrează în această zi.{"\n"}Alege altă dată.
-            </Text>
-          </View>
-        ) : (
-          <>
-            <Text className="text-dark-600 font-semibold text-sm mb-3">Ore disponibile</Text>
-            <View className="flex-row flex-wrap gap-2">
-              {timeSlots.map((slot) => (
-                <Pressable
-                  key={slot.time}
-                  onPress={() => {
-                    if (slot.available) {
-                      setSelectedTime(slot.time);
-                    }
-                  }}
-                  disabled={!slot.available}
-                  className={`px-4 py-2.5 rounded-xl ${
-                    selectedTime === slot.time
-                      ? "bg-primary-500"
-                      : slot.available
-                      ? "bg-white border border-dark-200"
-                      : "bg-dark-100 opacity-40"
-                  }`}
-                >
-                  <Text
-                    className={`text-sm font-semibold ${
-                      selectedTime === slot.time
-                        ? "text-white"
-                        : slot.available
-                        ? "text-dark-700"
-                        : "text-dark-400 line-through"
-                    }`}
-                  >
-                    {slot.time}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </>
-        )}
-      </View>
-
-      {/* Next button */}
-      {selectedTime && (
-        <View className="px-4 mt-6">
-          <Pressable
-            onPress={goNext}
-            className="bg-primary-500 py-4 rounded-2xl items-center flex-row justify-center"
-          >
-            <Text className="text-white font-bold text-base">Continuă</Text>
-            <Ionicons name="arrow-forward" size={20} color="white" className="ml-2" />
-          </Pressable>
-        </View>
-      )}
-    </View>
-  );
-
-  // Step 4: Confirmation
-  const Confirmation = () => (
-    <View className="px-4 py-2">
-      <Text className="text-dark-700 font-bold text-lg mb-4">Confirmă programarea</Text>
-
-      {/* Summary Card */}
-      <View className="bg-white rounded-2xl border border-dark-200 overflow-hidden mb-4">
-        {/* Barber */}
-        <View className="flex-row items-center p-4 border-b border-dark-200">
-          <View className="w-12 h-12 rounded-full overflow-hidden bg-dark-200 mr-3">
-            {selectedBarber?.avatar_url ? (
-              <Image
-                source={{ uri: selectedBarber.avatar_url }}
-                className="w-full h-full"
-                resizeMode="cover"
-              />
-            ) : (
-              <View className="w-full h-full items-center justify-center bg-primary-100">
-                <Ionicons name="person" size={20} color="#0a66c2" />
-              </View>
-            )}
-          </View>
-          <View className="flex-1">
-            <Text className="text-dark-500 text-xs">Frizer</Text>
-            <Text className="text-dark-700 font-bold">{selectedBarber?.name}</Text>
-          </View>
-          <Ionicons name="checkmark-circle" size={24} color="#0a66c2" />
-        </View>
-
-        {/* Service */}
-        <View className="flex-row items-center p-4 border-b border-dark-200">
-          <View className="w-12 h-12 rounded-xl bg-primary-50 items-center justify-center mr-3">
-            <Ionicons name="cut" size={20} color="#0a66c2" />
-          </View>
-          <View className="flex-1">
-            <Text className="text-dark-500 text-xs">Serviciu</Text>
-            <Text className="text-dark-700 font-bold">{selectedService?.name}</Text>
-            <Text className="text-dark-500 text-xs mt-0.5">{selectedService?.duration_min} minute</Text>
-          </View>
-          <Text className="text-primary-500 font-bold text-lg">
-            {selectedService && formatPrice(selectedService.price_cents, selectedService.currency)}
+  // ══════════════════════════════════════════════════════════════════════════
+  // MAIN BOOKING FLOW
+  // ══════════════════════════════════════════════════════════════════════════
+  return (
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: Colors.background }}
+      edges={["top"]}
+    >
+      {/* ── Header ── */}
+      <View style={styles.headerBar}>
+        <Pressable
+          onPress={goBack}
+          style={[squircleSm, styles.backButton]}
+        >
+          <Ionicons name="arrow-back" size={20} color="#334155" />
+        </Pressable>
+        <View style={{ flex: 1 }}>
+          <Text style={[Typography.h3, { color: Colors.text }]}>
+            {STEP_TITLES[step]}
           </Text>
         </View>
-
-        {/* Date & Time */}
-        <View className="flex-row items-center p-4">
-          <View className="w-12 h-12 rounded-xl bg-primary-50 items-center justify-center mr-3">
-            <Ionicons name="calendar" size={20} color="#0a66c2" />
-          </View>
-          <View className="flex-1">
-            <Text className="text-dark-500 text-xs">Data & Ora</Text>
-            <Text className="text-dark-700 font-bold">
-              {selectedDate?.toLocaleDateString("ro-RO", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-              })}
-            </Text>
-            <Text className="text-primary-500 font-semibold mt-0.5">{selectedTime}</Text>
-          </View>
+        <View style={styles.stepBadge}>
+          <Text style={styles.stepBadgeText}>{step}/4</Text>
         </View>
       </View>
 
-      {/* Notes */}
-      <View className="mb-4">
-        <Text className="text-dark-600 font-semibold text-sm mb-2">Note (opțional)</Text>
-        <Input
-          placeholder="Ex: Fade mediu, păstrat lungimea sus..."
-          value={notes}
-          onChangeText={setNotes}
-          multiline
-        />
+      {/* ── Step indicator (animated) ── */}
+      <View ref={stepIndicatorRef}>
+        <BookingStepIndicator currentStep={step} stepTitles={STEP_TITLES} />
       </View>
 
-      {/* Total */}
-      <View className="flex-row items-center justify-between bg-primary-50 p-4 rounded-2xl mb-6">
-        <Text className="text-dark-700 font-semibold text-base">Total</Text>
-        <Text className="text-primary-500 font-bold text-2xl">
-          {selectedService && formatPrice(selectedService.price_cents, selectedService.currency)}
-        </Text>
-      </View>
-
-      {/* Submit Button */}
-      <Pressable
-        onPress={handleSubmit}
-        disabled={isSubmitting}
-        className={`py-4 rounded-2xl items-center flex-row justify-center ${
-          isSubmitting ? "bg-primary-300" : "bg-primary-500"
-        }`}
-      >
-        {isSubmitting ? (
-          <ActivityIndicator color="white" />
-        ) : (
-          <>
-            <Ionicons name="checkmark-circle" size={22} color="white" />
-            <Text className="text-white font-bold text-base ml-2">Confirmă Programarea</Text>
-          </>
-        )}
-      </Pressable>
-    </View>
-  );
-
-  return (
-    <SafeAreaView className="flex-1 bg-dark-200" edges={["top"]}>
-      {/* Header */}
-      <View className="flex-row items-center px-4 py-3 border-b border-dark-300 bg-white">
-        <Pressable onPress={goBack} className="mr-3">
-          <Ionicons name="arrow-back" size={24} color="#334155" />
-        </Pressable>
-        <Text className="text-dark-700 text-xl font-bold flex-1">
-          {STEP_TITLES[step]}
-        </Text>
-        <Text className="text-dark-400 text-sm">Pas {step}/4</Text>
-      </View>
-
-      {/* Step Indicator */}
-      <StepIndicator />
-
-      {/* Content */}
+      {/* ── Content ── */}
       <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingBottom: 32 }}
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          paddingBottom:
+            step === 2
+              ? 0
+              : step === 3 && selectedTime
+              ? 100
+              : 32,
+        }}
         showsVerticalScrollIndicator={false}
       >
-        {step === 1 && <BarberSelection />}
-        {step === 2 && <ServiceSelection />}
-        {step === 3 && <DateTimeSelection />}
-        {step === 4 && <Confirmation />}
+        {/* ── Step 1: Barber selection ── */}
+        {step === 1 && (
+          <View style={styles.stepContent}>
+            <Text style={styles.stepTitle}>Alege frizerul tău</Text>
+            <Text style={styles.stepSubtitle}>
+              {salonId
+                ? "Selectează un frizer din echipă"
+                : "Selectează un frizer disponibil"}
+            </Text>
+
+            {barbersLoading ? (
+              <ActivityIndicator
+                size="large"
+                color={Colors.primary}
+                style={{ marginVertical: 32 }}
+              />
+            ) : (
+              <View style={{ gap: 12 }}>
+                {barbers?.map((barber, index) => (
+                  <View
+                    key={barber.id}
+                    ref={index === 0 ? barberCardRef : undefined}
+                  >
+                    <View ref={index === 0 ? barberSelectedRef : undefined}>
+                      <BarberCard
+                        barber={barber}
+                        isSelected={selectedBarber?.id === barber.id}
+                        onSelect={() => {
+                          setSelectedBarber(barber);
+                          goNext();
+                        }}
+                        index={index}
+                      />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* ── Step 2: Service selection (multi) ── */}
+        {step === 2 && (
+          <View
+            style={[
+              styles.stepContent,
+              {
+                paddingBottom:
+                  selectedServices.length > 0 ? 120 : 32,
+              },
+            ]}
+          >
+            <Text style={styles.stepTitle}>Alege serviciile</Text>
+            <Text style={styles.stepSubtitle}>
+              Cu {selectedBarber?.name} · poți selecta mai multe
+            </Text>
+
+            {servicesLoading ? (
+              <ActivityIndicator
+                size="large"
+                color={Colors.primary}
+                style={{ marginVertical: 32 }}
+              />
+            ) : services?.length === 0 ? (
+              <View style={styles.emptyState}>
+                <View style={styles.emptyStateIcon}>
+                  <Ionicons name="cut-outline" size={28} color="#64748b" />
+                </View>
+                <Text style={styles.emptyTitle}>
+                  Niciun serviciu disponibil
+                </Text>
+                <Text style={styles.emptySubtitle}>
+                  Salonul nu are servicii active momentan.
+                </Text>
+              </View>
+            ) : (
+              <View style={{ gap: 12 }}>
+                {services?.map((service, index) => (
+                  <View
+                    key={service.id}
+                    ref={index === 0 ? serviceCardRef : undefined}
+                  >
+                    <View ref={index === 0 ? serviceCheckboxRef : undefined}>
+                      <ServiceCard
+                        service={service}
+                        isSelected={selectedServices.some(
+                          (s) => s.id === service.id
+                        )}
+                        onToggle={() => toggleService(service)}
+                        index={index}
+                        formatPrice={formatPrice}
+                      />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* ── Step 3: Date & Time ── */}
+        {step === 3 && (
+          <View style={{ flex: 1 }}>
+            {/* Services info chip */}
+            <View style={styles.serviceChip}>
+              <View style={styles.serviceChipIcon}>
+                <Ionicons name="cut" size={18} color={Colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[Typography.captionSemiBold, { color: Colors.text }]}
+                  numberOfLines={2}
+                >
+                  {servicesSummary}
+                </Text>
+                <Text
+                  style={[
+                    Typography.small,
+                    { color: Colors.textTertiary, marginTop: 2 },
+                  ]}
+                >
+                  {totalDurationMin} min · cu {selectedBarber?.name}
+                </Text>
+              </View>
+              <View style={styles.serviceChipPrice}>
+                <Text style={styles.serviceChipPriceText}>
+                  {formatPrice(totalPriceCents, primaryCurrency)}
+                </Text>
+              </View>
+            </View>
+
+            {/* Animated date picker */}
+            <View ref={datePickerRef}>
+              <BookingDatePicker
+                selectedDate={selectedDate}
+                onSelectDate={(date) => {
+                  setSelectedDate(date);
+                  setSelectedTime(null);
+                }}
+                disabledDays={firstAvailableData?.offDays ?? [0]}
+              />
+            </View>
+
+            <View style={styles.divider} />
+
+            {/* Animated time grid */}
+            <View style={{ paddingHorizontal: 16, flex: 1 }}>
+              <BookingTimeGrid
+                timeSlots={timeSlots}
+                selectedTime={selectedTime}
+                onSelectTime={setSelectedTime}
+                isLoading={slotsLoading}
+                hasSelectedDate={!!selectedDate}
+                morningSectionRef={timeMorningRef}
+                afternoonSectionRef={timeAfternoonRef}
+              />
+            </View>
+          </View>
+        )}
+
+        {/* ── Step 4: Confirmation (animated) ── */}
+        {step === 4 && selectedBarber && selectedDate && selectedTime && (
+          <View style={styles.stepContent}>
+            <BookingConfirmation
+              barber={selectedBarber}
+              services={selectedServices}
+              selectedDate={selectedDate}
+              selectedTime={selectedTime}
+              notes={notes}
+              onNotesChange={setNotes}
+              onSubmit={handleSubmit}
+              isSubmitting={isSubmitting}
+              formatPrice={formatPrice}
+              summaryCardRef={summaryCardRef}
+              notesInputRef={notesInputRef}
+              confirmBtnRef={confirmBtnRef}
+            />
+          </View>
+        )}
       </ScrollView>
+
+      {/* ── Step 2: Floating bar (animated) ── */}
+      {step === 2 && (
+        <View ref={floatingBarRef} style={{ position: "absolute", bottom: 0, left: 0, right: 0 }} pointerEvents="box-none">
+          <View ref={continueBtnRef} pointerEvents="box-none">
+            <BookingFloatingBar
+              selectedServices={selectedServices}
+              onContinue={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setStep(3);
+              }}
+              formatPrice={formatPrice}
+            />
+          </View>
+        </View>
+      )}
+
+      {/* ── Step 3: Sticky CTA when time is selected ── */}
+      {step === 3 && selectedTime ? (
+        <View ref={timeCtaRef} style={styles.stickyBar}>
+          <Button variant="primary" size="lg" onPress={() => setStep(4)}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Ionicons
+                name="calendar"
+                size={16}
+                color="rgba(255,255,255,0.8)"
+              />
+              <Text style={styles.stickyDateText}>
+                {formattedSelectedDate}
+              </Text>
+              <Text style={styles.stickyDot}>·</Text>
+              <Ionicons
+                name="time"
+                size={16}
+                color="rgba(255,255,255,0.8)"
+              />
+              <Text style={styles.stickyTimeText}>{selectedTime}</Text>
+              <View style={{ marginLeft: 12 }}>
+                <Ionicons name="arrow-forward" size={18} color="white" />
+              </View>
+            </View>
+          </Button>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
+
+// ─── Styles ─────────────────────────────────────────────────────────────────
+const styles = StyleSheet.create({
+  headerBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: Colors.white,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    backgroundColor: Colors.background,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  stepBadge: {
+    backgroundColor: Colors.background,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  stepBadgeText: {
+    ...Typography.small,
+    fontFamily: "EuclidCircularA-SemiBold",
+    color: Colors.textSecondary,
+  },
+
+  // Step content
+  stepContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  stepTitle: {
+    ...Typography.h3,
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  stepSubtitle: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    marginBottom: 16,
+  },
+
+  // Empty state
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: 48,
+  },
+  emptyStateIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.background,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    ...Typography.bodySemiBold,
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  emptySubtitle: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    textAlign: "center",
+  },
+
+  // Step 3 — service info chip
+  serviceChip: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: Colors.separator,
+  },
+  serviceChipIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: Colors.primaryMuted,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  serviceChipPrice: {
+    backgroundColor: Colors.primaryMuted,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  serviceChipPriceText: {
+    fontFamily: "EuclidCircularA-Bold",
+    fontSize: 12,
+    color: Colors.primary,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.separator,
+    marginHorizontal: 16,
+    marginVertical: 16,
+  },
+
+  // Step 3 — sticky CTA bar
+  stickyBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: Colors.white,
+    borderTopWidth: 1,
+    borderTopColor: Colors.separator,
+    paddingHorizontal: 16,
+    paddingBottom: Platform.OS === "ios" ? 32 : 20,
+    paddingTop: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+      },
+      android: { elevation: 10 },
+    }),
+  },
+  stickyDateText: {
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 14,
+    marginLeft: 6,
+    fontFamily: "EuclidCircularA-Regular",
+  },
+  stickyDot: {
+    color: "rgba(255,255,255,0.5)",
+    marginHorizontal: 8,
+  },
+  stickyTimeText: {
+    color: "white",
+    fontSize: 14,
+    fontFamily: "EuclidCircularA-Bold",
+    marginLeft: 6,
+  },
+});

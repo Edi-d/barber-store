@@ -44,11 +44,11 @@ Deno.serve(async (req: Request) => {
     }
 
     // Parse body
-    const { room_name, can_publish } = await req.json();
+    const { room, canPublish } = await req.json();
 
-    if (!room_name) {
+    if (!room) {
       return new Response(
-        JSON.stringify({ error: "room_name is required" }),
+        JSON.stringify({ error: "room is required" }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -78,8 +78,8 @@ Deno.serve(async (req: Request) => {
 
     at.addGrant({
       roomJoin: true,
-      room: room_name,
-      canPublish: can_publish ?? false,
+      room: room,
+      canPublish: canPublish ?? false,
       canSubscribe: true,
     });
 

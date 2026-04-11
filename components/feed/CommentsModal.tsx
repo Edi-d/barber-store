@@ -14,6 +14,7 @@ import {
   Alert,
   Modal,
 } from 'react-native';
+import { router } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -42,6 +43,9 @@ import { ContentWithAuthor, CommentWithAuthor, CommentWithReplies } from '@/type
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { timeAgo } from '@/lib/utils';
+import { useCommentReactions, useCommentReactionsRealtime, CommentReactionData, ReactionEmoji } from '@/hooks/useCommentReactions';
+import { ReactionPicker } from '@/components/feed/ReactionPicker';
+import { ReactionBubbles } from '@/components/feed/ReactionBubbles';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.88;
@@ -78,6 +82,13 @@ export function CommentsModal({ visible, item, onClose }: Props) {
 
   // Expanded replies state
   const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
+
+  // Reaction state
+  const { fetchReactions, toggleReaction } = useCommentReactions();
+  const [reactions, setReactions] = useState<Map<string, CommentReactionData[]>>(new Map());
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [pickerPosition, setPickerPosition] = useState({ x: 0, y: 0 });
+  const [pickerCommentId, setPickerCommentId] = useState<string | null>(null);
 
   /* ── Fetch comments with infinite query (top-level only) ── */
   const {
@@ -148,6 +159,95 @@ export function CommentsModal({ visible, item, onClose }: Props) {
   const allComments: (CommentWithReplies & { _replyCount?: number })[] =
     commentsData?.pages.flatMap((page) => page.comments) || [];
 
+  /* ── Fetch reactions whenever the comment list changes ── */
+  useEffect(() => {
+    if (allComments.length === 0) return;
+    const commentIds = allComments.map((c) => c.id);
+    fetchReactions(commentIds).then((reactionsMap) => {
+      setReactions(reactionsMap);
+    });
+  }, [commentsData]);
+
+  /* ── Realtime subscription for comment_reactions ── */
+  useCommentReactionsRealtime(item?.id, setReactions, visible && !!item);
+
+  /* ── Handle reaction selection from picker ── */
+  const handleReaction = useCallback(
+    async (emoji: ReactionEmoji) => {
+      if (!pickerCommentId) return;
+      const commentId = pickerCommentId;
+      const existing = reactions.get(commentId) ?? [];
+      const current = existing.find((r) => r.reaction === emoji);
+      const hasReacted = current?.hasReacted ?? false;
+
+      // Optimistic update
+      const prevReactions = new Map(reactions);
+      setReactions((prev) => {
+        const next = new Map(prev);
+        const list = (next.get(commentId) ?? []).map((r) => {
+          if (r.reaction !== emoji) return r;
+          return { ...r, count: hasReacted ? Math.max(0, r.count - 1) : r.count + 1, hasReacted: !hasReacted };
+        });
+        // If no entry yet for this emoji, add one
+        if (!list.find((r) => r.reaction === emoji)) {
+          list.push({ comment_id: commentId, reaction: emoji, count: 1, hasReacted: true });
+        }
+        next.set(commentId, list.filter((r) => r.count > 0));
+        return next;
+      });
+      setPickerVisible(false);
+
+      try {
+        await toggleReaction(commentId, emoji, hasReacted);
+      } catch {
+        // Revert on failure
+        setReactions(prevReactions);
+      }
+    },
+    [pickerCommentId, reactions, toggleReaction],
+  );
+
+  /* ── Handle long-press on a comment to show reaction picker ── */
+  const handleCommentLongPress = useCallback(
+    (comment: CommentWithAuthor, isReply: boolean, position: { x: number; y: number }) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setPickerCommentId(comment.id);
+      setPickerPosition(position);
+      // Bug 6: if already visible, briefly hide so the spring re-runs from zero
+      if (pickerVisible) {
+        setPickerVisible(false);
+        setTimeout(() => setPickerVisible(true), 0);
+      } else {
+        setPickerVisible(true);
+      }
+    },
+    [pickerVisible],
+  );
+
+  /* ── Handle toggling a reaction bubble directly ── */
+  const handleToggleReactionBubble = useCallback(
+    async (commentId: string, emoji: ReactionEmoji, hasReacted: boolean) => {
+      // Optimistic update
+      const prevReactions = new Map(reactions);
+      setReactions((prev) => {
+        const next = new Map(prev);
+        const list = (next.get(commentId) ?? []).map((r) => {
+          if (r.reaction !== emoji) return r;
+          return { ...r, count: hasReacted ? Math.max(0, r.count - 1) : r.count + 1, hasReacted: !hasReacted };
+        });
+        next.set(commentId, list.filter((r) => r.count > 0));
+        return next;
+      });
+
+      try {
+        await toggleReaction(commentId, emoji, hasReacted);
+      } catch {
+        setReactions(prevReactions);
+      }
+    },
+    [reactions, toggleReaction],
+  );
+
   /* ── Fetch replies for a specific parent ── */
   const fetchReplies = useCallback(
     async (parentId: string) => {
@@ -179,8 +279,16 @@ export function CommentsModal({ visible, item, onClose }: Props) {
       );
 
       setExpandedReplies((prev) => new Set(prev).add(parentId));
+
+      // Fetch reactions for reply IDs
+      if (data && data.length > 0) {
+        const replyIds = (data as CommentWithAuthor[]).map((r) => r.id);
+        fetchReactions(replyIds).then((replyReactions) => {
+          setReactions((prev) => new Map([...prev, ...replyReactions]));
+        });
+      }
     },
-    [item?.id, queryClient],
+    [item?.id, queryClient, fetchReactions],
   );
 
   const collapseReplies = useCallback((parentId: string) => {
@@ -265,13 +373,19 @@ export function CommentsModal({ visible, item, onClose }: Props) {
       }
 
       // Update comments_count in feed
-      queryClient.setQueryData<ContentWithAuthor[]>(['feed'], (old) =>
-        old?.map((feedItem) =>
-          feedItem.id === item?.id
-            ? { ...feedItem, comments_count: feedItem.comments_count + 1 }
-            : feedItem,
-        ),
-      );
+      queryClient.setQueryData<InfiniteData<ContentWithAuthor[]>>(['feed'], (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page) =>
+            page.map((feedItem) =>
+              feedItem.id === item?.id
+                ? { ...feedItem, comments_count: feedItem.comments_count + 1 }
+                : feedItem,
+            ),
+          ),
+        };
+      });
     },
   });
 
@@ -358,13 +472,19 @@ export function CommentsModal({ visible, item, onClose }: Props) {
       );
 
       // Decrement comments_count in feed cache
-      queryClient.setQueryData<ContentWithAuthor[]>(['feed'], (old) =>
-        old?.map((feedItem) =>
-          feedItem.id === item?.id
-            ? { ...feedItem, comments_count: Math.max(0, feedItem.comments_count - 1) }
-            : feedItem,
-        ),
-      );
+      queryClient.setQueryData<InfiniteData<ContentWithAuthor[]>>(['feed'], (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page) =>
+            page.map((feedItem) =>
+              feedItem.id === item?.id
+                ? { ...feedItem, comments_count: Math.max(0, feedItem.comments_count - 1) }
+                : feedItem,
+            ),
+          ),
+        };
+      });
     },
   });
 
@@ -389,11 +509,10 @@ export function CommentsModal({ visible, item, onClose }: Props) {
     [],
   );
 
-  const handleLongPress = useCallback(
+  /* ── Edit/delete menu for own comments (triggered by "..." button) ── */
+  const handleEditDelete = useCallback(
     (comment: CommentWithAuthor, isReply: boolean) => {
-      if (!session || comment.user_id !== session.user.id) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
       Alert.alert('Comentariu', undefined, [
         {
           text: 'Editeaza',
@@ -426,7 +545,7 @@ export function CommentsModal({ visible, item, onClose }: Props) {
         { text: 'Anuleaza', style: 'cancel' },
       ]);
     },
-    [session, deleteCommentMutation],
+    [deleteCommentMutation],
   );
 
   const handleSaveEdit = useCallback(
@@ -517,6 +636,20 @@ export function CommentsModal({ visible, item, onClose }: Props) {
     ],
   }));
 
+  const handleAuthorPress = useCallback(
+    (authorId: string) => {
+      if (!authorId) return;
+      if (authorId === session?.user.id) {
+        closeModal();
+        router.push('/(tabs)/profile');
+      } else {
+        closeModal();
+        router.push(`/profile/${authorId}` as any);
+      }
+    },
+    [session?.user.id, closeModal],
+  );
+
   const renderComment = useCallback(
     ({ item: comment, index }: { item: CommentWithReplies & { _replyCount?: number }; index: number }) => (
       <CommentRow
@@ -529,12 +662,17 @@ export function CommentsModal({ visible, item, onClose }: Props) {
         editText={editText}
         setEditText={setEditText}
         onReply={handleReply}
-        onLongPress={handleLongPress}
+        onEditDelete={handleEditDelete}
         onSaveEdit={handleSaveEdit}
         onCancelEdit={handleCancelEdit}
+        onAuthorPress={handleAuthorPress}
         expandedReplies={expandedReplies}
         onExpandReplies={fetchReplies}
         onCollapseReplies={collapseReplies}
+        commentReactions={reactions.get(comment.id) ?? []}
+        allReactions={reactions}
+        onReactionLongPress={handleCommentLongPress}
+        onToggleReactionBubble={handleToggleReactionBubble}
       />
     ),
     [
@@ -543,12 +681,16 @@ export function CommentsModal({ visible, item, onClose }: Props) {
       editingComment,
       editText,
       handleReply,
-      handleLongPress,
+      handleEditDelete,
       handleSaveEdit,
       handleCancelEdit,
+      handleAuthorPress,
       expandedReplies,
       fetchReplies,
       collapseReplies,
+      reactions,
+      handleCommentLongPress,
+      handleToggleReactionBubble,
     ],
   );
 
@@ -621,6 +763,7 @@ export function CommentsModal({ visible, item, onClose }: Props) {
                   data={allComments}
                   renderItem={renderComment}
                   keyExtractor={keyExtractor}
+                  extraData={reactions}
                   contentContainerStyle={styles.listContent}
                   showsVerticalScrollIndicator={false}
                   keyboardShouldPersistTaps="handled"
@@ -732,6 +875,13 @@ export function CommentsModal({ visible, item, onClose }: Props) {
         </GestureDetector>
         </KeyboardAvoidingView>
       </View>
+
+      <ReactionPicker
+        visible={pickerVisible}
+        position={pickerPosition}
+        onReact={(emoji) => handleReaction(emoji as ReactionEmoji)}
+        onClose={() => setPickerVisible(false)}
+      />
     </Modal>
   );
 }
@@ -747,12 +897,17 @@ function CommentRow({
   editText,
   setEditText,
   onReply,
-  onLongPress,
+  onEditDelete,
   onSaveEdit,
   onCancelEdit,
+  onAuthorPress,
   expandedReplies,
   onExpandReplies,
   onCollapseReplies,
+  commentReactions,
+  allReactions,
+  onReactionLongPress,
+  onToggleReactionBubble,
 }: {
   comment: CommentWithReplies & { _replyCount?: number };
   index: number;
@@ -763,12 +918,17 @@ function CommentRow({
   editText: string;
   setEditText: (text: string) => void;
   onReply: (comment: CommentWithAuthor) => void;
-  onLongPress: (comment: CommentWithAuthor, isReply: boolean) => void;
+  onEditDelete: (comment: CommentWithAuthor, isReply: boolean) => void;
   onSaveEdit: (commentId: string) => void;
   onCancelEdit: () => void;
+  onAuthorPress: (authorId: string) => void;
   expandedReplies: Set<string>;
   onExpandReplies: (parentId: string) => void;
   onCollapseReplies: (parentId: string) => void;
+  commentReactions: CommentReactionData[];
+  allReactions: Map<string, CommentReactionData[]>;
+  onReactionLongPress: (comment: CommentWithAuthor, isReply: boolean, position: { x: number; y: number }) => void;
+  onToggleReactionBubble: (commentId: string, emoji: ReactionEmoji, hasReacted: boolean) => void;
 }) {
   const opacity = useSharedValue(0);
   const translateX = useSharedValue(30);
@@ -801,35 +961,43 @@ function CommentRow({
   return (
     <View style={isReply ? styles.replyContainer : undefined}>
       <Animated.View style={[styles.commentRow, animStyle]}>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onLongPress={() => onLongPress(comment, isReply)}
-          delayLongPress={400}
-          style={styles.commentRowInner}
-        >
-          {comment.author?.avatar_url ? (
-            <Image
-              source={{ uri: comment.author.avatar_url }}
-              style={isReply ? styles.replyAvatar : styles.commentAvatar}
-            />
-          ) : (
-            <View
-              style={[
-                isReply ? styles.replyAvatar : styles.commentAvatar,
-                { backgroundColor: Brand.primary + '20' },
-              ]}
-            >
-              <Text
+        <View style={styles.commentRowInner}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => comment.user_id && onAuthorPress(comment.user_id)}
+          >
+            {comment.author?.avatar_url ? (
+              <Image
+                source={{ uri: comment.author.avatar_url }}
+                style={isReply ? styles.replyAvatar : styles.commentAvatar}
+              />
+            ) : (
+              <View
                 style={[
-                  styles.commentAvatarLetter,
-                  { color: Brand.primary, fontSize: isReply ? 11 : 14 },
+                  isReply ? styles.replyAvatar : styles.commentAvatar,
+                  { backgroundColor: Brand.primary + '20' },
                 ]}
               >
-                {authorName[0].toUpperCase()}
-              </Text>
-            </View>
-          )}
-          <View style={styles.commentBody}>
+                <Text
+                  style={[
+                    styles.commentAvatarLetter,
+                    { color: Brand.primary, fontSize: isReply ? 11 : 14 },
+                  ]}
+                >
+                  {authorName[0].toUpperCase()}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onLongPress={(e) => {
+              const { pageX, pageY } = e.nativeEvent;
+              onReactionLongPress(comment, isReply, { x: pageX, y: pageY });
+            }}
+            delayLongPress={400}
+            style={styles.commentBody}
+          >
             <View
               style={[
                 styles.commentBubble,
@@ -904,21 +1072,6 @@ function CommentRow({
                   (editat)
                 </Text>
               )}
-              <TouchableOpacity
-                activeOpacity={0.6}
-                onPress={() =>
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                }
-              >
-                <Text
-                  style={[
-                    styles.commentAction,
-                    { color: Colors.textSecondary },
-                  ]}
-                >
-                  Apreciaza
-                </Text>
-              </TouchableOpacity>
               {!isReply && (
                 <TouchableOpacity
                   activeOpacity={0.6}
@@ -934,9 +1087,26 @@ function CommentRow({
                   </Text>
                 </TouchableOpacity>
               )}
+              {isOwn && (
+                <TouchableOpacity
+                  activeOpacity={0.6}
+                  onPress={() => onEditDelete(comment, isReply)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Feather name="more-horizontal" size={14} color={Colors.textTertiary} />
+                </TouchableOpacity>
+              )}
             </View>
-          </View>
-        </TouchableOpacity>
+            {commentReactions.length > 0 && (
+              <ReactionBubbles
+                reactions={commentReactions}
+                onToggle={(emoji, hasReacted) =>
+                  onToggleReactionBubble(comment.id, emoji, hasReacted)
+                }
+              />
+            )}
+          </TouchableOpacity>
+        </View>
       </Animated.View>
 
       {/* Replies section (only for top-level comments) */}
@@ -956,12 +1126,17 @@ function CommentRow({
                   editText={editText}
                   setEditText={setEditText}
                   onReply={onReply}
-                  onLongPress={onLongPress}
+                  onEditDelete={onEditDelete}
                   onSaveEdit={onSaveEdit}
                   onCancelEdit={onCancelEdit}
+                  onAuthorPress={onAuthorPress}
                   expandedReplies={expandedReplies}
                   onExpandReplies={onExpandReplies}
                   onCollapseReplies={onCollapseReplies}
+                  commentReactions={allReactions.get(reply.id) ?? []}
+                  allReactions={allReactions}
+                  onReactionLongPress={onReactionLongPress}
+                  onToggleReactionBubble={onToggleReactionBubble}
                 />
               ))}
               <TouchableOpacity
@@ -1166,7 +1341,7 @@ const styles = StyleSheet.create({
     marginLeft: Spacing.lg + Spacing.sm + 34, // avatar width + gap + indent
   },
   repliesSection: {
-    marginLeft: Spacing.lg + Spacing.sm + 34,
+    marginLeft: 36,
     marginTop: -Spacing.sm,
     marginBottom: Spacing.sm,
   },

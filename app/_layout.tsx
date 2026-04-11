@@ -17,16 +17,8 @@ import Animated, {
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { useAuthStore } from "@/stores/authStore";
-import Constants from "expo-constants";
-
-// LiveKit requires native modules — skip in Expo Go and builds without LiveKit compiled
-try {
-  if (Constants.appOwnership !== "expo") {
-    require("@livekit/react-native").registerGlobals();
-  }
-} catch {
-  // Native module not available in this build
-}
+import { TutorialProvider } from '@/components/tutorial/TutorialProvider';
+import '@/lib/livekit-setup';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -121,7 +113,7 @@ function LoadingScreen() {
       {/* Logo + spinner with fade-in */}
       <Animated.View style={[styles.contentCenter, contentStyle]}>
         <Image
-          source={require("@/assets/image-removebg-preview.png")}
+          source={require("@/assets/logo-icon.png")}
           style={styles.loadingLogo}
           resizeMode="contain"
         />
@@ -166,15 +158,21 @@ function RootLayoutNav() {
         <Stack.Screen name="lesson/[id]" />
         <Stack.Screen name="salon/[id]" />
         <Stack.Screen name="product/[id]" />
-        <Stack.Screen name="cart" />
-        <Stack.Screen name="checkout" />
+        <Stack.Screen name="book-appointment" />
+        <Stack.Screen name="cart" options={{ presentation: "modal" }} />
+        <Stack.Screen name="checkout" options={{ presentation: "modal" }} />
         <Stack.Screen name="orders" />
-        <Stack.Screen name="go-live" />
         <Stack.Screen
           name="live/[id]"
           options={{ animation: "slide_from_bottom" }}
         />
+        <Stack.Screen name="appointments" />
         <Stack.Screen name="settings" />
+        <Stack.Screen name="courses" />
+        <Stack.Screen name="tutorials" options={{ headerShown: false }} />
+        <Stack.Screen name="tutorial/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="tutorial-lesson/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="profile/[id]" options={{ headerShown: false }} />
       </Stack>
     </>
   );
@@ -182,20 +180,24 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    "EuclidCircularA-Light": require("../assets/euclid-circular-a/Euclid Circular A Light.ttf"),
-    "EuclidCircularA-LightItalic": require("../assets/euclid-circular-a/Euclid Circular A Light Italic.ttf"),
-    "EuclidCircularA-Regular": require("../assets/euclid-circular-a/Euclid Circular A Regular.ttf"),
-    "EuclidCircularA-Italic": require("../assets/euclid-circular-a/Euclid Circular A Italic.ttf"),
-    "EuclidCircularA-Medium": require("../assets/euclid-circular-a/Euclid Circular A Medium.ttf"),
-    "EuclidCircularA-MediumItalic": require("../assets/euclid-circular-a/Euclid Circular A Medium Italic.ttf"),
-    "EuclidCircularA-SemiBold": require("../assets/euclid-circular-a/Euclid Circular A SemiBold.ttf"),
-    "EuclidCircularA-SemiBoldItalic": require("../assets/euclid-circular-a/Euclid Circular A SemiBold Italic.ttf"),
-    "EuclidCircularA-Bold": require("../assets/euclid-circular-a/Euclid Circular A Bold.ttf"),
-    "EuclidCircularA-BoldItalic": require("../assets/euclid-circular-a/Euclid Circular A Bold Italic.ttf"),
+    "EuclidCircularA-Light": require("../assets/euclid-circular-a/Euclid-Circular-A-Light.ttf"),
+    "EuclidCircularA-LightItalic": require("../assets/euclid-circular-a/Euclid-Circular-A-Light-Italic.ttf"),
+    "EuclidCircularA-Regular": require("../assets/euclid-circular-a/Euclid-Circular-A-Regular.ttf"),
+    "EuclidCircularA-Italic": require("../assets/euclid-circular-a/Euclid-Circular-A-Italic.ttf"),
+    "EuclidCircularA-Medium": require("../assets/euclid-circular-a/Euclid-Circular-A-Medium.ttf"),
+    "EuclidCircularA-MediumItalic": require("../assets/euclid-circular-a/Euclid-Circular-A-Medium-Italic.ttf"),
+    "EuclidCircularA-SemiBold": require("../assets/euclid-circular-a/Euclid-Circular-A-SemiBold.ttf"),
+    "EuclidCircularA-SemiBoldItalic": require("../assets/euclid-circular-a/Euclid-Circular-A-SemiBold-Italic.ttf"),
+    "EuclidCircularA-Bold": require("../assets/euclid-circular-a/Euclid-Circular-A-Bold.ttf"),
+    "EuclidCircularA-BoldItalic": require("../assets/euclid-circular-a/Euclid-Circular-A-Bold-Italic.ttf"),
   });
 
   const onLayoutRootView = useCallback(async () => {
     if (fontsLoaded || fontError) {
+      if (fontError) {
+        // App continues with system fonts — text may look different but remains functional.
+        console.warn("[Fonts] Failed to load EuclidCircularA:", fontError.message);
+      }
       await SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
@@ -211,7 +213,9 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
-        <RootLayoutNav />
+        <TutorialProvider>
+          <RootLayoutNav />
+        </TutorialProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>
   );

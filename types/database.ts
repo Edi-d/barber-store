@@ -28,6 +28,12 @@ export interface Database {
           bio: string | null;
           role: UserRole;
           created_at: string;
+          verified: boolean;
+          followers_count: number;
+          following_count: number;
+          onboarding_completed: boolean;
+          onboarding_role: string | null;
+          search_vector: string | null;
         };
         Insert: {
           id: string;
@@ -37,6 +43,12 @@ export interface Database {
           bio?: string | null;
           role?: UserRole;
           created_at?: string;
+          verified?: boolean;
+          followers_count?: number;
+          following_count?: number;
+          onboarding_completed?: boolean;
+          onboarding_role?: string | null;
+          search_vector?: string | null;
         };
         Update: {
           id?: string;
@@ -46,6 +58,12 @@ export interface Database {
           bio?: string | null;
           role?: UserRole;
           created_at?: string;
+          verified?: boolean;
+          followers_count?: number;
+          following_count?: number;
+          onboarding_completed?: boolean;
+          onboarding_role?: string | null;
+          search_vector?: string | null;
         };
       };
       content: {
@@ -60,6 +78,8 @@ export interface Database {
           likes_count: number;
           comments_count: number;
           created_at: string;
+          updated_at: string | null;
+          search_vector: string | null;
         };
         Insert: {
           id?: string;
@@ -72,6 +92,8 @@ export interface Database {
           likes_count?: number;
           comments_count?: number;
           created_at?: string;
+          updated_at?: string | null;
+          search_vector?: string | null;
         };
         Update: {
           id?: string;
@@ -84,6 +106,8 @@ export interface Database {
           likes_count?: number;
           comments_count?: number;
           created_at?: string;
+          updated_at?: string | null;
+          search_vector?: string | null;
         };
       };
       likes: {
@@ -138,7 +162,7 @@ export interface Database {
       lives: {
         Row: {
           id: string;
-          author_id: string;
+          host_id: string;
           title: string;
           cover_url: string | null;
           room_name: string;
@@ -151,7 +175,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
-          author_id: string;
+          host_id: string;
           title: string;
           cover_url?: string | null;
           room_name: string;
@@ -164,7 +188,7 @@ export interface Database {
         };
         Update: {
           id?: string;
-          author_id?: string;
+          host_id?: string;
           title?: string;
           cover_url?: string | null;
           room_name?: string;
@@ -541,13 +565,15 @@ export interface Salon {
   avg_price_cents: number | null;
   is_promoted: boolean;
   amenities: string[] | null;
-  salon_type: SalonType;
+  salon_type: SalonType; // legacy alias
+  salon_types: SalonType[];
   active: boolean;
   created_at: string;
 }
 
 export interface BarberService {
   id: string;
+  salon_id: string | null;
   name: string;
   description: string | null;
   duration_min: number;
@@ -597,9 +623,24 @@ export interface Appointment {
   updated_at: string;
 }
 
+export interface AppointmentService {
+  id: string;
+  appointment_id: string;
+  service_id: string;
+  duration_min: number;
+  price_cents: number;
+  sort_order: number;
+  created_at: string;
+}
+
+export type AppointmentServiceWithDetails = AppointmentService & {
+  service: BarberService;
+};
+
 export type AppointmentWithDetails = Appointment & {
   barber: Barber;
   service: BarberService;
+  services?: AppointmentServiceWithDetails[];
 };
 
 export interface BarberAvailability {
@@ -670,3 +711,64 @@ export interface SalonPhoto {
 export type SalonReviewWithAuthor = SalonReview & {
   profile: Pick<Profile, 'username' | 'display_name' | 'avatar_url'>;
 };
+
+// ── Social / discovery types added by migrations 039-050 ──
+
+export interface TrendingTopic {
+  id: string;
+  name: string;
+  category: string | null;
+  post_count: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CommentLike {
+  user_id: string;
+  comment_id: string;
+  created_at: string;
+}
+
+export interface Hashtag {
+  id: string;
+  name: string;
+  post_count: number;
+  created_at: string;
+}
+
+export interface ContentHashtag {
+  content_id: string;
+  hashtag_id: string;
+  created_at: string;
+}
+
+export interface CommentReaction {
+  id: string;
+  comment_id: string;
+  user_id: string;
+  reaction: string;
+  created_at: string;
+}
+
+// ── Notifications ──
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: string; // 'like' | 'comment' | 'reply' | 'follow' | 'mention' | 'live'
+  actor_id: string;
+  body: string | null;
+  target_type: string | null;
+  target_id: string | null;
+  read: boolean;
+  created_at: string;
+}
+
+export type NotificationWithActor = Notification & {
+  actor: Pick<Profile, 'display_name' | 'username' | 'avatar_url'>;
+};
+
+// ── Search ──
+
+export type SearchResultType = 'salon' | 'person' | 'post';

@@ -5,7 +5,7 @@ export default function Index() {
   const { session, profile } = useAuthStore();
 
   if (session && profile) {
-    return <Redirect href="/(tabs)/feed" />;
+    return <Redirect href="/(tabs)/discover" />;
   }
 
   if (session && !profile) {

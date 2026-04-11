@@ -1,12 +1,8 @@
--- Migration 035: Add storage_path column for reliable cleanup
--- The storage_path stores the relative path within the 'stories' bucket
--- (e.g., '{user_id}/{timestamp}.jpg') so the cleanup function does not
--- need to parse the full public URL.
-
-ALTER TABLE stories ADD COLUMN IF NOT EXISTS storage_path TEXT;
-
--- Backfill existing rows: extract path from media_url
--- Pattern: https://{project}.supabase.co/storage/v1/object/public/stories/{path}
-UPDATE stories
-SET storage_path = REGEXP_REPLACE(media_url, '^.*/storage/v1/object/public/stories/', '')
-WHERE storage_path IS NULL AND media_url IS NOT NULL;
+-- Migration 037: MERGED INTO 036
+-- The storage_path column addition and backfill that originally lived here
+-- were merged into 036_stories_storage_and_cleanup.sql to fix a dependency
+-- ordering bug: 036's cleanup function referenced storage_path before this
+-- file had a chance to create it.
+--
+-- This file is intentionally left as a no-op placeholder so that any
+-- migration runner tracking file numbers does not skip 037 entirely.

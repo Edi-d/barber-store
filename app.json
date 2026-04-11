@@ -15,10 +15,15 @@
     },
     "ios": {
       "supportsTablet": true,
+      "buildNumber": "23",
       "bundleIdentifier": "com.tapzi.app",
+      "associatedDomains": ["applinks:tapzi.ro"],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "Avem nevoie de locația ta pentru a-ți arăta saloanele din apropiere."
+        "NSLocationWhenInUseUsageDescription": "Avem nevoie de locația ta pentru a-ți arăta saloanele din apropiere.",
+        "NSCameraUsageDescription": "Permite Tapzi să acceseze camera pentru streaming live și fotografii",
+        "NSMicrophoneUsageDescription": "Permite Tapzi să acceseze microfonul pentru streaming live",
+        "UIBackgroundModes": ["audio", "voip"]
       },
       "config": {
         "googleMapsApiKey": "AIzaSyDbT_UzI5kiXBNZuimGb5ms-1_VpRqCW7k"
@@ -31,8 +36,23 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.tapzi.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "tapzi.ro",
+              "pathPrefix": "/"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "permissions": [
         "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION"
       ],

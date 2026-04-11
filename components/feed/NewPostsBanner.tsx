@@ -1,13 +1,16 @@
-import { Pressable, Text } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import Animated, { SlideInUp, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
+import { Bubble } from "@/constants/theme";
+import React from "react";
 
 interface NewPostsBannerProps {
   count: number;
   onPress: () => void;
+  bannerRef?: React.RefObject<View>;
 }
 
-export function NewPostsBanner({ count, onPress }: NewPostsBannerProps) {
+export function NewPostsBanner({ count, onPress, bannerRef }: NewPostsBannerProps) {
   const visible = count > 0;
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -20,6 +23,7 @@ export function NewPostsBanner({ count, onPress }: NewPostsBannerProps) {
 
   return (
     <Animated.View
+      ref={bannerRef}
       entering={SlideInUp.springify().damping(14).stiffness(180)}
       style={[{ marginHorizontal: 16 }, animatedStyle]}
     >
@@ -30,7 +34,10 @@ export function NewPostsBanner({ count, onPress }: NewPostsBannerProps) {
           alignItems: "center",
           justifyContent: "center",
           backgroundColor: "#0A66C2",
-          borderRadius: 999,
+          borderTopLeftRadius: Bubble.radii.borderTopLeftRadius,
+          borderTopRightRadius: Bubble.radii.borderTopRightRadius,
+          borderBottomRightRadius: Bubble.radii.borderBottomRightRadius,
+          borderBottomLeftRadius: Bubble.radii.borderBottomLeftRadius,
           paddingHorizontal: 16,
           paddingVertical: 10,
           shadowColor: "#000",

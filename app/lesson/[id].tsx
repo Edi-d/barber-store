@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Pressable, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, Pressable, ActivityIndicator, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -119,7 +119,8 @@ export default function LessonScreen() {
     );
   }
 
-  const { lesson, isCompleted, nextLesson, course } = data;
+  const { lesson, isCompleted, lastPosition, nextLesson, course } = data;
+  const isPremiumLocked = !!course?.is_premium;
 
   const handleVideoEnd = () => {
     if (!isCompleted) {
@@ -127,28 +128,27 @@ export default function LessonScreen() {
     }
   };
 
+  const handlePremiumTap = () => {
+    Alert.alert(
+      "Curs Premium",
+      "Acest curs necesita abonament premium.",
+      [{ text: "OK" }]
+    );
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-dark-200" edges={["top"]}>
       {/* Video Player */}
       <View className="bg-black aspect-video">
         {lesson.type === "video" && lesson.content_url ? (
-          <Pressable
-            onPress={() => {
-              if (isPlaying) {
-                videoRef.current?.pauseAsync();
-              } else {
-                videoRef.current?.playAsync();
-              }
-              setIsPlaying(!isPlaying);
-            }}
-            className="flex-1"
-          >
+          <View className="flex-1">
             <Video
               ref={videoRef}
               source={{ uri: lesson.content_url }}
               style={{ flex: 1 }}
               resizeMode={ResizeMode.CONTAIN}
               useNativeControls
+              initialStatus={lastPosition > 0 ? { positionMillis: lastPosition * 1000 } : undefined}
               onPlaybackStatusUpdate={(status) => {
                 if (status.isLoaded) {
                   setIsPlaying(status.isPlaying);
@@ -162,14 +162,21 @@ export default function LessonScreen() {
                 }
               }}
             />
-            {!isPlaying && (
-              <View className="absolute inset-0 items-center justify-center bg-black/30">
+            {/* Premium lock overlay */}
+            {isPremiumLocked && (
+              <Pressable
+                onPress={handlePremiumTap}
+                className="absolute inset-0 items-center justify-center bg-black/60"
+              >
                 <View className="w-16 h-16 rounded-full bg-white/20 items-center justify-center">
-                  <Ionicons name="play" size={32} color="white" />
+                  <Ionicons name="lock-closed" size={32} color="white" />
                 </View>
-              </View>
+                <Text className="text-white font-semibold mt-3 text-base">
+                  Aceasta lectie este premium
+                </Text>
+              </Pressable>
             )}
-          </Pressable>
+          </View>
         ) : (
           <View className="flex-1 items-center justify-center bg-primary-100">
             <Ionicons name="document-text" size={48} color="#0a66c2" />
@@ -208,7 +215,9 @@ export default function LessonScreen() {
               size={16}
               color="#64748b"
             />
-            <Text className="text-dark-500 ml-1 capitalize">{lesson.type}</Text>
+            <Text className="text-dark-500 ml-1">
+              {lesson.type === "video" ? "Video" : "Text"}
+            </Text>
           </View>
           {lesson.duration_sec && (
             <View className="flex-row items-center">
@@ -220,12 +229,11 @@ export default function LessonScreen() {
           )}
         </View>
 
-        {/* Text content would go here */}
+        {/* Text lesson — no body field in DB yet */}
         {lesson.type === "text" && (
-          <View className="bg-white rounded-xl p-4 border border-dark-300">
-            <Text className="text-dark-600">
-              Conținutul lecției va fi afișat aici.
-            </Text>
+          <View style={{ padding: 24, alignItems: 'center' }}>
+            <Ionicons name="document-text-outline" size={48} color="#ccc" />
+            <Text style={{ marginTop: 12, color: '#999', fontSize: 16 }}>Conținutul lecției va fi disponibil în curând.</Text>
           </View>
         )}
       </ScrollView>
@@ -237,7 +245,7 @@ export default function LessonScreen() {
             variant="outline"
             onPress={() => completeMutation.mutate()}
             loading={completeMutation.isPending}
-            className="w-full"
+            style={{ width: '100%' }}
           >
             <Ionicons name="checkmark-circle" size={20} color="#0a66c2" /> Marchează ca finalizat
           </Button>
@@ -246,7 +254,7 @@ export default function LessonScreen() {
         {nextLesson && (
           <Button
             onPress={() => router.replace(`/lesson/${nextLesson.id}`)}
-            className="w-full"
+            style={{ width: '100%' }}
           >
             Lecția următoare <Ionicons name="arrow-forward" size={20} color="white" />
           </Button>

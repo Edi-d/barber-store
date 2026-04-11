@@ -2,6 +2,7 @@ import { TextInput, View, Text, Pressable } from "react-native";
 import { forwardRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Ionicons } from "@expo/vector-icons";
+import { Colors, Bubble } from "@/constants/theme";
 
 interface InputProps {
   value: string;
@@ -51,20 +52,30 @@ export const Input = forwardRef<TextInput, InputProps>(
           </Text>
         )}
         <View
-          className={cn(
-            "flex-row items-center bg-dark-200 rounded-xl px-4 border-2",
-            isFocused ? "border-primary-500" : "border-dark-300",
-            error && "border-red-500",
-            disabled && "opacity-50"
-          )}
+          style={{
+            flexDirection: "row",
+            alignItems: multiline ? "flex-start" : "center",
+            height: multiline ? undefined : 52,
+            minHeight: multiline ? 100 : undefined,
+            paddingHorizontal: 16,
+            backgroundColor: Colors.inputBackground,
+            ...Bubble.radiiSm,
+            borderWidth: 2,
+            borderColor: error
+              ? Colors.error
+              : isFocused
+                ? Colors.inputFocusBorder
+                : Colors.inputBorder,
+            opacity: disabled ? 0.5 : 1,
+          }}
         >
-          {icon && <View className="mr-3">{icon}</View>}
+          {icon && <View style={{ marginRight: 12 }}>{icon}</View>}
           <TextInput
             ref={ref}
             value={value}
             onChangeText={onChangeText}
             placeholder={placeholder}
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={Colors.textTertiary}
             secureTextEntry={secureTextEntry && !showPassword}
             keyboardType={keyboardType}
             autoCapitalize={autoCapitalize}
@@ -74,18 +85,21 @@ export const Input = forwardRef<TextInput, InputProps>(
             numberOfLines={numberOfLines}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            className={cn(
-              "flex-1 text-dark-700 py-4 text-base",
-              multiline && "min-h-[100px] py-3"
-            )}
-            style={{ textAlignVertical: multiline ? "top" : "center" }}
+            style={{
+              flex: 1,
+              color: Colors.text,
+              fontSize: 16,
+              fontFamily: 'EuclidCircularA-Regular',
+              textAlignVertical: multiline ? "top" : "center",
+              paddingVertical: multiline ? 12 : 0,
+            }}
           />
           {secureTextEntry && (
             <Pressable onPress={() => setShowPassword(!showPassword)}>
               <Ionicons
                 name={showPassword ? "eye-off" : "eye"}
                 size={20}
-                color="#64748b"
+                color={Colors.textSecondary}
               />
             </Pressable>
           )}

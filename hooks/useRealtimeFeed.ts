@@ -31,8 +31,8 @@ export function useRealtimeFeed() {
       pendingUpdates.clear();
       updateTimer = null;
 
-      queryClient.setQueryData<InfiniteData<ContentWithAuthor[]>>(
-        ['feed'],
+      queryClient.setQueriesData<InfiniteData<ContentWithAuthor[]>>(
+        { queryKey: ['feed'], exact: false },
         (old) => {
           if (!old) return old;
           return {
@@ -94,8 +94,8 @@ export function useRealtimeFeed() {
         (payload) => {
           if (!payload.old || !('id' in payload.old)) return;
           const deletedId = (payload.old as { id: string }).id;
-          queryClient.setQueryData<InfiniteData<ContentWithAuthor[]>>(
-            ['feed'],
+          queryClient.setQueriesData<InfiniteData<ContentWithAuthor[]>>(
+            { queryKey: ['feed'], exact: false },
             (old) => {
               if (!old) return old;
               return {

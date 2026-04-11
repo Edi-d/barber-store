@@ -1,28 +1,48 @@
-import { View, Pressable } from "react-native";
+/**
+ * Card — general-purpose content card with squircle radii and a subtle border.
+ * Supports optional press handling via `onPress`.
+ * Composed with `CardHeader`, `CardContent`, and `CardFooter` sub-components.
+ *
+ * For frosted-glass auth form containers use `GlassCard` from
+ * `@/components/auth/GlassCard` instead.
+ */
+import { View, Pressable, StyleSheet } from "react-native";
 import { cn } from "@/lib/utils";
+import { Bubble } from "@/constants/theme";
 
 interface CardProps {
   children: React.ReactNode;
   className?: string;
+  style?: object;
   onPress?: () => void;
 }
 
-export function Card({ children, className, onPress }: CardProps) {
+export function Card({ children, className, style, onPress }: CardProps) {
   const Wrapper = onPress ? Pressable : View;
 
   return (
     <Wrapper
       onPress={onPress}
       className={cn(
-        "bg-white rounded-2xl p-4 border border-dark-300",
+        "bg-white p-4 border border-dark-300",
         onPress && "active:opacity-80",
         className
       )}
+      style={[styles.card, style]}
     >
       {children}
     </Wrapper>
   );
 }
+
+const styles = StyleSheet.create({
+  card: {
+    borderTopLeftRadius: Bubble.radii.borderTopLeftRadius,
+    borderTopRightRadius: Bubble.radii.borderTopRightRadius,
+    borderBottomRightRadius: Bubble.radii.borderBottomRightRadius,
+    borderBottomLeftRadius: Bubble.radii.borderBottomLeftRadius,
+  },
+});
 
 export function CardHeader({ children, className }: { children: React.ReactNode; className?: string }) {
   return <View className={cn("mb-3", className)}>{children}</View>;

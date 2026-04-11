@@ -106,7 +106,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   resetPassword: async (email: string) => {
     set({ isSubmitting: true });
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: "tapzi://reset-password",
+      });
       if (error) throw error;
       return { error: null };
     } catch (error) {

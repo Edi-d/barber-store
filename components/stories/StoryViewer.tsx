@@ -4,9 +4,9 @@ import {
   View,
   Text,
   Image,
-  Dimensions,
   Modal,
   Pressable,
+  useWindowDimensions,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,12 +16,14 @@ import {
   Directions,
 } from "react-native-gesture-handler";
 import { runOnJS } from "react-native-reanimated";
+import { router } from "expo-router";
+import { Video, ResizeMode } from "expo-av";
 
 import { StoryMedia } from "./StoryMedia";
 import { StoryProgressBar } from "./StoryProgressBar";
 import { useStoryViewer } from "@/hooks/useStoryViewer";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+import { useAuthStore } from "@/stores/authStore";
+import { useTutorialContext } from "@/components/tutorial/TutorialProvider";
 
 // -- Types -------------------------------------------------------------------
 
@@ -79,15 +81,22 @@ export function StoryViewer({
   onStoryViewed,
 }: StoryViewerProps) {
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const viewedRef = useRef<Set<string>>(new Set());
+  const currentUserId = useAuthStore((s) => s.profile?.id);
+
+  const { registerRef, unregisterRef } = useTutorialContext();
+  const muteButtonRef = useRef<View>(null);
 
   const {
     creatorIndex,
     storyIndex,
     isPaused,
+    isMuted,
     progress,
     currentGroup,
     currentStory,
+    nextStory,
     goToNextStory,
     goToPrevStory,
     goToNextCreator,
@@ -95,7 +104,10 @@ export function StoryViewer({
     pause,
     resume,
     onMediaReady,
+    onVideoDurationKnown,
+    onBufferingChange,
     onVideoEnd,
+    toggleMute,
     openAt,
   } = useStoryViewer(groups, onClose);
 
@@ -117,11 +129,26 @@ export function StoryViewer({
     }
   }, [visible, currentStory?.id, onStoryViewed]);
 
-  // -- Gestures ---------------------------------------------------------------
+  // Prefetch next story
+  useEffect(() => {
+    if (!nextStory) return;
+    if (nextStory.type === "image" && nextStory.mediaUrl) {
+      Image.prefetch(nextStory.mediaUrl).catch(() => {});
+    }
+    // For videos: the hidden Video component below handles preloading
+  }, [nextStory?.id]);
+
+  // Register mute button ref for tutorial spotlight
+  useEffect(() => {
+    registerRef("feed-stories-mute", muteButtonRef);
+    return () => unregisterRef("feed-stories-mute");
+  }, [registerRef, unregisterRef]);
+
+  // -- Gestures (media area only) -------------------------------------------
 
   const tap = Gesture.Tap().onEnd((event) => {
     "worklet";
-    if (event.x < SCREEN_WIDTH / 3) {
+    if (event.x < screenWidth / 3) {
       runOnJS(goToPrevStory)();
     } else {
       runOnJS(goToNextStory)();
@@ -143,8 +170,6 @@ export function StoryViewer({
     .direction(Directions.LEFT)
     .onEnd(() => {
       "worklet";
-      // resume() in case a long-press was active when the fling won the Race
-      // (long-press onEnd is never called when cancelled by a competing gesture)
       runOnJS(resume)();
       runOnJS(goToNextCreator)();
     });
@@ -153,7 +178,6 @@ export function StoryViewer({
     .direction(Directions.RIGHT)
     .onEnd(() => {
       "worklet";
-      // Same guard: ensure playback resumes if long-press was interrupted
       runOnJS(resume)();
       runOnJS(goToPrevCreator)();
     });
@@ -175,72 +199,121 @@ export function StoryViewer({
       statusBarTranslucent
       transparent={false}
     >
-      <GestureDetector gesture={composed}>
-        <View style={styles.container}>
-          {/* Story media */}
-          {currentStory && (
-            <StoryMedia
-              key={currentStory.id}
-              type={currentStory.type}
-              uri={currentStory.mediaUrl}
-              isPaused={isPaused}
-              onMediaReady={onMediaReady}
-              onVideoEnd={onVideoEnd}
+      {/* Root container — fills screen */}
+      <View style={styles.container}>
+
+        {/* GESTURE ZONE: covers only the media area, below the overlay */}
+        <GestureDetector gesture={composed}>
+          <View style={StyleSheet.absoluteFill}>
+            {/* Story media */}
+            {currentStory && (
+              <StoryMedia
+                key={currentStory.id}
+                type={currentStory.type}
+                uri={currentStory.mediaUrl}
+                isPaused={isPaused}
+                isMuted={isMuted}
+                onMediaReady={onMediaReady}
+                onVideoEnd={onVideoEnd}
+                onVideoDurationKnown={onVideoDurationKnown}
+                onBufferingChange={onBufferingChange}
+                onVideoError={goToNextStory}
+              />
+            )}
+          </View>
+        </GestureDetector>
+
+        {/* Hidden preload Video for next video story — shouldPlay=false keeps it idle */}
+        {nextStory?.type === "video" && nextStory.mediaUrl ? (
+          <Video
+            key={`preload-${nextStory.id}`}
+            source={{ uri: nextStory.mediaUrl }}
+            shouldPlay={false}
+            isMuted
+            style={styles.hiddenPreload}
+          />
+        ) : null}
+
+        {/* TOP OVERLAY — outside GestureDetector so taps don't trigger story navigation */}
+        <View
+          style={[styles.topOverlay, { paddingTop: insets.top + 8 }]}
+          pointerEvents="box-none"
+        >
+          {/* Progress bar */}
+          {currentGroup && (
+            <StoryProgressBar
+              totalSegments={currentGroup.stories.length}
+              currentIndex={storyIndex}
+              progress={progress}
             />
           )}
 
-          {/* Top overlay */}
-          <View
-            style={[
-              styles.topOverlay,
-              { paddingTop: insets.top + 8 },
-            ]}
-          >
-            {/* Progress bar */}
-            {currentGroup && (
-              <StoryProgressBar
-                totalSegments={currentGroup.stories.length}
-                currentIndex={storyIndex}
-                progress={progress}
-              />
-            )}
-
-            {/* Author header */}
-            <View style={styles.headerRow}>
-              <View style={styles.authorInfo}>
-                {currentGroup?.avatarUrl ? (
-                  <Image
-                    source={{ uri: currentGroup.avatarUrl }}
-                    style={styles.avatar}
-                  />
-                ) : (
-                  <View style={[styles.avatar, styles.avatarFallback]}>
-                    <Text style={styles.avatarLetter}>
-                      {(currentGroup?.authorName ?? "?")[0].toUpperCase()}
-                    </Text>
-                  </View>
-                )}
-                <Text style={styles.authorName} numberOfLines={1}>
-                  {currentGroup?.authorName}
-                </Text>
-                {currentStory && (
-                  <Text style={styles.timeAgoText}>
-                    {timeAgo(currentStory.createdAt)}
+          {/* Author header row */}
+          <View style={styles.headerRow}>
+            <Pressable
+              className="flex-row items-center gap-2 flex-1"
+              onPress={() => {
+                if (!currentGroup?.authorId) return;
+                onClose();
+                if (currentGroup.authorId === currentUserId) {
+                  router.push("/(tabs)/profile");
+                } else {
+                  router.push(`/profile/${currentGroup.authorId}` as any);
+                }
+              }}
+            >
+              {currentGroup?.avatarUrl ? (
+                <Image
+                  source={{ uri: currentGroup.avatarUrl }}
+                  style={styles.avatar}
+                />
+              ) : (
+                <View style={[styles.avatar, styles.avatarFallback]}>
+                  <Text style={styles.avatarLetter}>
+                    {(currentGroup?.authorName ?? "?")[0].toUpperCase()}
                   </Text>
-                )}
-              </View>
+                </View>
+              )}
+              <Text style={styles.authorName} numberOfLines={1}>
+                {currentGroup?.authorName}
+              </Text>
+              {currentStory && (
+                <Text style={styles.timeAgoText}>
+                  {timeAgo(currentStory.createdAt)}
+                </Text>
+              )}
+            </Pressable>
+
+            {/* Right-side action buttons — mute (videos only) + close */}
+            <View style={styles.actionButtons}>
+              {currentStory?.type === "video" && (
+                <Pressable
+                  ref={muteButtonRef}
+                  className="w-9 h-9 rounded-full items-center justify-center"
+                  style={styles.iconBtn}
+                  onPress={toggleMute}
+                  hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+                >
+                  <Feather
+                    name={isMuted ? "volume-x" : "volume-2"}
+                    size={20}
+                    color="#fff"
+                  />
+                </Pressable>
+              )}
 
               <Pressable
-                style={styles.closeBtn}
+                className="w-9 h-9 rounded-full items-center justify-center"
+                style={styles.iconBtn}
                 onPress={onClose}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                hitSlop={{ top: 12, bottom: 12, left: 8, right: 12 }}
               >
                 <Feather name="x" size={24} color="#fff" />
               </Pressable>
             </View>
           </View>
         </View>
-      </GestureDetector>
+      </View>
     </Modal>
   );
 }
@@ -253,7 +326,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#000",
   },
 
-  // Top overlay
+  // Top overlay — sits above gesture zone via absolute positioning
   topOverlay: {
     position: "absolute",
     top: 0,
@@ -271,12 +344,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: 10,
   },
-  authorInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    flex: 1,
-  },
+
+  // Avatar
   avatar: {
     width: 34,
     height: 34,
@@ -294,6 +363,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 14,
   },
+
+  // Author name / timestamp
   authorName: {
     fontWeight: "600",
     fontSize: 14,
@@ -304,12 +375,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "rgba(255,255,255,0.7)",
   },
-  closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+
+  // Right-side buttons row
+  actionButtons: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 6,
+  },
+  iconBtn: {
     backgroundColor: "rgba(0,0,0,0.3)",
+  },
+
+  // Invisible preload video
+  hiddenPreload: {
+    width: 0,
+    height: 0,
+    position: "absolute",
+    opacity: 0,
   },
 });

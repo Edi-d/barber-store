@@ -1,14 +1,25 @@
 import { useState } from "react";
-import { View, Text, ScrollView, Pressable, Alert } from "react-native";
+import {
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+  Alert,
+  StyleSheet,
+  ActivityIndicator,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
+
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/authStore";
-import { Button, Input, Avatar, Card } from "@/components/ui";
+import { Button, Input, Avatar } from "@/components/ui";
 import { Ionicons } from "@expo/vector-icons";
+import { Colors, Bubble, Shadows, Spacing } from "@/constants/theme";
 
 interface ProfileForm {
   display_name: string;
@@ -61,22 +72,19 @@ export default function SettingsScreen() {
         const fileName = `${profile.id}.${fileExt}`;
         const filePath = `avatars/${fileName}`;
 
-        // Upload to Supabase Storage
         const response = await fetch(file.uri);
         const blob = await response.blob();
-        
+
         const { error: uploadError } = await supabase.storage
           .from("avatars")
           .upload(filePath, blob, { upsert: true });
 
         if (uploadError) throw uploadError;
 
-        // Get public URL
         const { data: urlData } = supabase.storage
           .from("avatars")
           .getPublicUrl(filePath);
 
-        // Update profile
         await updateProfile({ avatar_url: urlData.publicUrl });
         await fetchProfile();
 
@@ -115,7 +123,7 @@ export default function SettingsScreen() {
           style: "destructive",
           onPress: () => {
             Alert.alert(
-              "Coming Soon",
+              "In curand",
               "Ștergerea contului va fi disponibilă în curând. Contactează-ne pentru asistență."
             );
           },
@@ -125,20 +133,30 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-dark-200" edges={["top"]}>
+    <SafeAreaView style={s.safeArea} edges={["top"]}>
       {/* Header */}
-      <View className="flex-row items-center px-4 py-3 border-b border-dark-300 bg-white">
-        <Pressable onPress={() => router.back()} className="mr-3">
-          <Ionicons name="arrow-back" size={24} color="#334155" />
-        </Pressable>
-        <Text className="text-dark-700 text-xl font-bold">Setări</Text>
-      </View>
+      <Animated.View entering={FadeInDown.duration(300)}>
+        <View style={s.header}>
+          <Pressable
+            onPress={() => router.back()}
+            style={({ pressed }) => [s.backBtn, pressed && { opacity: 0.7 }]}
+          >
+            <Ionicons name="arrow-back" size={20} color={Colors.text} />
+          </Pressable>
+          <Text style={s.headerTitle}>Setări</Text>
+          <View style={s.headerSpacer} />
+        </View>
+      </Animated.View>
 
-      <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
-        <View className="px-6 py-6">
-          {/* Avatar Section */}
-          <View className="items-center mb-8 bg-white rounded-2xl py-6">
-            <View className="relative">
+      <ScrollView
+        style={s.scrollView}
+        contentContainerStyle={{ paddingBottom: 40 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Avatar Section */}
+        <Animated.View entering={FadeInDown.duration(400).delay(100)}>
+          <View style={s.avatarCard}>
+            <View style={s.avatarWrapper}>
               <Avatar
                 source={profile?.avatar_url}
                 name={profile?.display_name || profile?.username}
@@ -148,26 +166,34 @@ export default function SettingsScreen() {
               <Pressable
                 onPress={pickAvatar}
                 disabled={isUploading}
-                className="absolute bottom-0 right-0 w-10 h-10 bg-primary-500 rounded-full items-center justify-center border-4 border-white"
+                style={({ pressed }) => [
+                  s.cameraBtn,
+                  pressed && { opacity: 0.8 },
+                  isUploading && { opacity: 0.6 },
+                ]}
               >
-                <Ionicons
-                  name={isUploading ? "hourglass" : "camera"}
-                  size={18}
-                  color="white"
-                />
+                {isUploading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="camera" size={16} color="#fff" />
+                )}
               </Pressable>
             </View>
-            <Text className="text-dark-500 text-sm mt-3">
-              Atinge pentru a schimba avatarul
-            </Text>
+            <Text style={s.avatarHint}>Atinge pentru a schimba avatarul</Text>
           </View>
+        </Animated.View>
 
-          {/* Profile Form */}
-          <Card className="mb-6">
-            <Text className="text-dark-700 font-bold text-lg mb-4">
-              Informații profil
-            </Text>
-            <View className="gap-4">
+        {/* Profile Form */}
+        <Animated.View entering={FadeInDown.duration(400).delay(200)}>
+          <View style={s.sectionCard}>
+            <View style={s.sectionHeaderRow}>
+              <View style={[s.sectionIconBg, { backgroundColor: Colors.primary + "15" }]}>
+                <Ionicons name="person" size={16} color={Colors.primary} />
+              </View>
+              <Text style={s.sectionTitle}>Informații profil</Text>
+            </View>
+
+            <View style={s.formGroup}>
               <Controller
                 control={control}
                 name="display_name"
@@ -177,7 +203,7 @@ export default function SettingsScreen() {
                     value={value}
                     onChangeText={onChange}
                     placeholder="Ion Popescu"
-                    icon={<Ionicons name="person" size={20} color="#64748b" />}
+                    icon={<Ionicons name="person-outline" size={18} color={Colors.textSecondary} />}
                   />
                 )}
               />
@@ -186,7 +212,7 @@ export default function SettingsScreen() {
                 control={control}
                 name="username"
                 rules={{
-                  required: "Username-ul este obligatoriu",
+                  required: "Numele de utilizator este obligatoriu",
                   minLength: { value: 3, message: "Minim 3 caractere" },
                   pattern: {
                     value: /^[a-zA-Z0-9_]+$/,
@@ -195,12 +221,12 @@ export default function SettingsScreen() {
                 }}
                 render={({ field: { onChange, value } }) => (
                   <Input
-                    label="Username"
+                    label="Nume de utilizator"
                     value={value}
                     onChangeText={onChange}
                     placeholder="ion_popescu"
                     error={errors.username?.message}
-                    icon={<Ionicons name="at" size={20} color="#64748b" />}
+                    icon={<Ionicons name="at" size={18} color={Colors.textSecondary} />}
                   />
                 )}
               />
@@ -222,42 +248,57 @@ export default function SettingsScreen() {
             </View>
 
             {isDirty && (
-              <Button
-                onPress={handleSubmit((data) => updateMutation.mutate(data))}
-                loading={updateMutation.isPending}
-                className="mt-4 w-full"
-              >
-                Salvează modificările
-              </Button>
+              <View style={s.saveWrap}>
+                <Button
+                  onPress={handleSubmit((data) => updateMutation.mutate(data))}
+                  loading={updateMutation.isPending}
+                  style={{ width: "100%" }}
+                >
+                  Salvează modificările
+                </Button>
+              </View>
             )}
-          </Card>
-
-          {/* Account Actions */}
-          <Card className="mb-6 p-0 overflow-hidden">
-            <SettingsItem
-              icon="log-out"
-              iconColor="#dc2626"
-              label="Deconectare"
-              onPress={handleLogout}
-            />
-            <SettingsItem
-              icon="trash"
-              iconColor="#dc2626"
-              label="Șterge contul"
-              onPress={handleDeleteAccount}
-              hideBorder
-              danger
-            />
-          </Card>
-
-          {/* App Info */}
-          <View className="items-center py-4">
-            <Text className="text-dark-500 text-sm">Tapzi v1.0.0</Text>
-            <Text className="text-dark-400 text-xs mt-1">
-              Made with ❤️ for barbers
-            </Text>
           </View>
-        </View>
+        </Animated.View>
+
+        {/* Account Actions */}
+        <Animated.View entering={FadeInDown.duration(400).delay(300)}>
+          <View style={s.sectionCard}>
+            <View style={s.sectionHeaderRow}>
+              <View style={[s.sectionIconBg, { backgroundColor: "#E5393515" }]}>
+                <Ionicons name="shield" size={16} color="#E53935" />
+              </View>
+              <Text style={s.sectionTitle}>Cont</Text>
+            </View>
+
+            <View style={s.actionsCard}>
+              <SettingsItem
+                icon="log-out-outline"
+                iconColor="#E53935"
+                iconBg="#E5393512"
+                label="Deconectare"
+                onPress={handleLogout}
+              />
+              <View style={s.actionDivider} />
+              <SettingsItem
+                icon="trash-outline"
+                iconColor="#E53935"
+                iconBg="#E5393512"
+                label="Șterge contul"
+                onPress={handleDeleteAccount}
+                danger
+              />
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* App Info */}
+        <Animated.View entering={FadeInDown.duration(400).delay(400)}>
+          <View style={s.footer}>
+            <Text style={s.footerVersion}>Tapzi v1.0.0</Text>
+            <Text style={s.footerMeta}>Facut cu ♥ pentru frizeri</Text>
+          </View>
+        </Animated.View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -265,35 +306,215 @@ export default function SettingsScreen() {
 
 function SettingsItem({
   icon,
-  iconColor = "#64748b",
+  iconColor = Colors.textSecondary,
+  iconBg,
   label,
   onPress,
-  hideBorder = false,
   danger = false,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   iconColor?: string;
+  iconBg?: string;
   label: string;
   onPress: () => void;
-  hideBorder?: boolean;
   danger?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
-      className={`flex-row items-center px-4 py-4 ${
-        !hideBorder && "border-b border-dark-300"
-      }`}
+      style={({ pressed }) => [pressed && { opacity: 0.7 }]}
     >
-      <Ionicons name={icon} size={22} color={iconColor} />
-      <Text
-        className={`flex-1 ml-3 text-base ${
-          danger ? "text-red-600" : "text-dark-700"
-        }`}
-      >
-        {label}
-      </Text>
-      <Ionicons name="chevron-forward" size={20} color="#64748b" />
+      <View style={s.settingsItemRow}>
+        <View style={[s.settingsItemIconBg, iconBg ? { backgroundColor: iconBg } : {}]}>
+          <Ionicons name={icon} size={18} color={iconColor} />
+        </View>
+        <Text style={[s.settingsItemLabel, danger && { color: "#E53935" }]}>
+          {label}
+        </Text>
+        <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
+      </View>
     </Pressable>
   );
 }
+
+const s = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  scrollView: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+
+  // Header
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    backgroundColor: "rgba(255,255,255,0.65)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.9)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderTopLeftRadius: Bubble.radiiSm.borderTopLeftRadius,
+    borderTopRightRadius: Bubble.radiiSm.borderTopRightRadius,
+    borderBottomRightRadius: Bubble.radiiSm.borderBottomRightRadius,
+    borderBottomLeftRadius: Bubble.radiiSm.borderBottomLeftRadius,
+    borderBottomWidth: 1.5,
+    borderBottomColor: "rgba(10,102,194,0.18)",
+  },
+  headerTitle: {
+    flex: 1,
+    fontFamily: "EuclidCircularA-Bold",
+    fontSize: 20,
+    color: "#1E293B",
+    textAlign: "center",
+  },
+  headerSpacer: {
+    width: 40,
+  },
+
+  // Avatar Section
+  avatarCard: {
+    alignItems: "center",
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.lg,
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.base,
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: Bubble.radiiLg.borderTopLeftRadius,
+    borderTopRightRadius: Bubble.radiiLg.borderTopRightRadius,
+    borderBottomRightRadius: Bubble.radiiLg.borderBottomRightRadius,
+    borderBottomLeftRadius: Bubble.radiiLg.borderBottomLeftRadius,
+    ...Shadows.md,
+  },
+  avatarWrapper: {
+    position: "relative",
+  },
+  cameraBtn: {
+    position: "absolute",
+    bottom: 2,
+    right: 2,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 3,
+    borderColor: Colors.white,
+    ...Shadows.sm,
+  },
+  avatarHint: {
+    fontFamily: "EuclidCircularA-Regular",
+    fontSize: 13,
+    color: Colors.textTertiary,
+    marginTop: Spacing.md,
+  },
+
+  // Section Card
+  sectionCard: {
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.lg,
+    backgroundColor: Colors.white,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.lg,
+    borderTopLeftRadius: Bubble.radiiLg.borderTopLeftRadius,
+    borderTopRightRadius: Bubble.radiiLg.borderTopRightRadius,
+    borderBottomRightRadius: Bubble.radiiLg.borderBottomRightRadius,
+    borderBottomLeftRadius: Bubble.radiiLg.borderBottomLeftRadius,
+    ...Shadows.sm,
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: Spacing.lg,
+  },
+  sectionIconBg: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: Spacing.sm,
+    borderTopLeftRadius: Bubble.radiiSm.borderTopLeftRadius,
+    borderTopRightRadius: Bubble.radiiSm.borderTopRightRadius,
+    borderBottomRightRadius: Bubble.radiiSm.borderBottomRightRadius,
+    borderBottomLeftRadius: Bubble.radiiSm.borderBottomLeftRadius,
+  },
+  sectionTitle: {
+    fontFamily: "EuclidCircularA-SemiBold",
+    fontSize: 17,
+    color: Colors.text,
+  },
+  formGroup: {
+    gap: 16,
+  },
+  saveWrap: {
+    marginTop: Spacing.lg,
+  },
+
+  // Actions Card
+  actionsCard: {
+    backgroundColor: Colors.background,
+    borderTopLeftRadius: Bubble.radii.borderTopLeftRadius,
+    borderTopRightRadius: Bubble.radii.borderTopRightRadius,
+    borderBottomRightRadius: Bubble.radii.borderBottomRightRadius,
+    borderBottomLeftRadius: Bubble.radii.borderBottomLeftRadius,
+    overflow: "hidden",
+  },
+  actionDivider: {
+    height: 1,
+    backgroundColor: Colors.separator,
+    marginHorizontal: Spacing.base,
+  },
+
+  // Settings Item
+  settingsItemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.base,
+    paddingVertical: 14,
+  },
+  settingsItemIconBg: {
+    width: 34,
+    height: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: Spacing.md,
+    borderTopLeftRadius: Bubble.radiiSm.borderTopLeftRadius,
+    borderTopRightRadius: Bubble.radiiSm.borderTopRightRadius,
+    borderBottomRightRadius: Bubble.radiiSm.borderBottomRightRadius,
+    borderBottomLeftRadius: Bubble.radiiSm.borderBottomLeftRadius,
+  },
+  settingsItemLabel: {
+    flex: 1,
+    fontFamily: "EuclidCircularA-Medium",
+    fontSize: 15,
+    color: Colors.text,
+  },
+
+  // Footer
+  footer: {
+    alignItems: "center",
+    paddingVertical: Spacing.xl,
+    marginTop: Spacing.sm,
+  },
+  footerVersion: {
+    fontFamily: "EuclidCircularA-Medium",
+    fontSize: 13,
+    color: Colors.textTertiary,
+  },
+  footerMeta: {
+    fontFamily: "EuclidCircularA-Regular",
+    fontSize: 12,
+    color: Colors.textTertiary,
+    marginTop: 4,
+  },
+});

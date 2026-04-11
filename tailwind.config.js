@@ -7,6 +7,18 @@ module.exports = {
   presets: [require("nativewind/preset")],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["EuclidCircularA-Regular"],
+        light: ["EuclidCircularA-Light"],
+        medium: ["EuclidCircularA-Medium"],
+        semibold: ["EuclidCircularA-SemiBold"],
+        bold: ["EuclidCircularA-Bold"],
+        "light-italic": ["EuclidCircularA-LightItalic"],
+        italic: ["EuclidCircularA-Italic"],
+        "medium-italic": ["EuclidCircularA-MediumItalic"],
+        "semibold-italic": ["EuclidCircularA-SemiBoldItalic"],
+        "bold-italic": ["EuclidCircularA-BoldItalic"],
+      },
       colors: {
         // LinkedIn Blue palette
         primary: {

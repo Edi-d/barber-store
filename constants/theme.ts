@@ -37,6 +37,7 @@ export const Colors = {
   separator: '#E8E8E8',
 
   error: '#E53935',
+  errorPressed: '#C62828',
   errorMuted: '#FDECEC',
   success: '#2E7D32',
   successMuted: '#E8F5E9',
@@ -46,9 +47,17 @@ export const Colors = {
 
   glassLight: 'rgba(255,255,255,0.5)',
   glassBorder: 'rgba(255,255,255,0.6)',
+  floatingCardBorder: 'rgba(255,255,255,0.75)',
   handleBar: 'rgba(0,0,0,0.15)',
   backdropBlack: '#000',
 };
+
+export const FontFamily = {
+  regular: 'EuclidCircularA-Regular',
+  medium: 'EuclidCircularA-Medium',
+  semiBold: 'EuclidCircularA-SemiBold',
+  bold: 'EuclidCircularA-Bold',
+} as const;
 
 export const Typography = {
   h1: { fontFamily: 'EuclidCircularA-Bold', fontSize: 28, lineHeight: 34 },
@@ -77,30 +86,18 @@ export const Spacing = {
 
 export const Bubble = {
   radii: {
-    topLeft: 25,
-    topRight: 12,
-    bottomRight: 25,
-    bottomLeft: 25,
     borderTopLeftRadius: 25,
     borderTopRightRadius: 12,
     borderBottomRightRadius: 25,
     borderBottomLeftRadius: 25,
   },
   radiiSm: {
-    topLeft: 18,
-    topRight: 8,
-    bottomRight: 18,
-    bottomLeft: 18,
     borderTopLeftRadius: 18,
     borderTopRightRadius: 8,
     borderBottomRightRadius: 18,
     borderBottomLeftRadius: 18,
   },
   radiiLg: {
-    topLeft: 30,
-    topRight: 14,
-    bottomRight: 30,
-    bottomLeft: 30,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 14,
     borderBottomRightRadius: 30,
@@ -111,6 +108,12 @@ export const Bubble = {
     borderTopRightRadius: 14,
     borderBottomRightRadius: 0,
     borderBottomLeftRadius: 0,
+  },
+  floatingRadii: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderBottomRightRadius: 24,
+    borderBottomLeftRadius: 24,
   },
   accent: {
     borderBottomWidth: 1.5,
@@ -123,6 +126,7 @@ export const AvatarSize = {
   sm: 34,
   md: 42,
   lg: 56,
+  xl: 72,
   input: 36,
 };
 
@@ -163,3 +167,42 @@ export const Shadows = {
     default: {},
   })!,
 };
+
+export const FAB = {
+  size: 56,
+  iconSize: 28,
+  pedestalSize: 68,
+  protrusion: 14,
+  borderWidth: 1.5,
+  borderColor: 'rgba(255, 255, 255, 0.55)',
+  pedestalBg: 'rgba(255, 255, 255, 0.72)',
+  pedestalBorder: 'rgba(255, 255, 255, 0.9)',
+  shadow: Platform.select<ViewStyle>({
+    ios: {
+      shadowColor: Brand.gradientStart,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.45,
+      shadowRadius: 28,
+    },
+    android: { elevation: 14 },
+    default: {},
+  })!,
+  liftShadow: Platform.select<ViewStyle>({
+    ios: {
+      shadowColor: '#1A1A2E',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.18,
+      shadowRadius: 20,
+    },
+    android: { elevation: 12 },
+    default: {},
+  })!,
+} as const;
+
+export const CreateMenuColors = {
+  booking: { icon: '#2563EB', bg: 'rgba(37, 99, 235, 0.10)' },
+  tryon: { icon: '#7C3AED', bg: 'rgba(124, 58, 237, 0.10)' },
+  today: { icon: '#D97706', bg: 'rgba(217, 119, 6, 0.10)' },
+  shop: { icon: '#0891B2', bg: 'rgba(8, 145, 178, 0.10)' },
+  live: { icon: '#DC2626', bg: 'rgba(220, 38, 38, 0.08)' },
+} as const;

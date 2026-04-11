@@ -1,8 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Image, Dimensions } from 'react-native';
+import React from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, Image, Dimensions, Share, Alert } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import { TapGestureHandler, State } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
@@ -19,6 +21,8 @@ import { Brand, Spacing, Typography, Colors, Shadows, Bubble } from '@/constants
 import { ContentWithAuthor } from '@/types/database';
 import { timeAgo } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
+import { VideoPlayer } from '@/components/feed/VideoPlayer';
+import { HashtagText } from '@/components/feed/HashtagText';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IMAGE_RATIO = 1; // square like Instagram
@@ -38,24 +42,38 @@ const PARTICLES = [
 
 interface FeedCardProps {
   item: ContentWithAuthor;
-  onLike: () => void;
+  onLikeToggle: () => void;
+  onLikeAdd: () => void;
   onComment: () => void;
   onShare?: () => void;
   isFollowing?: boolean;
   onFollow?: (authorId: string) => void;
   isLikePending?: boolean;
+  isActiveVideo?: boolean;
+  isMuted?: boolean;
+  onMuteToggle?: () => void;
+  onHashtagPress?: (name: string) => void;
+  // Tutorial refs — only passed for the first card (index 0)
+  likeRef?: React.RefObject<View>;
+  commentRef?: React.RefObject<View>;
+  shareRef?: React.RefObject<View>;
+  followRef?: React.RefObject<View>;
 }
 
-export function FeedCard({ item, onLike, onComment, onShare, isFollowing, onFollow, isLikePending }: FeedCardProps) {
+export function FeedCard({ item, onLikeToggle, onLikeAdd, onComment, onShare, isFollowing, onFollow, isLikePending, isActiveVideo, isMuted, onMuteToggle, onHashtagPress, likeRef, commentRef, shareRef, followRef }: FeedCardProps) {
   const { session } = useAuthStore();
   const isOwnPost = session?.user.id === item.author_id;
   const [liked, setLiked] = useState(item.is_liked || false);
   const [displayLikes, setDisplayLikes] = useState(item.likes_count);
+  const likedRef = useRef(item.is_liked || false);
+  const originalLikesCount = useRef(item.likes_count);
 
   // Sync local state when realtime updates change the parent data
   useEffect(() => {
+    likedRef.current = item.is_liked || false;
     setLiked(item.is_liked || false);
     setDisplayLikes(item.likes_count);
+    originalLikesCount.current = item.likes_count;
   }, [item.is_liked, item.likes_count]);
 
   /* ── Debounce ref ── */
@@ -105,7 +123,7 @@ export function FeedCard({ item, onLike, onComment, onShare, isFollowing, onFoll
         withTiming(-1, { duration: 150 }),
         withTiming(0, { duration: 0 }),
       );
-      setDisplayLikes(item.likes_count);
+      setDisplayLikes(Math.max(originalLikesCount.current, item.likes_count));
     }
   }, [item.likes_count]);
 
@@ -114,27 +132,17 @@ export function FeedCard({ item, onLike, onComment, onShare, isFollowing, onFoll
     if (now - lastLikeTime.current < LIKE_DEBOUNCE_MS) return;
     lastLikeTime.current = now;
 
-    const newLiked = !liked;
+    const newLiked = !likedRef.current;
+    likedRef.current = newLiked;
     setLiked(newLiked);
     triggerLikeAnimation(newLiked);
-    onLike();
-  }, [liked, triggerLikeAnimation, onLike]);
+    onLikeToggle();
+  }, [triggerLikeAnimation, onLikeToggle]);
 
   /* ── Double-tap to like on image ── */
   const handleDoubleTap = useCallback((event: any) => {
     if (event.nativeEvent.state === State.ACTIVE) {
-      const now = Date.now();
-      if (now - lastLikeTime.current < LIKE_DEBOUNCE_MS) return;
-
-      // Only like if not already liked
-      if (!liked) {
-        lastLikeTime.current = now;
-        setLiked(true);
-        triggerLikeAnimation(true);
-        onLike();
-      }
-
-      // Always show the heart overlay animation (even if already liked)
+      // Always show heart overlay animation
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       heartScale.value = 0;
       heartOpacity.value = 0;
@@ -147,8 +155,19 @@ export function FeedCard({ item, onLike, onComment, onShare, isFollowing, onFoll
         withTiming(1, { duration: 100 }),
         withDelay(450, withTiming(0, { duration: 250 })),
       );
+
+      // Only fire like if not already liked AND debounce passes
+      if (likedRef.current) return;
+      const now = Date.now();
+      if (now - lastLikeTime.current < LIKE_DEBOUNCE_MS) return;
+
+      lastLikeTime.current = now;
+      likedRef.current = true;
+      setLiked(true);
+      triggerLikeAnimation(true);
+      onLikeAdd();
     }
-  }, [liked, triggerLikeAnimation, onLike]);
+  }, [triggerLikeAnimation, onLikeAdd]);
 
   const heartOverlayStyle = useAnimatedStyle(() => ({
     transform: [{ scale: heartScale.value }],
@@ -162,8 +181,9 @@ export function FeedCard({ item, onLike, onComment, onShare, isFollowing, onFoll
 
   const handleShare = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Share.share({ message: item.caption || 'Descopera acest continut pe Tapzi!' });
     onShare?.();
-  }, [onShare]);
+  }, [item.caption, onShare]);
 
   const handleFollow = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -210,7 +230,7 @@ export function FeedCard({ item, onLike, onComment, onShare, isFollowing, onFoll
   }));
 
   const authorName = item.author.display_name || item.author.username;
-  const authorRole = item.author.role === 'creator' ? 'Creator' : item.author.role === 'admin' ? 'Admin' : 'Member';
+  const authorRole = item.author.role === 'creator' ? 'Creator' : item.author.role === 'admin' ? 'Admin' : 'Membru';
   const isVerified = item.author.role === 'creator' || item.author.role === 'admin';
 
   return (
@@ -218,7 +238,17 @@ export function FeedCard({ item, onLike, onComment, onShare, isFollowing, onFoll
       <BlurView intensity={50} tint="light" style={styles.card}>
         {/* ─── Author row ─── */}
         <View style={styles.authorRow}>
-          <TouchableOpacity style={styles.authorLeft} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.authorLeft}
+            activeOpacity={0.7}
+            onPress={() => {
+              if (isOwnPost) {
+                router.push('/(tabs)/profile');
+              } else {
+                router.push(`/profile/${item.author_id}` as any);
+              }
+            }}
+          >
             {item.author.avatar_url ? (
               <Image source={{ uri: item.author.avatar_url }} style={styles.authorAvatar} />
             ) : (
@@ -247,6 +277,7 @@ export function FeedCard({ item, onLike, onComment, onShare, isFollowing, onFoll
 
           {!isOwnPost && (
             <TouchableOpacity
+              ref={followRef}
               style={[
                 styles.followButton,
                 isFollowing ? styles.followingBtn : styles.followBtn,
@@ -268,6 +299,14 @@ export function FeedCard({ item, onLike, onComment, onShare, isFollowing, onFoll
           <TouchableOpacity
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             style={styles.moreBtn}
+            onPress={() =>
+              Alert.alert('Opțiuni', '', [
+                { text: 'Raportează', onPress: () => {} },
+                { text: 'Ascunde', onPress: () => {} },
+                { text: 'Copiază link', onPress: () => {} },
+                { text: 'Anulează', style: 'cancel' },
+              ])
+            }
           >
             <Feather name="more-horizontal" size={18} color={Colors.textTertiary} />
           </TouchableOpacity>
@@ -275,20 +314,39 @@ export function FeedCard({ item, onLike, onComment, onShare, isFollowing, onFoll
 
         {/* ─── Post text ─── */}
         {item.caption && (
-          <Text style={[styles.postText, { color: Colors.text }]} numberOfLines={3}>
-            {item.caption}
-          </Text>
+          <HashtagText
+            text={item.caption}
+            numberOfLines={3}
+            style={[styles.postText, { color: Colors.text }]}
+            onHashtagPress={(name) => {
+              if (onHashtagPress) {
+                onHashtagPress(name);
+              } else {
+                router.push(`/hashtag/${name}` as any);
+              }
+            }}
+          />
         )}
 
-        {/* ─── Post image with double-tap to like ─── */}
+        {/* ─── Post media with double-tap to like ─── */}
         {(item.thumb_url || item.media_url) && (
           <TapGestureHandler numberOfTaps={2} onHandlerStateChange={handleDoubleTap}>
             <Animated.View style={styles.postImageWrap}>
-              <Image
-                source={{ uri: item.thumb_url || item.media_url || '' }}
-                style={styles.postImage}
-                resizeMode="cover"
-              />
+              {item.type === 'video' && item.media_url ? (
+                <VideoPlayer
+                  mediaUrl={item.media_url}
+                  thumbUrl={item.thumb_url}
+                  isActive={isActiveVideo ?? false}
+                  isMuted={isMuted ?? true}
+                  onMuteToggle={onMuteToggle ?? (() => {})}
+                />
+              ) : (
+                <Image
+                  source={{ uri: item.thumb_url || item.media_url || '' }}
+                  style={styles.postImage}
+                  resizeMode="cover"
+                />
+              )}
               {/* Heart overlay animation */}
               <Animated.View style={[styles.heartOverlay, heartOverlayStyle]} pointerEvents="none">
                 <Ionicons
@@ -329,6 +387,7 @@ export function FeedCard({ item, onLike, onComment, onShare, isFollowing, onFoll
         <View style={styles.actionsRow}>
           {/* Like button with animation */}
           <TouchableOpacity
+            ref={likeRef}
             style={[styles.actionButton, isLikePending && { opacity: 0.5 }]}
             onPress={handleLike}
             activeOpacity={0.6}
@@ -355,6 +414,7 @@ export function FeedCard({ item, onLike, onComment, onShare, isFollowing, onFoll
           </TouchableOpacity>
 
           <TouchableOpacity
+            ref={commentRef}
             style={styles.actionButton}
             onPress={handleComment}
             activeOpacity={0.6}
@@ -364,6 +424,7 @@ export function FeedCard({ item, onLike, onComment, onShare, isFollowing, onFoll
           </TouchableOpacity>
 
           <TouchableOpacity
+            ref={shareRef}
             style={styles.actionButton}
             onPress={handleShare}
             activeOpacity={0.6}

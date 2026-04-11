@@ -1,0 +1,5 @@
+-- 067: Realtime for comment_reactions — NO-OP
+-- Migration 052 (052_comments_social_realtime.sql) already adds both
+-- comment_likes and comment_reactions to the supabase_realtime publication
+-- with idempotent IF NOT EXISTS guards.
+-- This file is intentionally empty to preserve migration numbering continuity.

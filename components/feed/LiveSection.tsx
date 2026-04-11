@@ -1,3 +1,4 @@
+import { useRef, useEffect } from "react";
 import { View, Text, ScrollView, Pressable, Image, Dimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Avatar, Badge } from "@/components/ui";
@@ -5,6 +6,9 @@ import { LiveWithHost } from "@/types/database";
 import { timeAgo } from "@/lib/utils";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { Bubble } from "@/constants/theme";
+import { useAuthStore } from "@/stores/authStore";
+import { useTutorialContext } from "@/components/tutorial/TutorialProvider";
 
 const CARD_WIDTH = (Dimensions.get("window").width - 48) / 2;
 const CARD_HEIGHT = 220;
@@ -22,16 +26,29 @@ function formatViewers(count: number): string {
 }
 
 export function LiveSection({ lives, onSeeAll }: LiveSectionProps) {
+  const { registerRef, unregisterRef } = useTutorialContext();
+  const sectionRef = useRef<View>(null);
+  const firstCardRef = useRef<View>(null);
+
+  useEffect(() => {
+    registerRef("feed-live-section", sectionRef);
+    registerRef("feed-live-card", firstCardRef);
+    return () => {
+      unregisterRef("feed-live-section");
+      unregisterRef("feed-live-card");
+    };
+  }, [registerRef, unregisterRef]);
+
   if (!lives || lives.length === 0) return null;
 
   return (
-    <View className="pt-1 pb-4" style={{ backgroundColor: "#F0F4F8" }}>
+    <View ref={sectionRef} className="pt-1 pb-4" style={{ backgroundColor: "#F0F4F8" }}>
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 mb-3">
         <View className="flex-row items-center">
           <Text className="text-dark-700 text-lg font-bold">Creatori Live</Text>
           <View className="ml-2 bg-primary-500 px-2 py-0.5 min-w-[28px] items-center"
-            style={{ borderTopLeftRadius: 10, borderTopRightRadius: 5, borderBottomRightRadius: 10, borderBottomLeftRadius: 10 }}>
+            style={{ ...Bubble.radiiSm }}>
             <Text className="text-white text-xs font-bold">{lives.length}</Text>
           </View>
         </View>
@@ -49,8 +66,14 @@ export function LiveSection({ lives, onSeeAll }: LiveSectionProps) {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
       >
-        {lives.map((live) => (
-          <LiveCard key={live.id} live={live} />
+        {lives.map((live, index) => (
+          index === 0 ? (
+            <View key={live.id} ref={firstCardRef}>
+              <LiveCard live={live} />
+            </View>
+          ) : (
+            <LiveCard key={live.id} live={live} />
+          )
         ))}
       </ScrollView>
     </View>
@@ -58,13 +81,20 @@ export function LiveSection({ lives, onSeeAll }: LiveSectionProps) {
 }
 
 function LiveCard({ live }: { live: LiveWithHost }) {
-  const isPlaceholder = live.id.startsWith("placeholder");
+  const currentUserId = useAuthStore((s) => s.profile?.id);
 
   return (
     <Pressable
-      onPress={isPlaceholder ? undefined : () => router.push(`/live/${live.id}` as any)}
-      className="overflow-hidden rounded-2xl"
-      style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}
+      onPress={() => router.push(`/live/${live.id}` as any)}
+      className="overflow-hidden"
+      style={{
+        width: CARD_WIDTH,
+        height: CARD_HEIGHT,
+        borderTopLeftRadius: Bubble.radiiSm.borderTopLeftRadius,
+        borderTopRightRadius: Bubble.radiiSm.borderTopRightRadius,
+        borderBottomRightRadius: Bubble.radiiSm.borderBottomRightRadius,
+        borderBottomLeftRadius: Bubble.radiiSm.borderBottomLeftRadius,
+      }}
     >
       {/* Background Image */}
       {live.cover_url ? (
@@ -89,7 +119,7 @@ function LiveCard({ live }: { live: LiveWithHost }) {
       {/* Top Row - LIVE badge + Viewer count */}
       <View className="flex-row items-center justify-between p-3 z-10">
         <View className="flex-row items-center bg-red-500 px-2 py-1"
-          style={{ borderTopLeftRadius: 8, borderTopRightRadius: 4, borderBottomRightRadius: 8, borderBottomLeftRadius: 8 }}>
+          style={{ ...Bubble.radiiSm }}>
           <View className="w-1.5 h-1.5 rounded-full bg-white mr-1.5" />
           <Text className="text-white text-[10px] font-bold tracking-wide">LIVE</Text>
         </View>
@@ -111,7 +141,18 @@ function LiveCard({ live }: { live: LiveWithHost }) {
         </Text>
 
         {/* Host Info */}
-        <View className="flex-row items-center">
+        <Pressable
+          className="flex-row items-center"
+          onPress={(e) => {
+            e.stopPropagation();
+            if (!live.host?.id) return;
+            if (live.host.id === currentUserId) {
+              router.push("/(tabs)/profile");
+            } else {
+              router.push(`/profile/${live.host.id}` as any);
+            }
+          }}
+        >
           <Avatar
             source={live.host?.avatar_url}
             name={live.host?.display_name || live.host?.username}
@@ -131,7 +172,7 @@ function LiveCard({ live }: { live: LiveWithHost }) {
               • {timeAgo(live.started_at)}
             </Text>
           )}
-        </View>
+        </Pressable>
       </View>
     </Pressable>
   );

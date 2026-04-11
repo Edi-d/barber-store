@@ -3,3 +3,4 @@ export { Input } from "./Input";
 export { Card, CardHeader, CardContent, CardFooter } from "./Card";
 export { Avatar, DEFAULT_AVATAR } from "./Avatar";
 export { Badge } from "./Badge";
+export { AnimatedScreen } from "./AnimatedScreen";

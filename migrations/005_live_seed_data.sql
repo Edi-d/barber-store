@@ -26,13 +26,12 @@ DELETE FROM lives WHERE id IN (
 -- Uses the demo user (Edi Barber - creator) as host
 -- These show up in the feed LiveSection permanently
 
-INSERT INTO lives (id, host_id, title, cover_url, is_public, status, viewers_count, started_at) VALUES
+INSERT INTO lives (id, author_id, title, cover_url, status, viewers_count, started_at) VALUES
 (
     'cc111111-1111-1111-1111-111111111111',
     '73a42488-5437-486e-8ad6-3697301949ac',
     'Join me, paint the arts 🎨',
     'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=600',
-    TRUE,
     'live',
     41600,
     NOW() - INTERVAL '5 minutes'
@@ -42,7 +41,6 @@ INSERT INTO lives (id, host_id, title, cover_url, is_public, status, viewers_cou
     '73a42488-5437-486e-8ad6-3697301949ac',
     'Live Session, Let''s learn together 🔥',
     'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=600',
-    TRUE,
     'live',
     21200,
     NOW() - INTERVAL '6 minutes'
@@ -52,7 +50,6 @@ INSERT INTO lives (id, host_id, title, cover_url, is_public, status, viewers_cou
     '73a42488-5437-486e-8ad6-3697301949ac',
     'Fade Masterclass - Live Demo ✂️',
     'https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=600',
-    TRUE,
     'live',
     15800,
     NOW() - INTERVAL '12 minutes'
@@ -62,7 +59,6 @@ INSERT INTO lives (id, host_id, title, cover_url, is_public, status, viewers_cou
     '73a42488-5437-486e-8ad6-3697301949ac',
     'Beard Styling Session 💈',
     'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600',
-    TRUE,
     'live',
     8900,
     NOW() - INTERVAL '18 minutes'
@@ -72,7 +68,6 @@ INSERT INTO lives (id, host_id, title, cover_url, is_public, status, viewers_cou
     '73a42488-5437-486e-8ad6-3697301949ac',
     'Q&A - Cum să-ți deschizi un salon 🏪',
     'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=600',
-    TRUE,
     'live',
     5400,
     NOW() - INTERVAL '25 minutes'
@@ -82,7 +77,6 @@ INSERT INTO lives (id, host_id, title, cover_url, is_public, status, viewers_cou
     '73a42488-5437-486e-8ad6-3697301949ac',
     'Classic Cuts Workshop 🎓',
     'https://images.unsplash.com/photo-1621607512214-68297480165e?w=600',
-    TRUE,
     'live',
     3200,
     NOW() - INTERVAL '32 minutes'

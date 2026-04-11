@@ -29,7 +29,7 @@ export function useRealtimeLives(): { lives: LiveWithHost[]; loading: boolean } 
     async function fetchActiveLives() {
       const { data, error } = await supabase
         .from('lives')
-        .select('*, host:profiles!author_id(*)')
+        .select('*, host:profiles!host_id(*)')
         .in('status', ['live', 'starting'])
         .order('viewers_count', { ascending: false })
         .limit(20);
@@ -53,7 +53,7 @@ export function useRealtimeLives(): { lives: LiveWithHost[]; loading: boolean } 
     async function fetchLiveWithHost(id: string): Promise<LiveWithHost | null> {
       const { data, error } = await supabase
         .from('lives')
-        .select('*, host:profiles!author_id(*)')
+        .select('*, host:profiles!host_id(*)')
         .eq('id', id)
         .single();
 

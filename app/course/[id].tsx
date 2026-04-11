@@ -1,7 +1,8 @@
-import { View, Text, ScrollView, Image, Pressable, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, Image, Pressable, ActivityIndicator, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
+import { LinearGradient } from "expo-linear-gradient";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/authStore";
 import { Button, Badge, Card } from "@/components/ui";
@@ -90,6 +91,42 @@ export default function CourseDetailScreen() {
     ? Math.round((course.completed_count! / course.lessons_count) * 100)
     : 0;
 
+  const handleLessonPress = (lessonId: string) => {
+    if (course.is_premium) {
+      Alert.alert(
+        "Curs Premium",
+        "Acest curs necesita abonament premium.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+    router.push(`/lesson/${lessonId}`);
+  };
+
+  const handleStartCourse = () => {
+    if (course.is_premium) {
+      Alert.alert(
+        "Curs Premium",
+        "Acest curs necesita abonament premium.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+    // Find first incomplete lesson or first lesson
+    for (const module of course.modules || []) {
+      for (const lesson of module.lessons || []) {
+        if (!course.completedLessons.has(lesson.id)) {
+          router.push(`/lesson/${lesson.id}`);
+          return;
+        }
+      }
+    }
+    const firstLesson = course.modules?.[0]?.lessons?.[0];
+    if (firstLesson) {
+      router.push(`/lesson/${firstLesson.id}`);
+    }
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-dark-200" edges={["top"]}>
       <ScrollView className="flex-1">
@@ -116,7 +153,10 @@ export default function CourseDetailScreen() {
           </Pressable>
 
           {/* Gradient Overlay */}
-          <View className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-dark-200" />
+          <LinearGradient
+            colors={["transparent", "#F1F5F9"]}
+            style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 80 }}
+          />
         </View>
 
         {/* Course Info */}
@@ -177,7 +217,7 @@ export default function CourseDetailScreen() {
                   return (
                     <Pressable
                       key={lesson.id}
-                      onPress={() => router.push(`/lesson/${lesson.id}`)}
+                      onPress={() => handleLessonPress(lesson.id)}
                       className="flex-row items-center bg-white p-4 border border-dark-300"
                       style={{
                         borderTopLeftRadius: 18,
@@ -199,13 +239,15 @@ export default function CourseDetailScreen() {
                       >
                         {isCompleted ? (
                           <Ionicons name="checkmark" size={18} color="white" />
+                        ) : course.is_premium ? (
+                          <Ionicons name="lock-closed" size={16} color="#94A3B8" />
                         ) : (
                           <Text className="text-dark-500 font-semibold">
                             {lessonIndex + 1}
                           </Text>
                         )}
                       </View>
-                      
+
                       <View className="flex-1">
                         <Text className="text-dark-700 font-medium">
                           {lesson.title}
@@ -223,8 +265,12 @@ export default function CourseDetailScreen() {
                           )}
                         </View>
                       </View>
-                      
-                      <Ionicons name="chevron-forward" size={20} color="#64748b" />
+
+                      <Ionicons
+                        name={course.is_premium ? "lock-closed" : "chevron-forward"}
+                        size={20}
+                        color="#64748b"
+                      />
                     </Pressable>
                   );
                 })}
@@ -239,24 +285,13 @@ export default function CourseDetailScreen() {
         <Button
           size="lg"
           style={{ width: '100%' }}
-          onPress={() => {
-            // Find first incomplete lesson or first lesson
-            for (const module of course.modules || []) {
-              for (const lesson of module.lessons || []) {
-                if (!course.completedLessons.has(lesson.id)) {
-                  router.push(`/lesson/${lesson.id}`);
-                  return;
-                }
-              }
-            }
-            // All completed, go to first lesson
-            const firstLesson = course.modules?.[0]?.lessons?.[0];
-            if (firstLesson) {
-              router.push(`/lesson/${firstLesson.id}`);
-            }
-          }}
+          onPress={handleStartCourse}
         >
-          {progress > 0 ? "Continuă cursul" : "Începe cursul"}
+          {course.is_premium ? (
+            <>
+              <Ionicons name="lock-closed" size={18} color="white" /> Abonament necesar
+            </>
+          ) : progress > 0 ? "Continuă cursul" : "Începe cursul"}
         </Button>
       </View>
     </SafeAreaView>

@@ -1,60 +1,79 @@
-import { View, Text, Image } from "react-native";
+import { View, Text, Image, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Link } from "expo-router";
-import { Button } from "@/components/ui";
+import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import { AuthBackground } from "@/components/auth/AuthBackground";
+import { GlassCard } from "@/components/auth/GlassCard";
+import { Colors, Typography, Bubble, Shadows, Spacing } from "@/constants/theme";
 
 export default function WelcomeScreen() {
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <View className="flex-1 px-6 pt-12">
-        {/* Logo & Branding */}
-        <View className="flex-1 items-center justify-center">
-          <Image
-            source={require("@/assets/image-removebg-preview.png")}
-            style={{ width: 180, height: 65 }}
-            resizeMode="contain"
-            className="mb-6"
-          />
-          <Text className="text-dark-500 text-center text-lg">
-            Învață arta frizuriei de la cei mai buni
-          </Text>
-        </View>
+    <AuthBackground>
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={styles.container}>
+          {/* Logo & Branding */}
+          <View style={styles.brandSection}>
+            <Image
+              source={require("@/assets/logo-icon.png")}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+            <Text style={[Typography.caption, styles.tagline]}>
+              Învață arta frizuriei de la cei mai buni
+            </Text>
+          </View>
 
-        {/* Features */}
-        <View className="mb-12">
-          <FeatureItem
-            icon="videocam"
-            title="Cursuri Video"
-            description="Lecții premium de la experți"
-          />
-          <FeatureItem
-            icon="radio"
-            title="Live Sessions"
-            description="Urmărește tutoriale în direct"
-          />
-          <FeatureItem
-            icon="cart"
-            title="Shop Profesional"
-            description="Produse și echipamente de calitate"
-          />
-        </View>
+          {/* Features Card */}
+          <GlassCard style={styles.featuresCard}>
+            <FeatureItem
+              icon="videocam"
+              title="Cursuri Video"
+              description="Lecții premium de la experți"
+              color={Colors.gradientStart}
+            />
+            <FeatureItem
+              icon="radio"
+              title="Sesiuni Live"
+              description="Urmărește tutoriale în direct"
+              color={Colors.indigo}
+            />
+            <FeatureItem
+              icon="cart"
+              title="Magazin Profesional"
+              description="Produse și echipamente de calitate"
+              color={Colors.gradientStart}
+            />
+          </GlassCard>
 
-        {/* Auth Buttons */}
-        <View className="gap-4 mb-8">
-          <Link href="/(auth)/signup" asChild>
-            <Button size="lg" className="w-full">
-              Începe Acum
-            </Button>
-          </Link>
-          <Link href="/(auth)/login" asChild>
-            <Button variant="outline" size="lg" className="w-full">
-              Am deja cont
-            </Button>
-          </Link>
+          {/* Auth Buttons */}
+          <View style={styles.buttonsContainer}>
+            <Link href="/(auth)/signup" asChild>
+              <Pressable style={styles.primaryButtonOuter}>
+                <LinearGradient
+                  colors={[Colors.gradientStart, Colors.gradientEnd]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.primaryButton}
+                >
+                  <Text style={[Typography.button, { color: "#fff" }]}>
+                    Începe Acum
+                  </Text>
+                </LinearGradient>
+              </Pressable>
+            </Link>
+
+            <Link href="/(auth)/login" asChild>
+              <Pressable style={styles.outlineButton}>
+                <Text style={[Typography.button, { color: Colors.gradientStart }]}>
+                  Am deja cont
+                </Text>
+              </Pressable>
+            </Link>
+          </View>
         </View>
-      </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </AuthBackground>
   );
 }
 
@@ -62,20 +81,85 @@ function FeatureItem({
   icon,
   title,
   description,
+  color,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
   description: string;
+  color: string;
 }) {
   return (
-    <View className="flex-row items-center mb-4">
-      <View className="w-12 h-12 bg-primary-100 rounded-xl items-center justify-center mr-4">
-        <Ionicons name={icon} size={24} color="#0a66c2" />
+    <View style={styles.featureRow}>
+      <View style={[styles.featureIcon, { backgroundColor: color + "18" }]}>
+        <Ionicons name={icon} size={22} color={color} />
       </View>
-      <View className="flex-1">
-        <Text className="text-dark-700 font-semibold text-base">{title}</Text>
-        <Text className="text-dark-500 text-sm">{description}</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={[Typography.bodySemiBold, { color: Colors.text }]}>
+          {title}
+        </Text>
+        <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+          {description}
+        </Text>
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingHorizontal: Spacing.xl,
+    justifyContent: "center",
+  },
+  brandSection: {
+    alignItems: "center",
+    marginBottom: Spacing["2xl"],
+  },
+  logo: {
+    width: 180,
+    height: 65,
+    marginBottom: Spacing.base,
+  },
+  tagline: {
+    color: Colors.textSecondary,
+    textAlign: "center",
+  },
+  featuresCard: {
+    marginBottom: Spacing["2xl"],
+  },
+  featureRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: Spacing.base,
+  },
+  featureIcon: {
+    width: 48,
+    height: 48,
+    ...Bubble.radiiSm,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: Spacing.base,
+  },
+  buttonsContainer: {
+    gap: Spacing.md,
+  },
+  primaryButtonOuter: {
+    ...Shadows.glow,
+    ...Bubble.radii,
+  },
+  primaryButton: {
+    height: 54,
+    alignItems: "center",
+    justifyContent: "center",
+    ...Bubble.radii,
+  },
+  outlineButton: {
+    height: 54,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: Colors.gradientStart,
+    backgroundColor: "transparent",
+    ...Bubble.radii,
+  },
+});

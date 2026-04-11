@@ -1,17 +1,20 @@
 import { View, Text, ScrollView, Pressable } from "react-native";
 import { Avatar } from "@/components/ui";
 import { StoryGroup } from "@/lib/stories";
+import React from "react";
 
 interface StoriesRowProps {
   groups: StoryGroup[];
   onGroupPress: (group: StoryGroup, index: number) => void;
+  containerRef?: React.RefObject<View>;
+  firstAvatarRef?: React.RefObject<View>;
 }
 
-export function StoriesRow({ groups, onGroupPress }: StoriesRowProps) {
+export function StoriesRow({ groups, onGroupPress, containerRef, firstAvatarRef }: StoriesRowProps) {
   if (groups.length === 0) return null;
 
   return (
-    <View className="pt-3 pb-4" style={{ backgroundColor: "#F0F4F8" }}>
+    <View ref={containerRef} className="pt-3 pb-4" style={{ backgroundColor: "#F0F4F8" }}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -25,6 +28,7 @@ export function StoriesRow({ groups, onGroupPress }: StoriesRowProps) {
           >
             {/* Blue ring for unseen, grey ring for all-seen */}
             <View
+              ref={index === 0 ? firstAvatarRef : undefined}
               className={`rounded-full p-[3px] ${
                 group.hasUnseen ? "bg-primary-500" : "bg-dark-300"
               }`}

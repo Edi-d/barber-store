@@ -1,4 +1,4 @@
-import { RealtimeChannel } from '@supabase/supabase-js';
+import { RealtimeChannel, REALTIME_SUBSCRIBE_STATES } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 
 /**
@@ -31,6 +31,43 @@ export function getOrCreateChannel(name: string): RealtimeChannel {
 }
 
 /**
+ * Convenience wrapper — creates (or reuses) a channel, then calls .subscribe()
+ * with built-in error logging. Returns the channel so callers can chain .on()
+ * before calling this, or use the returned reference for removal.
+ *
+ * Usage:
+ *   const ch = getOrCreateChannel('my-channel')
+ *     .on('postgres_changes', { ... }, handler);
+ *   subscribeChannel('my-channel', ch);
+ *   return () => removeChannel('my-channel');
+ */
+export function subscribeChannel(
+  name: string,
+  channel: RealtimeChannel,
+  onStatusChange?: (status: string) => void,
+): RealtimeChannel {
+  channel.subscribe((status, err) => {
+    if (
+      status === REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR ||
+      status === REALTIME_SUBSCRIBE_STATES.TIMED_OUT
+    ) {
+      console.warn(`[Realtime] Subscribe failed on channel "${name}" — status: ${status}`, err ?? '');
+    } else if (status === REALTIME_SUBSCRIBE_STATES.CLOSED) {
+      if (__DEV__) {
+        console.log(`[Realtime] Channel closed: ${name}`);
+      }
+    } else if (status === REALTIME_SUBSCRIBE_STATES.SUBSCRIBED) {
+      if (__DEV__) {
+        console.log(`[Realtime] Subscribed: ${name}`);
+      }
+    }
+    onStatusChange?.(status);
+  });
+
+  return channel;
+}
+
+/**
  * Removes a single channel by name — unsubscribes from Supabase and deletes
  * from the registry. No-op if the name is not found.
  */
@@ -38,7 +75,9 @@ export function removeChannel(name: string): void {
   const channel = channels.get(name);
   if (!channel) return;
 
-  supabase.removeChannel(channel);
+  supabase.removeChannel(channel).catch((err) => {
+    console.warn(`[Realtime] Error removing channel "${name}"`, err);
+  });
   channels.delete(name);
 
   if (__DEV__) {
@@ -56,7 +95,9 @@ export function cleanupAllChannels(): void {
   const count = channels.size;
 
   channels.forEach((channel, name) => {
-    supabase.removeChannel(channel);
+    supabase.removeChannel(channel).catch((err) => {
+      console.warn(`[Realtime] Error removing channel "${name}" during cleanup`, err);
+    });
     channels.delete(name);
   });
 

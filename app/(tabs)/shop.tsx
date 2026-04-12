@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTutorialContext } from '@/components/tutorial/TutorialProvider';
+import { useTutorialStore } from '@/stores/tutorialStore';
+import { getLessonById } from '@/data/tutorials';
 import {
   StyleSheet,
   View,
@@ -227,6 +229,25 @@ export default function ShopScreen() {
   const productCardRef = useRef<View>(null);
   const productPriceRef = useRef<View>(null);
   const productAddRef = useRef<View>(null);
+  const flatListRef = useRef<FlatList<Product>>(null);
+
+  // Auto-scroll to sort button when that tutorial step becomes active.
+  // The sort button lives in ListHeaderComponent below the featured sections
+  // and would otherwise be off-screen when measureInWindow runs.
+  const tutorialLessonId = useTutorialStore((s) => s.currentLessonId);
+  const tutorialStepIndex = useTutorialStore((s) => s.currentStepIndex);
+  const tutorialVisible = useTutorialStore((s) => s.isOverlayVisible);
+
+  useEffect(() => {
+    if (!tutorialVisible || !tutorialLessonId) return;
+    const lesson = getLessonById(tutorialLessonId);
+    const step = lesson?.steps?.[tutorialStepIndex];
+    if (step?.targetRefKey === 'shop-sort-btn') {
+      // Scroll to bring the sort button into view before TutorialProvider
+      // measures it (provider waits 400ms — leaves room for the animation).
+      flatListRef.current?.scrollToOffset({ offset: 1200, animated: true });
+    }
+  }, [tutorialVisible, tutorialLessonId, tutorialStepIndex]);
 
   useEffect(() => {
     registerRef('shop-search', searchRef);
@@ -602,6 +623,7 @@ export default function ShopScreen() {
       </View>
 
       <FlatList
+        ref={flatListRef}
         data={filteredProducts}
         keyExtractor={keyExtractor}
         renderItem={({ item, index }) => (

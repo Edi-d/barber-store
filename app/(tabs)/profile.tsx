@@ -65,6 +65,8 @@ export default function ProfileScreen() {
     );
   }
 
+  const isCreator = profile.role === "creator" || profile.role === "admin";
+
   const menuItems = [
     {
       icon: "calendar",

@@ -129,14 +129,14 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     };
 
     // Check if ref exists immediately (same-screen step).
-    // If so, measure right away — no delay needed since the ref is already
-    // mounted and registered. For cross-screen steps the ref won't exist yet,
-    // so wait 250 ms for the new screen to mount before retrying.
+    // Even for same-screen steps we wait a short beat: screens sometimes need
+    // to scroll or animate before the target view is at its final position
+    // (e.g. shop.tsx auto-scrolls the FlatList to reveal the sort button).
+    // For cross-screen steps the ref won't exist yet, so we wait longer.
     const ref = refs.current.get(step.targetRefKey);
     if (ref?.current) {
-      // Same screen — measure immediately, spotlight moves in 200 ms (withTiming)
-      attemptMeasure(1);
-      return;
+      const measureTimeout = setTimeout(() => attemptMeasure(2), 400);
+      return () => clearTimeout(measureTimeout);
     } else {
       // Cross-screen — wait for screen to mount and register refs
       const measureTimeout = setTimeout(() => attemptMeasure(3), 250);

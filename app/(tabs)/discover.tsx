@@ -561,9 +561,12 @@ export default function DiscoverScreen() {
           </MapView>
 
           {/* Search Bar Overlay */}
-          <View className="absolute left-4 right-4 z-10" style={{ top: insets.top + 8 }}>
+          <View
+            ref={tutorialSearchRef}
+            className="absolute left-4 right-4 z-10"
+            style={{ top: insets.top + 8 }}
+          >
             <View
-              ref={tutorialSearchRef}
               className="flex-row items-center bg-white px-4 py-3"
               style={{ ...bubbleRadii, ...cardShadow }}
             >

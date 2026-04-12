@@ -134,21 +134,9 @@ INSERT INTO appointments (id, user_id, barber_id, service_id, scheduled_at, dura
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================
--- 10. LIVE STREAMS (6)
+-- 10. LIVE STREAMS — no seed data
 -- ============================================
-INSERT INTO lives (id, author_id, title, cover_url, status, viewers_count, started_at) VALUES
-('cc111111-1111-1111-1111-111111111111', 'ce0b48a1-2e88-4af9-9cf3-ca7dde8c34e2', 'Join me, paint the arts', 'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=600', 'live', 41600, NOW() - INTERVAL '5 minutes'),
-('cc222222-2222-2222-2222-222222222222', 'ce0b48a1-2e88-4af9-9cf3-ca7dde8c34e2', 'Live Session, Let''s learn together', 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=600', 'live', 21200, NOW() - INTERVAL '6 minutes'),
-('cc333333-3333-3333-3333-333333333333', 'ce0b48a1-2e88-4af9-9cf3-ca7dde8c34e2', 'Fade Masterclass - Live Demo', 'https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=600', 'live', 15800, NOW() - INTERVAL '12 minutes'),
-('cc444444-4444-4444-4444-444444444444', 'ce0b48a1-2e88-4af9-9cf3-ca7dde8c34e2', 'Beard Styling Session', 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600', 'live', 8900, NOW() - INTERVAL '18 minutes'),
-('cc555555-5555-5555-5555-555555555555', 'ce0b48a1-2e88-4af9-9cf3-ca7dde8c34e2', 'Q&A - Cum sa-ti deschizi un salon', 'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=600', 'live', 5400, NOW() - INTERVAL '25 minutes'),
-('cc666666-6666-6666-6666-666666666666', 'ce0b48a1-2e88-4af9-9cf3-ca7dde8c34e2', 'Classic Cuts Workshop', 'https://images.unsplash.com/photo-1621607512214-68297480165e?w=600', 'live', 3200, NOW() - INTERVAL '32 minutes')
-ON CONFLICT (id) DO UPDATE SET
-    title = EXCLUDED.title,
-    cover_url = EXCLUDED.cover_url,
-    status = EXCLUDED.status,
-    viewers_count = EXCLUDED.viewers_count,
-    started_at = EXCLUDED.started_at;
+-- Lives are created on-demand by real users. No seed entries.
 
 -- ============================================
 -- 11. DISPONIBILITATE BARBERI

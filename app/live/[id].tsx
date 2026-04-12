@@ -38,6 +38,7 @@ import { useLiveViewers } from "@/hooks/useLiveViewers";
 import { useLiveChat, type ChatMessage } from "@/hooks/useLiveChat";
 import { useLiveConnection } from "@/hooks/useLiveConnection";
 import { useTutorialContext } from "@/components/tutorial/TutorialProvider";
+import QualityPicker from '@/components/live/QualityPicker';
 
 // ─── LiveKit conditional imports ──────────────────────────────
 
@@ -313,6 +314,7 @@ export default function LiveViewerScreen() {
 
   // Chrome visibility
   const [chromeVisible, setChromeVisible] = useState(true);
+  const [qualityPickerVisible, setQualityPickerVisible] = useState(false);
   const chromeOpacity = useSharedValue(1);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -338,7 +340,7 @@ export default function LiveViewerScreen() {
   );
 
   // LiveKit connection state machine
-  const { state: connState, hostTrack, connect, disconnect, error: connError } =
+  const { state: connState, hostTrack, connect, disconnect, error: connError, videoQuality, setVideoQuality } =
     useLiveConnection();
 
   // Floating hearts
@@ -616,6 +618,35 @@ export default function LiveViewerScreen() {
               >
                 <Feather name="share-2" size={18} color="#fff" />
               </Pressable>
+              <View style={{ position: "relative" }}>
+                <Pressable
+                  className="w-9 h-9 rounded-full items-center justify-center bg-black/40 active:bg-black/60"
+                  accessibilityLabel="Calitate video"
+                  accessibilityRole="button"
+                  onPress={() => { showChrome(); setQualityPickerVisible(true); }}
+                >
+                  <Feather name="settings" size={17} color="#fff" />
+                </Pressable>
+                {videoQuality !== "auto" && (
+                  <View
+                    style={{
+                      position: "absolute",
+                      bottom: -6,
+                      alignSelf: "center",
+                      left: 0,
+                      right: 0,
+                      alignItems: "center",
+                    }}
+                    pointerEvents="none"
+                  >
+                    <View style={{ backgroundColor: "rgba(0,0,0,0.6)", borderRadius: 4, paddingHorizontal: 3, paddingVertical: 1 }}>
+                      <Text style={{ color: "#fff", fontSize: 8, fontFamily: "EuclidCircularA-Medium" }}>
+                        {videoQuality}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+              </View>
             </View>
           </View>
 
@@ -662,6 +693,15 @@ export default function LiveViewerScreen() {
 
         </Animated.View>
       </KeyboardAvoidingView>
+
+      {/* Quality Picker */}
+      <QualityPicker
+        visible={qualityPickerVisible}
+        currentQuality={videoQuality}
+        onSelect={setVideoQuality}
+        onClose={() => { setQualityPickerVisible(false); showChrome(); }}
+        topOffset={insets.top + 52}
+      />
     </View>
   );
 }

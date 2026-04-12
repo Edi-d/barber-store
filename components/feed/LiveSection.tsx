@@ -39,8 +39,6 @@ export function LiveSection({ lives, onSeeAll }: LiveSectionProps) {
     };
   }, [registerRef, unregisterRef]);
 
-  if (!lives || lives.length === 0) return null;
-
   return (
     <View ref={sectionRef} className="pt-1 pb-4" style={{ backgroundColor: "#F0F4F8" }}>
       {/* Header */}
@@ -52,7 +50,7 @@ export function LiveSection({ lives, onSeeAll }: LiveSectionProps) {
             <Text className="text-white text-xs font-bold">{lives.length}</Text>
           </View>
         </View>
-        {onSeeAll && (
+        {onSeeAll && lives.length > 0 && (
           <Pressable onPress={onSeeAll} className="flex-row items-center">
             <Text className="text-primary-500 text-sm font-medium">Vezi tot</Text>
             <Ionicons name="chevron-forward" size={16} color="#0a66c2" />
@@ -60,22 +58,131 @@ export function LiveSection({ lives, onSeeAll }: LiveSectionProps) {
         )}
       </View>
 
-      {/* Live Cards Scroll */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
-      >
-        {lives.map((live, index) => (
-          index === 0 ? (
-            <View key={live.id} ref={firstCardRef}>
-              <LiveCard live={live} />
+      {lives.length > 0 ? (
+        /* Live Cards Scroll */
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+        >
+          {lives.map((live, index) => (
+            index === 0 ? (
+              <View key={live.id} ref={firstCardRef}>
+                <LiveCard live={live} />
+              </View>
+            ) : (
+              <LiveCard key={live.id} live={live} />
+            )
+          ))}
+        </ScrollView>
+      ) : (
+        /* Empty State — premium minimal */
+        <View style={{ paddingHorizontal: 16 }}>
+          <View
+            style={{
+              height: 96,
+              backgroundColor: "#fff",
+              ...Bubble.radiiSm,
+              flexDirection: "row",
+              alignItems: "center",
+              paddingLeft: 16,
+              paddingRight: 20,
+              gap: 16,
+              // soft iOS-style shadow instead of cheap border
+              shadowColor: "#0A66C2",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.06,
+              shadowRadius: 12,
+              elevation: 2,
+            }}
+          >
+            {/* Badge with concentric ring — static, no animation */}
+            <View
+              style={{
+                width: 52,
+                height: 52,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {/* Outer ring */}
+              <View
+                style={{
+                  position: "absolute",
+                  width: 52,
+                  height: 52,
+                  borderRadius: 26,
+                  borderWidth: 1,
+                  borderColor: "rgba(10,102,194,0.08)",
+                }}
+              />
+              {/* Inner ring */}
+              <View
+                style={{
+                  position: "absolute",
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  borderWidth: 1,
+                  borderColor: "rgba(10,102,194,0.12)",
+                }}
+              />
+              {/* Icon disc */}
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: "#F0F7FF",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Ionicons name="videocam-outline" size={18} color="#0A66C2" />
+              </View>
+              {/* Offline dot top-right */}
+              <View
+                style={{
+                  position: "absolute",
+                  top: 6,
+                  right: 6,
+                  width: 8,
+                  height: 8,
+                  borderRadius: 4,
+                  backgroundColor: "#94A3B8",
+                  borderWidth: 1.5,
+                  borderColor: "#fff",
+                }}
+              />
             </View>
-          ) : (
-            <LiveCard key={live.id} live={live} />
-          )
-        ))}
-      </ScrollView>
+
+            {/* Text block */}
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontFamily: "EuclidCircularA-Bold",
+                  fontSize: 15,
+                  color: "#0F172A",
+                  letterSpacing: -0.2,
+                }}
+              >
+                Nimeni nu e live acum
+              </Text>
+              <Text
+                style={{
+                  fontFamily: "EuclidCircularA-Regular",
+                  fontSize: 12.5,
+                  color: "#64748B",
+                  marginTop: 3,
+                  lineHeight: 17,
+                }}
+              >
+                Îți dăm de veste când începe un live
+              </Text>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 }

@@ -26,11 +26,21 @@ export function useRealtimeLives(): { lives: LiveWithHost[]; loading: boolean } 
     let cancelled = false;
 
     // ── Initial fetch ──────────────────────────────────────────────────────────
+    // Client-side defensive filter: ignore any "live"/"starting" row that is
+    // either older than 2 hours (runaway stream that never closed) or whose
+    // last heartbeat is older than 2 minutes. The backend cron also expires
+    // these rows, but this filter ensures the UI never shows stale rows during
+    // the window between cron runs.
     async function fetchActiveLives() {
+      const staleCutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+      const oldCutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+
       const { data, error } = await supabase
         .from('lives')
         .select('*, host:profiles!host_id(*)')
         .in('status', ['live', 'starting'])
+        .gte('last_heartbeat_at', staleCutoff)
+        .gte('started_at', oldCutoff)
         .order('viewers_count', { ascending: false })
         .limit(20);
 

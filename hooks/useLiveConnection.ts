@@ -21,7 +21,18 @@ export interface LiveConnectionResult {
   disconnect: () => void;
   forceEnd: () => void;
   error: string | null;
+  videoQuality: VideoQualityOption;
+  setVideoQuality: (quality: VideoQualityOption) => void;
 }
+
+export type VideoQualityOption = 'auto' | '1080p' | '720p' | '480p' | '360p';
+
+const QUALITY_DIMENSIONS: Record<Exclude<VideoQualityOption, 'auto'>, { width: number; height: number }> = {
+  '1080p': { width: 1920, height: 1080 },
+  '720p': { width: 1280, height: 720 },
+  '480p': { width: 854, height: 480 },
+  '360p': { width: 640, height: 360 },
+};
 
 // ─── LiveKit conditional import ───────────────────────────────
 
@@ -65,11 +76,15 @@ export function useLiveConnection(): LiveConnectionResult {
   const [room, setRoom] = useState<any | null>(null);
   const [hostTrack, setHostTrack] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [videoQuality, setVideoQualityState] = useState<VideoQualityOption>('auto');
 
   const roomRef = useRef<any | null>(null);
   const tokenRefreshRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const liveIdRef = useRef<string>('');
   const roomNameRef = useRef<string>('');
+  const videoQualityRef = useRef<VideoQualityOption>('auto');
+  const hostTrackRef = useRef<any | null>(null);
+  hostTrackRef.current = hostTrack; // keep ref in sync with state for event handlers
 
   // ── Track resolution: scan all participants for a publishing camera ──
 
@@ -175,6 +190,13 @@ export function useLiveConnection(): LiveConnectionResult {
           // FIX: store { participant, publication } — correct TrackReference shape
           setHostTrack({ participant, publication });
           setState('connected');
+
+          // Re-apply quality preference on new track (e.g. after full restart reconnect)
+          const q = videoQualityRef.current;
+          if (q !== 'auto') {
+            const dims = QUALITY_DIMENSIONS[q];
+            publication.setVideoDimensions?.(dims);
+          }
         }
       });
 
@@ -193,6 +215,26 @@ export function useLiveConnection(): LiveConnectionResult {
     },
     [resolveHostTrack, scheduleTokenRefresh]
   );
+
+  // ── setVideoQuality ───────────────────────────────────────────────────
+
+  const setVideoQuality = useCallback((quality: VideoQualityOption) => {
+    setVideoQualityState(quality);
+    videoQualityRef.current = quality;
+
+    const pub = hostTrackRef.current?.publication;
+    if (!pub) return;
+
+    if (quality === 'auto') {
+      const VideoQuality = LKClient?.VideoQuality;
+      if (VideoQuality) {
+        pub.setVideoQuality?.(VideoQuality.HIGH);
+      }
+    } else {
+      const dims = QUALITY_DIMENSIONS[quality];
+      pub.setVideoDimensions?.(dims);
+    }
+  }, []);
 
   // ── connect ───────────────────────────────────────────────────────────
 
@@ -217,7 +259,7 @@ export function useLiveConnection(): LiveConnectionResult {
         setState('connecting');
 
         const rm = new LKClient.Room({
-          adaptiveStream: true,
+          adaptiveStream: { pixelDensity: 'screen' },
           dynacast: true,
         });
 
@@ -328,5 +370,5 @@ export function useLiveConnection(): LiveConnectionResult {
     };
   }, []);
 
-  return { state, room, hostTrack, connect, disconnect, forceEnd, error };
+  return { state, room, hostTrack, connect, disconnect, forceEnd, error, videoQuality, setVideoQuality };
 }

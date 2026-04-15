@@ -245,12 +245,17 @@ export default function DiscoverScreen() {
   const serviceOptions = useMemo<ServiceOption[]>(() => {
     const seen = new Map<string, string>();
     if (!salonServicesData) return [];
+    const humanize = (raw: string): string => {
+      const words = raw.replace(/[_-]+/g, ' ').trim().split(/\s+/);
+      return words
+        .map((w) => (w.length === 0 ? w : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()))
+        .join(' ');
+    };
     for (const s of salonServicesData) {
       const key = (s.category ?? s.name ?? '').toLowerCase();
       if (!key) continue;
       if (!seen.has(key)) {
-        const label = s.category ?? s.name ?? key;
-        seen.set(key, label.charAt(0).toUpperCase() + label.slice(1));
+        seen.set(key, humanize(s.category ?? s.name ?? key));
       }
     }
     return Array.from(seen.entries()).map(([key, label]) => ({ key, label }));

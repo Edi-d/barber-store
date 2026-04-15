@@ -13,6 +13,8 @@ import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetScrollView,
 } from '@gorhom/bottom-sheet';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useUIStore } from '@/stores/uiStore';
 import { Colors, FontFamily, Spacing, Bubble } from '@/constants/theme';
@@ -302,19 +304,35 @@ export const FiltersSheet = forwardRef<FiltersSheetHandle, Props>(function Filte
       </BottomSheetScrollView>
 
       <View style={styles.footer}>
-        <Pressable onPress={handleSubmit}>
+        <Pressable onPress={handleSubmit} disabled={previewCount === 0}>
           {({ pressed }) => (
-            <View style={[styles.cta, pressed && styles.ctaPressed]}>
-              <Text style={styles.ctaText}>
-                {previewCount === 0
-                  ? 'Niciun rezultat'
-                  : `Arată ${previewCount} ${previewCount === 1 ? 'rezultat' : 'rezultate'}`}
-              </Text>
-              {activeCount > 0 && (
-                <View style={styles.ctaBadge}>
-                  <Text style={styles.ctaBadgeText}>{activeCount}</Text>
-                </View>
-              )}
+            <View style={[styles.ctaShadow, pressed && styles.ctaPressed]}>
+              <LinearGradient
+                colors={
+                  previewCount === 0
+                    ? ['#cbd5e1', '#94a3b8']
+                    : [Colors.gradientStart, Colors.primary, Colors.gradientEnd]
+                }
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.cta}
+              >
+                {activeCount > 0 && (
+                  <View style={styles.ctaBadge}>
+                    <Text style={styles.ctaBadgeText}>{activeCount}</Text>
+                  </View>
+                )}
+                <Text style={styles.ctaText}>
+                  {previewCount === 0
+                    ? 'Niciun rezultat'
+                    : `Arată ${previewCount} ${previewCount === 1 ? 'rezultat' : 'rezultate'}`}
+                </Text>
+                {previewCount > 0 && (
+                  <View style={styles.ctaArrow}>
+                    <Ionicons name="arrow-forward" size={16} color={Colors.white} />
+                  </View>
+                )}
+              </LinearGradient>
             </View>
           )}
         </Pressable>
@@ -377,38 +395,55 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(15,23,42,0.06)',
     backgroundColor: Colors.white,
   },
+  ctaShadow: {
+    ...Bubble.radiiSm,
+    shadowColor: Colors.primary,
+    shadowOpacity: 0.28,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
   cta: {
-    backgroundColor: Colors.primary,
-    paddingVertical: 15,
+    paddingVertical: 17,
+    paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 10,
     ...Bubble.radiiSm,
-    shadowColor: Colors.primary,
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    overflow: 'hidden',
   },
   ctaPressed: {
-    opacity: 0.9,
+    transform: [{ scale: 0.98 }],
+    shadowOpacity: 0.18,
   },
   ctaText: {
     fontFamily: FontFamily.semiBold,
-    fontSize: 14,
+    fontSize: 15,
     color: Colors.white,
-    letterSpacing: 0.1,
+    letterSpacing: 0.2,
   },
   ctaBadge: {
     backgroundColor: 'rgba(255,255,255,0.22)',
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-    borderRadius: 10,
+    minWidth: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 7,
+    borderRadius: 11,
   },
   ctaBadgeText: {
     fontFamily: FontFamily.bold,
     fontSize: 11,
     color: Colors.white,
+  },
+  ctaArrow: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 2,
   },
 });

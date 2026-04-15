@@ -1,6 +1,11 @@
 // components/discover/filters/ChipGroup.tsx
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Pressable, Text, StyleSheet } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
 import { Colors, FontFamily, Bubble } from '@/constants/theme';
 
 export interface ChipGroupItem<T> {
@@ -31,6 +36,61 @@ function defaultEq<T>(a: T, b: T): boolean {
   return a === b;
 }
 
+// ─── Single chip with press animation ────────────────────────────────────────
+
+interface ChipItemProps {
+  label: string;
+  active: boolean;
+  disabled: boolean;
+  onPress: () => void;
+}
+
+function ChipItem({ label, active, disabled, onPress }: ChipItemProps) {
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Pressable
+      onPress={disabled ? undefined : onPress}
+      disabled={disabled}
+      onPressIn={() => {
+        if (!disabled) {
+          scale.value = withSpring(0.96, { damping: 20, stiffness: 400 });
+        }
+      }}
+      onPressOut={() => {
+        scale.value = withSpring(1, { damping: 20, stiffness: 400 });
+      }}
+    >
+      {({ pressed }) => (
+        <Animated.View
+          style={[
+            animatedStyle,
+            styles.chip,
+            active ? styles.chipActive : styles.chipInactive,
+            disabled && styles.chipDisabled,
+            pressed && !disabled && styles.chipPressed,
+          ]}
+        >
+          <Text
+            style={[
+              styles.label,
+              active ? styles.labelActive : styles.labelInactive,
+            ]}
+          >
+            {label}
+          </Text>
+        </Animated.View>
+      )}
+    </Pressable>
+  );
+}
+
+// ─── Group ────────────────────────────────────────────────────────────────────
+
 export function ChipGroup<T>(props: Props<T>) {
   const eq = props.isEqual ?? defaultEq;
 
@@ -45,44 +105,23 @@ export function ChipGroup<T>(props: Props<T>) {
       return;
     }
     const exists = props.selected.some((s) => eq(s, v));
-    const next = exists ? props.selected.filter((s) => !eq(s, v)) : [...props.selected, v];
+    const next = exists
+      ? props.selected.filter((s) => !eq(s, v))
+      : [...props.selected, v];
     props.onChange(next);
   };
 
   return (
     <View style={styles.row}>
-      {props.items.map((item, idx) => {
-        const active = isActive(item.value);
-        const disabled = item.disabled === true;
-        return (
-          <Pressable
-            key={idx}
-            onPress={() => !disabled && handlePress(item.value)}
-            disabled={disabled}
-          >
-            {({ pressed }) => (
-              <View
-                style={[
-                  styles.chip,
-                  active ? styles.chipActive : styles.chipInactive,
-                  disabled && styles.chipDisabled,
-                  pressed && !disabled && styles.chipPressed,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.label,
-                    active ? styles.labelActive : styles.labelInactive,
-                    disabled && styles.labelDisabled,
-                  ]}
-                >
-                  {item.label}
-                </Text>
-              </View>
-            )}
-          </Pressable>
-        );
-      })}
+      {props.items.map((item, idx) => (
+        <ChipItem
+          key={idx}
+          label={item.label}
+          active={isActive(item.value)}
+          disabled={item.disabled === true}
+          onPress={() => handlePress(item.value)}
+        />
+      ))}
     </View>
   );
 }
@@ -99,32 +138,44 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     ...Bubble.radiiSm,
   },
+  chipInactive: {
+    backgroundColor: Colors.white,
+    borderColor: 'rgba(15,23,42,0.08)',
+    // neutral shadow
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
   chipActive: {
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
-  },
-  chipInactive: {
-    backgroundColor: Colors.white,
-    borderColor: Colors.inputBorder,
+    // primary-tinted shadow
+    shadowColor: Colors.primary,
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
   chipDisabled: {
-    opacity: 0.4,
+    opacity: 0.35,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   chipPressed: {
-    opacity: 0.8,
+    opacity: 0.9,
   },
   label: {
-    fontFamily: FontFamily.medium,
     fontSize: 12,
-  },
-  labelActive: {
-    color: Colors.white,
-    fontFamily: FontFamily.semiBold,
+    letterSpacing: 0.1,
   },
   labelInactive: {
+    fontFamily: FontFamily.medium,
     color: Colors.text,
   },
-  labelDisabled: {
-    color: Colors.textTertiary,
+  labelActive: {
+    fontFamily: FontFamily.semiBold,
+    color: Colors.white,
   },
 });

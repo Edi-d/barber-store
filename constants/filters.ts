@@ -31,13 +31,13 @@ export const AVAILABILITY_OPTIONS: OptionItem<AvailabilityOption>[] = [
   { value: { kind: 'now' }, label: 'Acum' },
   { value: { kind: 'today' }, label: 'Azi' },
   { value: { kind: 'tomorrow' }, label: 'Mâine' },
-  { value: { kind: 'date', date: '' }, label: 'Altă dată', disabled: true },
+  { value: { kind: 'date', date: '' }, label: 'Alege data', disabled: true },
 ];
 
 export const SORT_OPTIONS: OptionItem<SortOption>[] = [
   { value: 'recommended', label: 'Recomandate' },
-  { value: 'nearest', label: 'Cel mai apropiat' },
-  { value: 'cheapest', label: 'Cel mai ieftin' },
+  { value: 'nearest', label: 'Apropiere' },
+  { value: 'cheapest', label: 'Preț' },
   { value: 'rating', label: 'Rating' },
 ];
 
@@ -49,7 +49,7 @@ export interface AmenityItem {
 export const AMENITY_OPTIONS: AmenityItem[] = [
   { key: 'parcare', label: 'Parcare' },
   { key: 'wifi', label: 'Wifi' },
-  { key: 'card', label: 'Plată card' },
+  { key: 'card', label: 'Card' },
   { key: 'accesibil', label: 'Accesibil' },
   { key: 'rezervare_online', label: 'Rezervare online' },
 ];

@@ -23,7 +23,7 @@ export function formatAvailability(v: DiscoverFilters['availability']): string {
     case 'now': return 'Acum';
     case 'today': return 'Azi';
     case 'tomorrow': return 'Mâine';
-    case 'date': return v.date || 'Dată';
+    case 'date': return v.date || 'Alege data';
   }
 }
 
@@ -33,7 +33,7 @@ export function formatServices(
 ): string {
   if (selected.length === 0) return 'Orice';
   if (selected.length === 1) return allLabels.get(selected[0]) ?? selected[0];
-  return `${selected.length} selectate`;
+  return `${selected.length} servicii`;
 }
 
 export function formatAmenities(selected: string[], options: AmenityItem[]): string {
@@ -42,14 +42,14 @@ export function formatAmenities(selected: string[], options: AmenityItem[]): str
     const found = options.find((o) => o.key === selected[0]);
     return found?.label ?? selected[0];
   }
-  return `${selected.length} selectate`;
+  return `${selected.length} facilități`;
 }
 
 export function formatSort(v: DiscoverFilters['sort']): string {
   switch (v) {
     case 'recommended': return 'Recomandate';
-    case 'nearest': return 'Cel mai apropiat';
-    case 'cheapest': return 'Cel mai ieftin';
+    case 'nearest': return 'Apropiere';
+    case 'cheapest': return 'Preț';
     case 'rating': return 'Rating';
   }
 }

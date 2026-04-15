@@ -5,8 +5,9 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  runOnJS,
   withTiming,
+  withSpring,
+  runOnJS,
 } from 'react-native-reanimated';
 import { Colors, FontFamily } from '@/constants/theme';
 
@@ -21,7 +22,9 @@ interface Props {
 }
 
 const KNOB = 22;
+const KNOB_ACTIVE = 24;
 const TRACK_HEIGHT = 4;
+const TOUCH_HEIGHT = 28;
 
 export function PriceRangeSlider({
   minLei,
@@ -36,6 +39,8 @@ export function PriceRangeSlider({
   const rightPct = useSharedValue(toPct(maxLei ?? boundsMaxLei, boundsMinLei, boundsMaxLei));
   const leftStart = useSharedValue(leftPct.value);
   const rightStart = useSharedValue(rightPct.value);
+  const leftActive = useSharedValue(false);
+  const rightActive = useSharedValue(false);
 
   // Keep shared values in sync when props change (ex: reset)
   React.useEffect(() => {
@@ -60,36 +65,78 @@ export function PriceRangeSlider({
     [boundsMinLei, boundsMaxLei, stepLei, onChange]
   );
 
-  const makeKnobGesture = (isLeft: boolean) =>
-    Gesture.Pan()
-      .onBegin(() => {
-        leftStart.value = leftPct.value;
-        rightStart.value = rightPct.value;
-      })
-      .onUpdate((e) => {
-        if (width === 0) return;
-        const delta = e.translationX / width;
-        if (isLeft) {
-          const next = Math.max(0, Math.min(rightPct.value - 0.05, leftStart.value + delta));
-          leftPct.value = next;
-        } else {
-          const next = Math.min(1, Math.max(leftPct.value + 0.05, rightStart.value + delta));
-          rightPct.value = next;
-        }
-      })
-      .onEnd(() => {
-        runOnJS(emit)(leftPct.value, rightPct.value);
-      });
+  const leftGesture = Gesture.Pan()
+    .onBegin(() => {
+      leftStart.value = leftPct.value;
+      rightStart.value = rightPct.value;
+      leftActive.value = true;
+    })
+    .onUpdate((e) => {
+      if (width === 0) return;
+      const delta = e.translationX / width;
+      const next = Math.max(0, Math.min(rightPct.value - 0.05, leftStart.value + delta));
+      leftPct.value = next;
+    })
+    .onEnd(() => {
+      leftActive.value = false;
+      runOnJS(emit)(leftPct.value, rightPct.value);
+    });
 
-  const leftGesture = makeKnobGesture(true);
-  const rightGesture = makeKnobGesture(false);
+  const rightGesture = Gesture.Pan()
+    .onBegin(() => {
+      leftStart.value = leftPct.value;
+      rightStart.value = rightPct.value;
+      rightActive.value = true;
+    })
+    .onUpdate((e) => {
+      if (width === 0) return;
+      const delta = e.translationX / width;
+      const next = Math.min(1, Math.max(leftPct.value + 0.05, rightStart.value + delta));
+      rightPct.value = next;
+    })
+    .onEnd(() => {
+      rightActive.value = false;
+      runOnJS(emit)(leftPct.value, rightPct.value);
+    });
 
-  const leftStyle = useAnimatedStyle(() => ({
-    left: `${leftPct.value * 100}%`,
-  }));
-  const rightStyle = useAnimatedStyle(() => ({
-    left: `${rightPct.value * 100}%`,
-  }));
+  const leftKnobStyle = useAnimatedStyle(() => {
+    const size = withSpring(leftActive.value ? KNOB_ACTIVE : KNOB, {
+      mass: 0.4,
+      stiffness: 280,
+      damping: 20,
+    });
+    const shadowOpacity = withTiming(leftActive.value ? 0.16 : 0.08, { duration: 150 });
+    const shadowRadius = withTiming(leftActive.value ? 10 : 6, { duration: 150 });
+    return {
+      left: `${leftPct.value * 100}%`,
+      width: size,
+      height: size,
+      borderRadius: size / 2,
+      marginLeft: -(size / 2),
+      shadowOpacity,
+      shadowRadius,
+    };
+  });
+
+  const rightKnobStyle = useAnimatedStyle(() => {
+    const size = withSpring(rightActive.value ? KNOB_ACTIVE : KNOB, {
+      mass: 0.4,
+      stiffness: 280,
+      damping: 20,
+    });
+    const shadowOpacity = withTiming(rightActive.value ? 0.16 : 0.08, { duration: 150 });
+    const shadowRadius = withTiming(rightActive.value ? 10 : 6, { duration: 150 });
+    return {
+      left: `${rightPct.value * 100}%`,
+      width: size,
+      height: size,
+      borderRadius: size / 2,
+      marginLeft: -(size / 2),
+      shadowOpacity,
+      shadowRadius,
+    };
+  });
+
   const fillStyle = useAnimatedStyle(() => ({
     left: `${leftPct.value * 100}%`,
     right: `${(1 - rightPct.value) * 100}%`,
@@ -104,10 +151,10 @@ export function PriceRangeSlider({
         <View style={styles.trackBg} />
         <Animated.View style={[styles.fill, fillStyle]} />
         <GestureDetector gesture={leftGesture}>
-          <Animated.View style={[styles.knob, leftStyle]} />
+          <Animated.View style={[styles.knob, leftKnobStyle]} />
         </GestureDetector>
         <GestureDetector gesture={rightGesture}>
-          <Animated.View style={[styles.knob, rightStyle]} />
+          <Animated.View style={[styles.knob, rightKnobStyle]} />
         </GestureDetector>
       </View>
       <View style={styles.labelsRow}>
@@ -137,9 +184,9 @@ function snap(value: number, step: number): number {
 
 const styles = StyleSheet.create({
   track: {
-    height: KNOB,
+    height: TOUCH_HEIGHT,
     justifyContent: 'center',
-    marginHorizontal: KNOB / 2,
+    marginHorizontal: KNOB_ACTIVE / 2,
     marginTop: 6,
   },
   trackBg: {
@@ -147,38 +194,34 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: TRACK_HEIGHT,
-    backgroundColor: Colors.inputBorder,
-    borderRadius: TRACK_HEIGHT / 2,
+    backgroundColor: 'rgba(15,23,42,0.08)',
+    borderRadius: 2,
   },
   fill: {
     position: 'absolute',
     height: TRACK_HEIGHT,
     backgroundColor: Colors.primary,
-    borderRadius: TRACK_HEIGHT / 2,
+    borderRadius: 2,
   },
   knob: {
     position: 'absolute',
-    width: KNOB,
-    height: KNOB,
-    marginLeft: -KNOB / 2,
-    borderRadius: KNOB / 2,
     backgroundColor: Colors.white,
     borderWidth: 2,
     borderColor: Colors.primary,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.12,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
     elevation: 2,
   },
   labelsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 8,
+    marginTop: 12,
   },
   labelText: {
-    fontFamily: FontFamily.medium,
-    fontSize: 11,
-    color: Colors.textSecondary,
+    fontFamily: FontFamily.semiBold,
+    fontSize: 12,
+    color: Colors.text,
   },
 });

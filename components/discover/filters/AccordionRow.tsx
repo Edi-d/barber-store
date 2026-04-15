@@ -20,6 +20,9 @@ interface Props {
 
 const SPRING = { damping: 22, stiffness: 220, mass: 0.8 };
 
+const DIVIDER_COLOR = 'rgba(15,23,42,0.06)';
+const PRESSED_BG = 'rgba(15,23,42,0.02)';
+
 export function AccordionRow({ label, value, isSet, expanded, onToggle, children }: Props) {
   const caretRot = useSharedValue(expanded ? 90 : 0);
 
@@ -32,7 +35,7 @@ export function AccordionRow({ label, value, isSet, expanded, onToggle, children
   }));
 
   return (
-    <View>
+    <View style={styles.row}>
       <Pressable onPress={onToggle}>
         {({ pressed }) => (
           <View style={[styles.header, pressed && styles.headerPressed]}>
@@ -46,23 +49,27 @@ export function AccordionRow({ label, value, isSet, expanded, onToggle, children
           </View>
         )}
       </Pressable>
-      {expanded && <View style={styles.body}>{children}</View>}
+      {expanded && (
+        <View style={styles.body}>{children}</View>
+      )}
+      <View style={styles.divider} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  row: {
+    // no overflow hidden — just a logical grouping
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: Spacing.base,
-    paddingHorizontal: Spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.separator,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
   },
   headerPressed: {
-    backgroundColor: Colors.background,
+    backgroundColor: PRESSED_BG,
   },
   label: {
     fontFamily: FontFamily.semiBold,
@@ -77,17 +84,19 @@ const styles = StyleSheet.create({
   value: {
     fontFamily: FontFamily.medium,
     fontSize: 12,
-    color: Colors.textTertiary,
+    color: Colors.textSecondary,
   },
   valueSet: {
     color: Colors.primary,
     fontFamily: FontFamily.semiBold,
   },
   body: {
-    backgroundColor: '#f8fafc',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.separator,
+    backgroundColor: '#fafbfc',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: DIVIDER_COLOR,
   },
 });

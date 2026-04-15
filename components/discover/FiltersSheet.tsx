@@ -174,15 +174,9 @@ export const FiltersSheet = forwardRef<FiltersSheetHandle, Props>(function Filte
         <Text style={styles.title}>Filtre</Text>
         <Pressable onPress={handleReset} disabled={resetDisabled}>
           {({ pressed }) => (
-            <Text
-              style={[
-                styles.resetText,
-                resetDisabled && styles.resetDisabled,
-                pressed && { opacity: 0.6 },
-              ]}
-            >
-              Resetează
-            </Text>
+            <View style={{ opacity: resetDisabled ? 0.35 : pressed ? 0.6 : 1 }}>
+              <Text style={styles.resetText}>Resetează</Text>
+            </View>
           )}
         </Pressable>
       </View>
@@ -310,7 +304,7 @@ export const FiltersSheet = forwardRef<FiltersSheetHandle, Props>(function Filte
       <View style={styles.footer}>
         <Pressable onPress={handleSubmit}>
           {({ pressed }) => (
-            <View style={[styles.cta, pressed && { opacity: 0.85 }]}>
+            <View style={[styles.cta, pressed && styles.ctaPressed]}>
               <Text style={styles.ctaText}>
                 {previewCount === 0
                   ? 'Niciun rezultat'
@@ -333,68 +327,83 @@ const styles = StyleSheet.create({
   sheetBg: {
     backgroundColor: Colors.white,
     ...Bubble.sheetRadii,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 20,
   },
   handle: {
-    backgroundColor: Colors.handleBar,
-    width: 36,
-    height: 4,
+    backgroundColor: 'rgba(15,23,42,0.15)',
+    width: 44,
+    height: 5,
+    borderRadius: 3,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.md,
+    paddingHorizontal: 20,
+    paddingTop: 6,
+    paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.separator,
+    borderBottomColor: 'rgba(15,23,42,0.06)',
   },
   title: {
     fontFamily: FontFamily.bold,
-    fontSize: 17,
+    fontSize: 18,
     color: Colors.text,
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
   },
   resetText: {
     fontFamily: FontFamily.medium,
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.primary,
   },
-  resetDisabled: {
-    opacity: 0.4,
-  },
   body: {
-    paddingBottom: Spacing.xl,
+    paddingBottom: 32,
   },
   emptyMsg: {
     fontFamily: FontFamily.regular,
     fontSize: 12,
     color: Colors.textSecondary,
+    textAlign: 'center',
+    paddingVertical: 8,
   },
   footer: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 20,
     borderTopWidth: 1,
-    borderTopColor: Colors.separator,
+    borderTopColor: 'rgba(15,23,42,0.06)',
     backgroundColor: Colors.white,
   },
   cta: {
     backgroundColor: Colors.primary,
-    paddingVertical: 13,
+    paddingVertical: 15,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     ...Bubble.radiiSm,
+    shadowColor: Colors.primary,
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  ctaPressed: {
+    opacity: 0.9,
   },
   ctaText: {
     fontFamily: FontFamily.semiBold,
-    fontSize: 13,
+    fontSize: 14,
     color: Colors.white,
+    letterSpacing: 0.1,
   },
   ctaBadge: {
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    paddingHorizontal: 9,
+    paddingVertical: 3,
     borderRadius: 10,
   },
   ctaBadgeText: {

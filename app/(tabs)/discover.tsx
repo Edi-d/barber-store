@@ -698,52 +698,65 @@ export default function DiscoverScreen() {
               )}
               {/* Filter button — opens FiltersSheet */}
               <Pressable
-                style={{
-                  marginLeft: 8,
-                  width: 36,
-                  height: 36,
-                  ...Bubble.radiiSm,
-                  backgroundColor: discoverFilterCount > 0 ? Colors.primary : "#f1f5f9",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   filtersSheetRef.current?.open();
                 }}
               >
-                <Ionicons
-                  name="options"
-                  size={18}
-                  color={discoverFilterCount > 0 ? "white" : "#64748b"}
-                />
-                {discoverFilterCount > 0 && (
+                {({ pressed }: { pressed: boolean }) => (
                   <View
                     style={{
-                      position: "absolute",
-                      top: -4,
-                      right: -4,
-                      backgroundColor: Colors.error,
-                      minWidth: 16,
-                      height: 16,
-                      borderRadius: 8,
+                      marginLeft: 8,
+                      width: 36,
+                      height: 36,
+                      ...Bubble.radiiSm,
+                      backgroundColor: discoverFilterCount > 0 ? Colors.primary : "rgba(15,23,42,0.05)",
                       alignItems: "center",
                       justifyContent: "center",
-                      paddingHorizontal: 3,
-                      borderWidth: 1.5,
-                      borderColor: Colors.white,
+                      opacity: pressed ? 0.85 : 1,
+                      ...(discoverFilterCount > 0 ? {
+                        shadowColor: Colors.primary,
+                        shadowOpacity: 0.25,
+                        shadowRadius: 8,
+                        shadowOffset: { width: 0, height: 3 },
+                        elevation: 3,
+                      } : {}),
                     }}
                   >
-                    <Text
-                      style={{
-                        color: Colors.white,
-                        fontSize: 9,
-                        fontFamily: FontFamily.bold,
-                        lineHeight: 11,
-                      }}
-                    >
-                      {discoverFilterCount}
-                    </Text>
+                    <Ionicons
+                      name="options"
+                      size={18}
+                      color={discoverFilterCount > 0 ? "white" : Colors.textSecondary}
+                    />
+                    {discoverFilterCount > 0 && (
+                      <View
+                        style={{
+                          position: "absolute",
+                          top: -3,
+                          right: -3,
+                          backgroundColor: Colors.error,
+                          minWidth: 14,
+                          height: 14,
+                          borderRadius: 7,
+                          alignItems: "center",
+                          justifyContent: "center",
+                          paddingHorizontal: 3,
+                          borderWidth: 1.5,
+                          borderColor: Colors.white,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontFamily: FontFamily.bold,
+                            lineHeight: 11,
+                          }}
+                        >
+                          {discoverFilterCount}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 )}
               </Pressable>

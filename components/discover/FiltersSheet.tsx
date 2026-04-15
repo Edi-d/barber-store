@@ -153,14 +153,18 @@ export const FiltersSheet = forwardRef<FiltersSheetHandle, Props>(function Filte
     >
       <View style={styles.header}>
         <Text style={styles.title}>Filtre</Text>
-        <Pressable
-          onPress={handleReset}
-          disabled={resetDisabled}
-          style={({ pressed }) => [pressed && { opacity: 0.6 }]}
-        >
-          <Text style={[styles.resetText, resetDisabled && styles.resetDisabled]}>
-            Resetează
-          </Text>
+        <Pressable onPress={handleReset} disabled={resetDisabled}>
+          {({ pressed }) => (
+            <Text
+              style={[
+                styles.resetText,
+                resetDisabled && styles.resetDisabled,
+                pressed && { opacity: 0.6 },
+              ]}
+            >
+              Resetează
+            </Text>
+          )}
         </Pressable>
       </View>
 
@@ -285,19 +289,19 @@ export const FiltersSheet = forwardRef<FiltersSheetHandle, Props>(function Filte
       </BottomSheetScrollView>
 
       <View style={styles.footer}>
-        <Pressable
-          onPress={handleSubmit}
-          className="flex-row items-center justify-center py-3"
-          style={({ pressed }) => [styles.cta, pressed && { opacity: 0.85 }]}
-        >
-          <Text style={styles.ctaText}>
-            {previewCount === 0
-              ? 'Niciun rezultat'
-              : `Arată ${previewCount} ${previewCount === 1 ? 'rezultat' : 'rezultate'}`}
-          </Text>
-          {activeCount > 0 && (
-            <View style={styles.ctaBadge} className="ml-2">
-              <Text style={styles.ctaBadgeText}>{activeCount}</Text>
+        <Pressable onPress={handleSubmit}>
+          {({ pressed }) => (
+            <View style={[styles.cta, pressed && { opacity: 0.85 }]}>
+              <Text style={styles.ctaText}>
+                {previewCount === 0
+                  ? 'Niciun rezultat'
+                  : `Arată ${previewCount} ${previewCount === 1 ? 'rezultat' : 'rezultate'}`}
+              </Text>
+              {activeCount > 0 && (
+                <View style={styles.ctaBadge}>
+                  <Text style={styles.ctaBadgeText}>{activeCount}</Text>
+                </View>
+              )}
             </View>
           )}
         </Pressable>
@@ -356,6 +360,11 @@ const styles = StyleSheet.create({
   },
   cta: {
     backgroundColor: Colors.primary,
+    paddingVertical: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     ...Bubble.radiiSm,
   },
   ctaText: {

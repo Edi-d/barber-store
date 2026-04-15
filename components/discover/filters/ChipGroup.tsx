@@ -59,24 +59,27 @@ export function ChipGroup<T>(props: Props<T>) {
             key={idx}
             onPress={() => !disabled && handlePress(item.value)}
             disabled={disabled}
-            className="px-3 py-1.5 border"
-            style={({ pressed }) => [
-              styles.chip,
-              active && styles.chipActive,
-              !active && styles.chipInactive,
-              disabled && styles.chipDisabled,
-              pressed && !disabled && styles.chipPressed,
-            ]}
           >
-            <Text
-              style={[
-                styles.label,
-                active ? styles.labelActive : styles.labelInactive,
-                disabled && styles.labelDisabled,
-              ]}
-            >
-              {item.label}
-            </Text>
+            {({ pressed }) => (
+              <View
+                style={[
+                  styles.chip,
+                  active ? styles.chipActive : styles.chipInactive,
+                  disabled && styles.chipDisabled,
+                  pressed && !disabled && styles.chipPressed,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.label,
+                    active ? styles.labelActive : styles.labelInactive,
+                    disabled && styles.labelDisabled,
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </View>
+            )}
           </Pressable>
         );
       })}
@@ -88,9 +91,12 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: 8,
   },
   chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1,
     ...Bubble.radiiSm,
   },
   chipActive: {

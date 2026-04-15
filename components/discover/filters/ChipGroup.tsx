@@ -59,6 +59,7 @@ export function ChipGroup<T>(props: Props<T>) {
             key={idx}
             onPress={() => !disabled && handlePress(item.value)}
             disabled={disabled}
+            className="px-3 py-1.5 border"
             style={({ pressed }) => [
               styles.chip,
               active && styles.chipActive,
@@ -90,9 +91,6 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   chip: {
-    paddingHorizontal: 13,
-    paddingVertical: 7,
-    borderWidth: 1,
     ...Bubble.radiiSm,
   },
   chipActive: {

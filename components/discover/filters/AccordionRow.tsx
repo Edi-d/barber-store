@@ -35,10 +35,11 @@ export function AccordionRow({ label, value, isSet, expanded, onToggle, children
     <View>
       <Pressable
         onPress={onToggle}
+        className="flex-row items-center justify-between active:bg-dark-100"
         style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
       >
         <Text style={styles.label}>{label}</Text>
-        <View style={styles.valueRow}>
+        <View className="flex-row items-center" style={styles.valueRow}>
           <Text style={[styles.value, isSet && styles.valueSet]}>{value}</Text>
           <Animated.View style={caretStyle}>
             <Ionicons name="chevron-forward" size={14} color={Colors.textTertiary} />
@@ -52,9 +53,6 @@ export function AccordionRow({ label, value, isSet, expanded, onToggle, children
 
 const styles = StyleSheet.create({
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingVertical: Spacing.base,
     paddingHorizontal: Spacing.lg,
     borderBottomWidth: 1,
@@ -69,8 +67,6 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   valueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 4,
   },
   value: {

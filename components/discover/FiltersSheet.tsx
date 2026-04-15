@@ -287,6 +287,7 @@ export const FiltersSheet = forwardRef<FiltersSheetHandle, Props>(function Filte
       <View style={styles.footer}>
         <Pressable
           onPress={handleSubmit}
+          className="flex-row items-center justify-center py-3"
           style={({ pressed }) => [styles.cta, pressed && { opacity: 0.85 }]}
         >
           <Text style={styles.ctaText}>
@@ -295,7 +296,7 @@ export const FiltersSheet = forwardRef<FiltersSheetHandle, Props>(function Filte
               : `Arată ${previewCount} ${previewCount === 1 ? 'rezultat' : 'rezultate'}`}
           </Text>
           {activeCount > 0 && (
-            <View style={styles.ctaBadge}>
+            <View style={styles.ctaBadge} className="ml-2">
               <Text style={styles.ctaBadgeText}>{activeCount}</Text>
             </View>
           )}
@@ -355,11 +356,6 @@ const styles = StyleSheet.create({
   },
   cta: {
     backgroundColor: Colors.primary,
-    paddingVertical: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 8,
     ...Bubble.radiiSm,
   },
   ctaText: {

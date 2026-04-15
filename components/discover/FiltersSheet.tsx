@@ -14,6 +14,7 @@ import BottomSheet, {
   BottomSheetScrollView,
 } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
+import { useUIStore } from '@/stores/uiStore';
 import { Colors, FontFamily, Spacing, Bubble } from '@/constants/theme';
 import {
   DEFAULT_FILTERS,
@@ -82,6 +83,7 @@ export const FiltersSheet = forwardRef<FiltersSheetHandle, Props>(function Filte
   ref
 ) {
   const sheetRef = useRef<BottomSheet>(null);
+  const setTabBarHidden = useUIStore((s) => s.setTabBarHidden);
   const [draft, setDraft] = useState<DiscoverFilters>(value);
   const [expanded, setExpanded] = useState<RowKey | null>('distance');
 
@@ -97,12 +99,28 @@ export const FiltersSheet = forwardRef<FiltersSheetHandle, Props>(function Filte
       open: () => {
         setDraft(value);
         setExpanded('distance');
+        setTabBarHidden(true);
         sheetRef.current?.expand();
       },
       close: () => sheetRef.current?.close(),
     }),
-    [value]
+    [value, setTabBarHidden]
   );
+
+  const handleSheetChange = useCallback(
+    (index: number) => {
+      // index < 0 means sheet is closed
+      if (index < 0) {
+        setTabBarHidden(false);
+      }
+    },
+    [setTabBarHidden]
+  );
+
+  // Safety: restore tab bar on unmount
+  useEffect(() => {
+    return () => setTabBarHidden(false);
+  }, [setTabBarHidden]);
 
   const snapPoints = useMemo(() => ['85%'], []);
 
@@ -147,6 +165,7 @@ export const FiltersSheet = forwardRef<FiltersSheetHandle, Props>(function Filte
       index={-1}
       snapPoints={snapPoints}
       enablePanDownToClose
+      onChange={handleSheetChange}
       backdropComponent={renderBackdrop}
       handleIndicatorStyle={styles.handle}
       backgroundStyle={styles.sheetBg}

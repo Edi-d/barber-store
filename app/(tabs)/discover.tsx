@@ -30,8 +30,14 @@ import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { enrichSalons, SalonWithDistance } from "@/lib/discover";
 import { CountdownTimer } from "@/components/shared/CountdownTimer";
 import { UpcomingAppointmentBanner } from "@/components/home/UpcomingAppointmentBanner";
-import { Bubble, Brand } from "@/constants/theme";
+import { Bubble, Brand, Colors, FontFamily } from "@/constants/theme";
 import { DiscoverSalonCard } from "@/components/discover/DiscoverSalonCard";
+import * as Haptics from 'expo-haptics';
+import { useDiscoverFilters } from '@/hooks/useDiscoverFilters';
+import { applyFilters, type FilterContext } from '@/lib/discover-filter';
+import type { DiscoverFilters } from '@/types/filters';
+import { FiltersSheet, type FiltersSheetHandle, type ServiceOption } from '@/components/discover/FiltersSheet';
+import { BarberService } from '@/types/database';
 
 const bubbleRadii = Bubble.radii;
 const bubbleRadiiSm = Bubble.radiiSm;
@@ -55,6 +61,16 @@ export default function DiscoverScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSalon, setSelectedSalon] = useState<SalonWithDistance | null>(null);
   const [filterAvailableNow, setFilterAvailableNow] = useState(false);
+  const { filters: discoverFilters, apply: applyDiscoverFilters, count: discoverFilterCount } = useDiscoverFilters();
+  const filtersSheetRef = useRef<FiltersSheetHandle>(null);
+
+  useEffect(() => {
+    const shouldBeOn = discoverFilters.availability.kind === 'now';
+    if (shouldBeOn !== filterAvailableNow) {
+      setFilterAvailableNow(shouldBeOn);
+    }
+  }, [discoverFilters.availability, filterAvailableNow]);
+
   const [showNotifications, setShowNotifications] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
@@ -200,6 +216,46 @@ export default function DiscoverScreen() {
     staleTime: 5 * 60 * 1000, // prices don't change often
   });
 
+  const { data: salonServicesData } = useQuery({
+    queryKey: ["salon-services-full"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("barber_services")
+        .select("id, salon_id, name, description, duration_min, price_cents, currency, category, active, created_at")
+        .eq("active", true)
+        .not("salon_id", "is", null);
+      if (error) throw error;
+      return data as BarberService[];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const servicesBySalonId = useMemo(() => {
+    const map = new Map<string, BarberService[]>();
+    if (!salonServicesData) return map;
+    for (const s of salonServicesData) {
+      if (!s.salon_id) continue;
+      const list = map.get(s.salon_id) ?? [];
+      list.push(s);
+      map.set(s.salon_id, list);
+    }
+    return map;
+  }, [salonServicesData]);
+
+  const serviceOptions = useMemo<ServiceOption[]>(() => {
+    const seen = new Map<string, string>();
+    if (!salonServicesData) return [];
+    for (const s of salonServicesData) {
+      const key = (s.category ?? s.name ?? '').toLowerCase();
+      if (!key) continue;
+      if (!seen.has(key)) {
+        const label = s.category ?? s.name ?? key;
+        seen.set(key, label.charAt(0).toUpperCase() + label.slice(1));
+      }
+    }
+    return Array.from(seen.entries()).map(([key, label]) => ({ key, label }));
+  }, [salonServicesData]);
+
   // Fetch salon photos for card carousels
   const { data: salonPhotosData } = useQuery({
     queryKey: ["salon-photos-all"],
@@ -243,6 +299,19 @@ export default function DiscoverScreen() {
       const list = map.get(salonId) || [];
       list.push({ barber_id: a.barber_id, day_of_week: a.day_of_week, start_time: a.start_time, end_time: a.end_time, is_available: a.is_available });
       map.set(salonId, list);
+    }
+    return map;
+  }, [availabilityData]);
+
+  const scheduleDaysBySalonId = useMemo(() => {
+    const map = new Map<string, Set<number>>();
+    if (!availabilityData) return map;
+    for (const a of availabilityData) {
+      const salonId = a.barber?.salon_id;
+      if (!salonId) continue;
+      const set = map.get(salonId) ?? new Set<number>();
+      set.add(a.day_of_week);
+      map.set(salonId, set);
     }
     return map;
   }, [availabilityData]);
@@ -322,23 +391,55 @@ export default function DiscoverScreen() {
       );
     }
 
-    // Filter available now
-    if (filterAvailableNow) {
-      filtered = filtered.filter(
-        (s) => s.is_available_now && (s.distance_km == null || s.distance_km <= 5)
-      );
-    }
-
-    // Sort by distance
-    filtered.sort((a, b) => {
-      if (a.distance_km == null && b.distance_km == null) return 0;
-      if (a.distance_km == null) return 1;
-      if (b.distance_km == null) return -1;
-      return a.distance_km - b.distance_km;
-    });
+    // New unified filters (distance, price, rating, availability, services, amenities, sort)
+    const ctx: FilterContext = {
+      servicesBySalonId,
+      scheduleDaysBySalonId,
+      now: new Date(),
+    };
+    filtered = applyFilters(filtered, discoverFilters, ctx);
 
     return filtered;
-  }, [salons, searchQuery, filterAvailableNow, selectedCategory]);
+  }, [
+    salons,
+    searchQuery,
+    selectedCategory,
+    showFavoritesOnly,
+    discoverFilters,
+    servicesBySalonId,
+    scheduleDaysBySalonId,
+  ]);
+
+  // Pure base list (before unified filters) — used by FiltersSheet for live preview count.
+  const baseSalonsForPreview = useMemo(() => {
+    let base = [...salons];
+    if (showFavoritesOnly) base = base.filter((s) => s.is_favorite);
+    if (selectedCategory) base = base.filter((s) => s.salon_types?.includes(selectedCategory));
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      base = base.filter(
+        (s) =>
+          s.name.toLowerCase().includes(q) ||
+          s.city?.toLowerCase().includes(q) ||
+          s.address?.toLowerCase().includes(q) ||
+          s.specialties?.some((sp) => sp.toLowerCase().includes(q)) ||
+          s.bio?.toLowerCase().includes(q)
+      );
+    }
+    return base;
+  }, [salons, searchQuery, selectedCategory, showFavoritesOnly]);
+
+  const computeFilterPreview = useCallback(
+    (draft: DiscoverFilters) => {
+      const ctx: FilterContext = {
+        servicesBySalonId,
+        scheduleDaysBySalonId,
+        now: new Date(),
+      };
+      return applyFilters(baseSalonsForPreview, draft, ctx).length;
+    },
+    [baseSalonsForPreview, servicesBySalonId, scheduleDaysBySalonId]
+  );
 
   const availableNowCount = useMemo(
     () => salons.filter((s) => s.is_available_now && (s.distance_km == null || s.distance_km <= 5)).length,
@@ -468,6 +569,10 @@ export default function DiscoverScreen() {
 
     const next = !filterAvailableNow;
     setFilterAvailableNow(next);
+    applyDiscoverFilters({
+      ...discoverFilters,
+      availability: next ? { kind: 'now' } : { kind: 'any' },
+    });
     if (next) {
       setShowFavoritesOnly(false);
       bottomSheetRef.current?.snapToIndex(1);
@@ -591,24 +696,56 @@ export default function DiscoverScreen() {
                   <Ionicons name="close-circle" size={20} color="#94a3b8" />
                 </Pressable>
               )}
-              {/* Filter button */}
+              {/* Filter button — opens FiltersSheet */}
               <Pressable
                 style={{
                   marginLeft: 8,
                   width: 36,
                   height: 36,
                   ...Bubble.radiiSm,
-                  backgroundColor: filterAvailableNow ? "#0A66C2" : "#f1f5f9",
+                  backgroundColor: discoverFilterCount > 0 ? Colors.primary : "#f1f5f9",
                   alignItems: "center",
                   justifyContent: "center",
                 }}
-                onPress={() => setFilterAvailableNow(!filterAvailableNow)}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  filtersSheetRef.current?.open();
+                }}
               >
                 <Ionicons
                   name="options"
                   size={18}
-                  color={filterAvailableNow ? "white" : "#64748b"}
+                  color={discoverFilterCount > 0 ? "white" : "#64748b"}
                 />
+                {discoverFilterCount > 0 && (
+                  <View
+                    style={{
+                      position: "absolute",
+                      top: -4,
+                      right: -4,
+                      backgroundColor: Colors.error,
+                      minWidth: 16,
+                      height: 16,
+                      borderRadius: 8,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      paddingHorizontal: 3,
+                      borderWidth: 1.5,
+                      borderColor: Colors.white,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontFamily: FontFamily.bold,
+                        lineHeight: 11,
+                      }}
+                    >
+                      {discoverFilterCount}
+                    </Text>
+                  </View>
+                )}
               </Pressable>
             </View>
 
@@ -1148,6 +1285,15 @@ export default function DiscoverScreen() {
 
           </BottomSheetScrollView>
         </BottomSheet>
+
+      {/* ── Filters Bottom Sheet ── */}
+      <FiltersSheet
+        ref={filtersSheetRef}
+        value={discoverFilters}
+        onApply={applyDiscoverFilters}
+        serviceOptions={serviceOptions}
+        computePreview={computeFilterPreview}
+      />
 
       {/* ── Notifications Modal ── */}
       <Modal

@@ -10,6 +10,7 @@ import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { Colors, Bubble, Shadows, Spacing } from "@/constants/theme";
 import { useTutorialContext } from "@/components/tutorial/TutorialProvider";
+import { useLoyaltyProfile } from "@/hooks/useLoyaltyProfile";
 
 import { ProfileHero } from "@/components/profile/ProfileHero";
 import { ProfileMenu } from "@/components/profile/ProfileMenu";
@@ -32,6 +33,8 @@ export default function ProfileScreen() {
       unregisterRef("profile-menu-tutorials");
     };
   }, [registerRef, unregisterRef]);
+
+  const { data: loyaltyProfile } = useLoyaltyProfile();
 
   const { data: stats, refetch, isRefetching } = useQuery({
     queryKey: ["profile-stats", session?.user.id],
@@ -68,6 +71,14 @@ export default function ProfileScreen() {
   const isCreator = profile.role === "creator" || profile.role === "admin";
 
   const menuItems = [
+    {
+      icon: 'trophy',
+      label: 'Punctele mele',
+      onPress: () => router.push('/loyalty'),
+      badge: loyaltyProfile?.balance ?? undefined,
+      iconColor: '#F5A623',
+      iconBgColor: 'rgba(245,166,35,0.1)',
+    },
     {
       icon: "calendar",
       label: "Programările mele",

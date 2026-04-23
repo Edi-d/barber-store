@@ -677,7 +677,7 @@ export interface SalonReview {
   salon_id: string;
   rating: number;
   comment: string | null;
-  photo_url: string | null;
+  photo_urls: string[];
   owner_reply: string | null;
   owner_reply_at: string | null;
   created_at: string;
@@ -772,3 +772,36 @@ export type NotificationWithActor = Notification & {
 // ── Search ──
 
 export type SearchResultType = 'salon' | 'person' | 'post';
+
+// ── Platform XP (DIVE loyalty) ──────────────────────────
+
+export interface PlatformXpTransaction {
+  id: string;
+  user_id: string;
+  amount: number;            // positive = earn, negative = reverse/redeem
+  balance_after: number;     // user's running balance after this row
+  source_type: string;       // 'appointment' | 'order' | 'reverse' | 'voucher' | etc.
+  source_id: string | null;  // appointment.id or order.id etc.
+  salon_id: string | null;
+  ron_amount_cents: number | null;
+  description: string | null;
+  idempotency_key: string | null;
+  created_at: string;
+}
+
+export interface XpLevelThreshold {
+  level: number;             // 1..N, monotonic
+  xp_required: number;       // minimum lifetime XP to reach this level
+  title: string;             // 'Bronze' | 'Silver' | 'Gold' | ...
+  perks: string[];           // JSONB array of perk strings
+  created_at: string;
+}
+
+export interface XpVoucherTier {
+  tier_points: number;       // points cost (1000 | 3000 | 6000 | 10000)
+  voucher_value_cents: number;
+  label_ro: string;
+  bonus_pct: number;         // 0 | 17 | 33 | 50
+  is_active: boolean;
+  sort_order: number;
+}

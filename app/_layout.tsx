@@ -18,6 +18,9 @@ import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { useAuthStore } from "@/stores/authStore";
 import { TutorialProvider } from '@/components/tutorial/TutorialProvider';
+import { useLoyaltyNotifications } from '@/hooks/useLoyaltyNotifications';
+import { PointsEarnedToast } from '@/components/loyalty/PointsEarnedToast';
+import { TierUpModal } from '@/components/loyalty/TierUpModal';
 import '@/lib/livekit-setup';
 
 SplashScreen.preventAutoHideAsync();
@@ -127,6 +130,31 @@ function LoadingScreen() {
   );
 }
 
+function LoyaltyGlobalOverlays() {
+  const { lastEarned, dismissEarned, tierChanged, dismissTierChanged } = useLoyaltyNotifications();
+
+  return (
+    <>
+      {lastEarned && (
+        <PointsEarnedToast
+          visible={!!lastEarned}
+          points={lastEarned.points}
+          source={lastEarned.source}
+          onDismiss={dismissEarned}
+        />
+      )}
+      {tierChanged && (
+        <TierUpModal
+          visible={!!tierChanged}
+          fromLevel={tierChanged.from}
+          toLevel={tierChanged.to}
+          onClose={dismissTierChanged}
+        />
+      )}
+    </>
+  );
+}
+
 function RootLayoutNav() {
   const { isInitialized, initialize } = useAuthStore();
 
@@ -174,6 +202,7 @@ function RootLayoutNav() {
         <Stack.Screen name="tutorial-lesson/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="profile/[id]" options={{ headerShown: false }} />
       </Stack>
+      <LoyaltyGlobalOverlays />
     </>
   );
 }

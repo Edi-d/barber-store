@@ -5,12 +5,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { useAuthStore } from '@/stores/authStore';
 import { useUIStore } from '@/stores/uiStore';
 import ActionMenuItem from './ActionMenuItem';
 import CreateMenuBackdrop from './CreateMenuBackdrop';
 import PlusButton from './PlusButton';
-import { CLIENT_ACTIONS, BARBER_ACTIONS, type CreateMenuAction } from '@/data/createMenuActions';
+import { CLIENT_ACTIONS, type CreateMenuAction } from '@/data/createMenuActions';
 import { Colors, Bubble, CreateMenuColors, Shadows } from '@/constants/theme';
 
 // ---------------------------------------------------------------------------
@@ -39,16 +38,9 @@ export default function CreateActionMenu({
   onFabPressOut,
 }: CreateActionMenuProps) {
   const insets = useSafeAreaInsets();
-  const { profile } = useAuthStore();
   const { createMenuOpen } = useUIStore();
 
-  const isBarberUser =
-    profile?.onboarding_role === 'salon_owner' ||
-    profile?.onboarding_role === 'barber' ||
-    profile?.role === 'creator' ||
-    profile?.role === 'admin';
-
-  const actions: CreateMenuAction[] = isBarberUser ? BARBER_ACTIONS : CLIENT_ACTIONS;
+  const actions: CreateMenuAction[] = CLIENT_ACTIONS;
 
   // ---------------------------------------------------------------------------
   // Android hardware back button

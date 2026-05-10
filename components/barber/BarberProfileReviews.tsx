@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { SalonReviewWithAuthor } from "@/types/database";
 import { getInitials, timeAgo } from "@/lib/utils";
 import { Bubble, Shadows } from "@/constants/theme";
+import { ReviewPhotoStrip } from "@/components/shared/ReviewPhotoStrip";
 
 interface BarberProfileReviewsProps {
   ratingAvg: number;
@@ -134,15 +135,7 @@ export function BarberProfileReviews({
             </Text>
           )}
 
-          {/* Photo */}
-          {review.photo_url && (
-            <Image
-              source={{ uri: review.photo_url }}
-              className="w-full h-40 mt-2"
-              style={{ borderRadius: 12 }}
-              resizeMode="cover"
-            />
-          )}
+          <ReviewPhotoStrip photos={review.photo_urls ?? []} />
 
           {/* Owner reply */}
           {review.owner_reply ? (

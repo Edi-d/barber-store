@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, Platform, LayoutChangeEvent } from "react-native";
+import { View, Text, StyleSheet, Platform, LayoutChangeEvent, Pressable } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -53,6 +53,7 @@ const TIMING_LINE = { duration: 400, easing: Easing.out(Easing.cubic) };
 interface BookingStepIndicatorProps {
   currentStep: 1 | 2 | 3 | 4;
   stepTitles: Record<number, string>;
+  onStepPress?: (step: 1 | 2 | 3 | 4) => void;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -60,13 +61,15 @@ interface BookingStepIndicatorProps {
 interface StepCircleProps {
   stepIndex: number;
   currentStep: number;
+  onPress?: () => void;
 }
 
-function StepCircle({ stepIndex, currentStep }: StepCircleProps) {
+function StepCircle({ stepIndex, currentStep, onPress }: StepCircleProps) {
   const isCompleted = stepIndex < currentStep;
   const isActive = stepIndex === currentStep;
 
   const scale = useSharedValue(1);
+  const pressScale = useSharedValue(1);
   const checkOpacity = useSharedValue(isCompleted ? 1 : 0);
   const numOpacity = useSharedValue(isCompleted ? 0 : 1);
   const glowOpacity = useSharedValue(isActive || isCompleted ? 1 : 0);
@@ -100,7 +103,7 @@ function StepCircle({ stepIndex, currentStep }: StepCircleProps) {
   }, [currentStep]);
 
   const circleAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
+    transform: [{ scale: scale.value * pressScale.value }],
   }));
 
   const glowAnimStyle = useAnimatedStyle(() => ({
@@ -125,7 +128,7 @@ function StepCircle({ stepIndex, currentStep }: StepCircleProps) {
     opacity: numOpacity.value,
   }));
 
-  return (
+  const circleContent = (
     <Animated.View style={[styles.circleWrapper, circleAnimStyle]}>
       <Animated.View
         style={[
@@ -154,6 +157,38 @@ function StepCircle({ stepIndex, currentStep }: StepCircleProps) {
         </View>
       )}
     </Animated.View>
+  );
+
+  if (onPress) {
+    return (
+      <Pressable
+        onPress={onPress}
+        onPressIn={() => {
+          pressScale.value = withSpring(0.88, SPRING_CONFIG);
+        }}
+        onPressOut={() => {
+          pressScale.value = withSpring(1, SPRING_CONFIG);
+        }}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        accessibilityRole="button"
+        accessibilityLabel={`Pasul ${stepIndex}, completat. Apasă pentru a reveni.`}
+        accessibilityState={{ selected: false }}
+      >
+        {circleContent}
+      </Pressable>
+    );
+  }
+
+  return (
+    <View
+      accessible={isActive}
+      accessibilityRole={isActive ? "text" : undefined}
+      accessibilityLabel={
+        isActive ? `Pasul ${stepIndex}, activ` : undefined
+      }
+    >
+      {circleContent}
+    </View>
   );
 }
 
@@ -234,6 +269,7 @@ function StepTitle({ title, isActive }: StepTitleProps) {
 export function BookingStepIndicator({
   currentStep,
   stepTitles,
+  onStepPress,
 }: BookingStepIndicatorProps) {
   const prevStep = useRef<number | null>(null);
 
@@ -257,7 +293,11 @@ export function BookingStepIndicator({
               flex: i < TOTAL_STEPS - 1 ? 1 : undefined,
             }}
           >
-            <StepCircle stepIndex={s} currentStep={currentStep} />
+            <StepCircle
+                stepIndex={s}
+                currentStep={currentStep}
+                onPress={onStepPress && s < currentStep ? () => onStepPress(s) : undefined}
+              />
             {i < TOTAL_STEPS - 1 && (
               <ConnectorLine leftStepIndex={s} currentStep={currentStep} />
             )}

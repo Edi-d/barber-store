@@ -28,6 +28,8 @@ interface ProductActionsProps {
   onQuantityChange: (delta: number) => void;
   onAddToCart: () => void;
   bottomInset: number;
+  /** When false, the trash icon at qty=1 is suppressed — always shows minus. Default true. */
+  allowRemove?: boolean;
 }
 
 export default function ProductActions({
@@ -36,6 +38,7 @@ export default function ProductActions({
   onQuantityChange,
   onAddToCart,
   bottomInset,
+  allowRemove = true,
 }: ProductActionsProps) {
   const total = price * quantity;
 
@@ -96,7 +99,7 @@ export default function ProductActions({
               style={styles.quantityBtn}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
-              {quantity <= 1 ? (
+              {quantity <= 1 && allowRemove ? (
                 <Feather name="trash-2" size={16} color={Colors.error} />
               ) : (
                 <Feather name="minus" size={16} color={Brand.primary} />
@@ -210,6 +213,8 @@ const styles = StyleSheet.create({
   },
   addBtn: {
     flex: 1,
+    ...Bubble.radiiSm,
+    overflow: 'hidden',
   },
   addBtnGradient: {
     height: 48,

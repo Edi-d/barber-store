@@ -10,14 +10,33 @@ import { supabase } from '@/lib/supabase';
 const channels = new Map<string, RealtimeChannel>();
 
 /**
- * Returns an existing channel if one with that name is already open,
- * otherwise creates a new one via supabase.channel(name).
- * Callers chain .on(...) and call .subscribe() themselves.
+ * Returns an existing channel if one with that name is already open AND not yet
+ * subscribed, otherwise creates a new one via supabase.channel(name).
+ *
+ * Callers chain .on(...) and call .subscribe() themselves. Newer Supabase
+ * clients (>= 2.97) reject .on('postgres_changes', ...) on a channel that has
+ * already been .subscribe()d — so a stale cached subscribed channel here would
+ * crash the next consumer. We tear down such stale entries fire-and-forget and
+ * fall through to create a fresh instance.
  */
 export function getOrCreateChannel(name: string): RealtimeChannel {
   const existing = channels.get(name);
   if (existing) {
-    return existing;
+    // RealtimeChannel.state: 'closed' | 'errored' | 'joined' | 'joining' | 'leaving'
+    // Only 'closed' is safe to add new .on() listeners on.
+    const state = (existing as unknown as { state?: string }).state;
+    if (state === 'closed' || state === undefined) {
+      return existing;
+    }
+
+    // Stale subscribed channel — tear it down and create fresh.
+    if (__DEV__) {
+      console.log(`[Realtime] Recreating stale channel (state=${state}): ${name}`);
+    }
+    supabase.removeChannel(existing).catch((err) => {
+      console.warn(`[Realtime] Error tearing down stale channel "${name}"`, err);
+    });
+    channels.delete(name);
   }
 
   const channel = supabase.channel(name);

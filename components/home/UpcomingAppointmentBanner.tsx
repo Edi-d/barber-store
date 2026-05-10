@@ -25,6 +25,8 @@ import Animated, {
   withTiming,
   withRepeat,
   withSequence,
+  withDelay,
+  cancelAnimation,
   Easing,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
@@ -105,21 +107,33 @@ function DrainPill({ progress, label, isUrgent, colors }: DrainPillProps) {
     width: `${fillWidth.value * 100}%` as `${number}%`,
   }));
 
-  // Subtle pulse when urgent
+  // Subtle pulse when urgent — deferred so it doesn't race the parent's
+  // FadeInUp.springify entering animation during Yoga commit (Reanimated 4).
+  // NOTE: nested Easing compositions (e.g. Easing.inOut(Easing.sine)) don't
+  // serialize correctly across the JS↔worklet boundary in Reanimated 4 — the
+  // captured inner easing reference becomes undefined on the UI runtime,
+  // throwing "easing is not a function". Use a primitive bezier instead.
   const pulseScale = useSharedValue(1);
   useEffect(() => {
-    if (isUrgent) {
-      pulseScale.value = withRepeat(
+    if (!isUrgent) {
+      pulseScale.value = withTiming(1, { duration: 300 });
+      return;
+    }
+    const SINE_INOUT = Easing.bezier(0.45, 0.05, 0.55, 0.95);
+    pulseScale.value = withDelay(
+      600,
+      withRepeat(
         withSequence(
-          withTiming(1.03, { duration: 800, easing: Easing.inOut(Easing.sine) }),
-          withTiming(1.0, { duration: 800, easing: Easing.inOut(Easing.sine) })
+          withTiming(1.03, { duration: 800, easing: SINE_INOUT }),
+          withTiming(1.0, { duration: 800, easing: SINE_INOUT })
         ),
         -1,
         false
-      );
-    } else {
-      pulseScale.value = withTiming(1, { duration: 300 });
-    }
+      )
+    );
+    return () => {
+      cancelAnimation(pulseScale);
+    };
   }, [isUrgent]);
 
   const pulseStyle = useAnimatedStyle(() => ({
@@ -237,8 +251,8 @@ export function UpcomingAppointmentBanner({
   return (
     <Animated.View
       entering={FadeInUp.springify().damping(20).stiffness(240).delay(80)}
-      style={pressStyle}
     >
+      <Animated.View style={pressStyle}>
       <Pressable
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -336,6 +350,7 @@ export function UpcomingAppointmentBanner({
           </View>
         </View>
       </Pressable>
+      </Animated.View>
     </Animated.View>
   );
 }

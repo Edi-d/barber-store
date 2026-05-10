@@ -7,7 +7,7 @@ import {
   Platform,
   LayoutChangeEvent,
 } from "react-native";
-import { Tabs, router } from "expo-router";
+import { Tabs, router, usePathname } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
@@ -23,11 +23,15 @@ import * as Haptics from "expo-haptics";
 import { useCartStore } from "@/stores/cartStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useUIStore } from "@/stores/uiStore";
-import { Colors } from "@/constants/theme";
+import { useMarketplaceCartStore } from "@/hooks/use-marketplace-cart-store";
+import { Colors, Spacing } from "@/constants/theme";
 import { useTutorialContext } from "@/components/tutorial/TutorialProvider";
 import useCreateMenu from "@/hooks/useCreateMenu";
 import PlusButton from "@/components/shared/PlusButton";
 import CreateActionMenu from "@/components/shared/CreateActionMenu";
+import { CartBar } from "@/components/shop/CartBar";
+import { MarketplaceCartBar } from "@/components/shop/MarketplaceCartBar";
+import { MarketplaceCartModal } from "@/components/marketplace/MarketplaceCartModal";
 
 /* ─── Dimensions ─────────────────────────────────────────── */
 const BAR_H = 70;
@@ -154,7 +158,13 @@ function GlassTabBar({
   const safeInsets = useSafeAreaInsets();
   const { totalItems } = useCartStore();
   const tabBarHidden = useUIStore((s) => s.tabBarHidden);
-  const cartCount = totalItems();
+  // Read marketplace count directly from its store so the badge updates from
+  // any marketplace screen (PDP, cart, search), not just index.tsx.
+  const marketplaceCartCount = useMarketplaceCartStore((s) => s.items.length);
+  const pathname = usePathname();
+  const isOnMarketplace = pathname.startsWith('/marketplace') || pathname === '/shop';
+  // Tab badge: show marketplace count when on marketplace routes, legacy cart otherwise
+  const cartCount = isOnMarketplace ? marketplaceCartCount : totalItems();
   const bottom = Math.max(safeInsets.bottom - 12, 6);
 
   /* ── Tutorial ref registration ── */
@@ -310,6 +320,74 @@ function GlassTabBar({
   );
 }
 
+/* ─── Cart bar mounts ────────────────────────────────────── */
+
+/**
+ * ShopCartBarMount — legacy shop cart bar.
+ * Only renders on legacy shop routes (/cart, /product/*, /checkout, /orders)
+ * AND when items > 0. Returns null on tabs (discover, profile, feed, etc.).
+ */
+function ShopCartBarMount() {
+  const safeInsets = useSafeAreaInsets();
+  const pathname = usePathname();
+  const { totalItems, totalPrice } = useCartStore();
+
+  const isLegacyShopRoute =
+    pathname.startsWith('/cart') ||
+    pathname.startsWith('/product') ||
+    pathname.startsWith('/checkout') ||
+    pathname.startsWith('/orders');
+
+  const itemCount = totalItems();
+  if (!isLegacyShopRoute || itemCount <= 0) return null;
+
+  const bottom = Math.max(safeInsets.bottom - 12, 6);
+  const cartBarBottomInset = safeInsets.bottom + BAR_H + bottom;
+
+  return (
+    <CartBar
+      totalItems={itemCount}
+      totalPrice={totalPrice ? totalPrice() : 0}
+      onPress={() => router.push('/cart')}
+      bottomInset={cartBarBottomInset}
+    />
+  );
+}
+
+/**
+ * MarketplaceCartBarMount — marketplace cart bar.
+ * Only renders on /marketplace routes AND when items > 0
+ * (visibility gating done both here and inside MarketplaceCartBar).
+ */
+function MarketplaceCartBarMount() {
+  const safeInsets = useSafeAreaInsets();
+  const pathname = usePathname();
+  const itemCount = useMarketplaceCartStore((s) => s.items.length);
+
+  const isMarketplaceRoute = pathname.startsWith('/marketplace');
+  if (!isMarketplaceRoute || itemCount <= 0) return null;
+
+  const bottom = Math.max(safeInsets.bottom - 12, 6);
+  // Stack marketplace bar above shop bar position (+ 8px extra clearance)
+  const cartBarBottomInset = safeInsets.bottom + BAR_H + bottom + Spacing.sm;
+  return <MarketplaceCartBar bottomInset={cartBarBottomInset} />;
+}
+
+/**
+ * MarketplaceCartModalMount — drives modal visibility from UIStore.
+ */
+function MarketplaceCartModalMount() {
+  const marketplaceCartOpen = useUIStore((s) => s.marketplaceCartOpen);
+  const setMarketplaceCartOpen = useUIStore((s) => s.setMarketplaceCartOpen);
+
+  return (
+    <MarketplaceCartModal
+      visible={marketplaceCartOpen}
+      onClose={() => setMarketplaceCartOpen(false)}
+    />
+  );
+}
+
 /* ─── Tab Layout ─────────────────────────────────────────── */
 export default function TabsLayout() {
   const { fetchCart } = useCartStore();
@@ -352,6 +430,11 @@ export default function TabsLayout() {
         onFabPressIn={createMenu.onFabPressIn}
         onFabPressOut={createMenu.onFabPressOut}
       />
+      {/* Dual CartBar mounts — tab-aware, mutually exclusive visibility */}
+      <ShopCartBarMount />
+      <MarketplaceCartBarMount />
+      {/* Marketplace cart modal — driven by UIStore */}
+      <MarketplaceCartModalMount />
     </CreateMenuContext.Provider>
   );
 }

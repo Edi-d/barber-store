@@ -22,21 +22,22 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/authStore";
 import { useLocationStore } from "@/stores/locationStore";
-import { Salon, SalonType, AppointmentWithDetails, SalonHappyHour } from "@/types/database";
+import { Salon, AppointmentWithDetails, SalonHappyHour } from "@/types/database";
 import { CategoryPickerModal } from "@/components/discover/CategoryPickerModal";
 import { Ionicons } from "@expo/vector-icons";
-import MapView, { Marker, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from "react-native-maps";
+import MapView, { PROVIDER_GOOGLE, PROVIDER_DEFAULT } from "react-native-maps";
 import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { enrichSalons, SalonWithDistance } from "@/lib/discover";
 import { CountdownTimer } from "@/components/shared/CountdownTimer";
 import { UpcomingAppointmentBanner } from "@/components/home/UpcomingAppointmentBanner";
-import { Bubble, Brand, Colors, FontFamily } from "@/constants/theme";
+import { Bubble, Colors, FontFamily } from "@/constants/theme";
 import { DiscoverSalonCard } from "@/components/discover/DiscoverSalonCard";
 import * as Haptics from 'expo-haptics';
 import { useDiscoverFilters } from '@/hooks/useDiscoverFilters';
 import { applyFilters, type FilterContext } from '@/lib/discover-filter';
 import type { DiscoverFilters } from '@/types/filters';
 import { FiltersSheet, type FiltersSheetHandle, type ServiceOption } from '@/components/discover/FiltersSheet';
+import SalonMarker from "@/components/discover/SalonMarker";
 import { BarberService } from '@/types/database';
 
 const bubbleRadii = Bubble.radii;
@@ -53,6 +54,8 @@ const cardShadow = Platform.select({
 
 export default function DiscoverScreen() {
   const { height: SCREEN_HEIGHT } = useWindowDimensions();
+  const SHEET_CLOSED_BOTTOM = SCREEN_HEIGHT * 0.32;
+  const SHEET_OPEN_BOTTOM = SCREEN_HEIGHT * 0.60;
   const insets = useSafeAreaInsets();
   const { session, profile } = useAuthStore();
   const queryClient = useQueryClient();
@@ -60,6 +63,7 @@ export default function DiscoverScreen() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSalon, setSelectedSalon] = useState<SalonWithDistance | null>(null);
+  const [sheetIndex, setSheetIndex] = useState(-1);
   const [filterAvailableNow, setFilterAvailableNow] = useState(false);
   const { filters: discoverFilters, apply: applyDiscoverFilters, count: discoverFilterCount } = useDiscoverFilters();
   const filtersSheetRef = useRef<FiltersSheetHandle>(null);
@@ -74,7 +78,6 @@ export default function DiscoverScreen() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<SalonType | null>(null);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
   const mapRef = useRef<MapView>(null);
@@ -86,7 +89,6 @@ export default function DiscoverScreen() {
   const { registerRef, unregisterRef } = useTutorialContext();
   const tutorialSearchRef = useRef<View>(null);
   const tutorialFilterAvailableRef = useRef<View>(null);
-  const tutorialCategoryChipRef = useRef<View>(null);
   const tutorialFavoritesToggleRef = useRef<View>(null);
   const tutorialSalonCardRef = useRef<View>(null);
 
@@ -99,13 +101,11 @@ export default function DiscoverScreen() {
   useEffect(() => {
     registerRef("discover-search", tutorialSearchRef);
     registerRef("discover-filter-available", tutorialFilterAvailableRef);
-    registerRef("discover-category-chip", tutorialCategoryChipRef);
     registerRef("discover-favorites-toggle", tutorialFavoritesToggleRef);
     registerRef("discover-salon-card", tutorialSalonCardRef);
     return () => {
       unregisterRef("discover-search");
       unregisterRef("discover-filter-available");
-      unregisterRef("discover-category-chip");
       unregisterRef("discover-favorites-toggle");
       unregisterRef("discover-salon-card");
     };
@@ -378,11 +378,6 @@ export default function DiscoverScreen() {
       filtered = filtered.filter((s) => s.is_favorite);
     }
 
-    // Filter by category
-    if (selectedCategory) {
-      filtered = filtered.filter((s) => s.salon_types?.includes(selectedCategory));
-    }
-
     // Filter by search query against our own salon data
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -408,7 +403,6 @@ export default function DiscoverScreen() {
   }, [
     salons,
     searchQuery,
-    selectedCategory,
     showFavoritesOnly,
     discoverFilters,
     servicesBySalonId,
@@ -419,7 +413,6 @@ export default function DiscoverScreen() {
   const baseSalonsForPreview = useMemo(() => {
     let base = [...salons];
     if (showFavoritesOnly) base = base.filter((s) => s.is_favorite);
-    if (selectedCategory) base = base.filter((s) => s.salon_types?.includes(selectedCategory));
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       base = base.filter(
@@ -432,7 +425,7 @@ export default function DiscoverScreen() {
       );
     }
     return base;
-  }, [salons, searchQuery, selectedCategory, showFavoritesOnly]);
+  }, [salons, searchQuery, showFavoritesOnly]);
 
   const computeFilterPreview = useCallback(
     (draft: DiscoverFilters) => {
@@ -499,19 +492,19 @@ export default function DiscoverScreen() {
 
   // Sections
   const happyHourSalons = useMemo(
-    () => salons.filter((s) => s.has_happy_hour && (!selectedCategory || s.salon_types?.includes(selectedCategory))),
-    [salons, selectedCategory]
+    () => salons.filter((s) => s.has_happy_hour && (!discoverFilters.salonType || s.salon_types?.includes(discoverFilters.salonType))),
+    [salons, discoverFilters.salonType]
   );
   const recommendedSalons = useMemo(
     () => [...salons]
-      .filter((s) => !selectedCategory || s.salon_types?.includes(selectedCategory))
+      .filter((s) => !discoverFilters.salonType || s.salon_types?.includes(discoverFilters.salonType))
       .sort((a, b) => (b.rating_avg ?? 0) - (a.rating_avg ?? 0))
       .slice(0, 4),
-    [salons, selectedCategory]
+    [salons, discoverFilters.salonType]
   );
   const favoriteSalons = useMemo(
-    () => salons.filter((s) => s.is_favorite && (!selectedCategory || s.salon_types?.includes(selectedCategory))).slice(0, 4),
-    [salons, selectedCategory]
+    () => salons.filter((s) => s.is_favorite && (!discoverFilters.salonType || s.salon_types?.includes(discoverFilters.salonType))).slice(0, 4),
+    [salons, discoverFilters.salonType]
   );
 
   // Search only our DB salons - no external API
@@ -536,10 +529,11 @@ export default function DiscoverScreen() {
         800
       );
     }
-    bottomSheetRef.current?.snapToIndex(0);
+    setSheetIndex(1);
+    bottomSheetRef.current?.snapToIndex(1);
   };
 
-  const handleMarkerPress = (salon: SalonWithDistance) => {
+  const handleMarkerPress = useCallback((salon: SalonWithDistance) => {
     setSelectedSalon(salon);
     if (salon.latitude != null && salon.longitude != null) {
       mapRef.current?.animateToRegion({
@@ -549,8 +543,16 @@ export default function DiscoverScreen() {
         longitudeDelta: 0.01,
       }, 300);
     }
+    setSheetIndex(1);
     bottomSheetRef.current?.snapToIndex(1);
-  };
+  }, []);
+
+  const handleSheetChange = useCallback((idx: number) => {
+    setSheetIndex(idx);
+    if (idx < 1) {
+      setSelectedSalon(null);
+    }
+  }, []);
 
   const goToMyLocation = useCallback(() => {
     if (latitude && longitude && mapRef.current) {
@@ -580,6 +582,7 @@ export default function DiscoverScreen() {
     });
     if (next) {
       setShowFavoritesOnly(false);
+      setSheetIndex(1);
       bottomSheetRef.current?.snapToIndex(1);
     }
   };
@@ -621,52 +624,22 @@ export default function DiscoverScreen() {
             }}
             showsUserLocation
             showsMyLocationButton={false}
-            mapPadding={{ top: 70, right: 0, bottom: SCREEN_HEIGHT * 0.32, left: 0 }}
+            mapPadding={{
+              top: 70,
+              right: 0,
+              bottom: (selectedSalon != null || sheetIndex >= 1) ? SHEET_OPEN_BOTTOM : SHEET_CLOSED_BOTTOM,
+              left: 0,
+            }}
           >
             {sortedSalons
               .filter((salon) => salon.latitude != null && salon.longitude != null)
               .map((salon) => (
-              <Marker
+              <SalonMarker
                 key={salon.id}
-                coordinate={{
-                  latitude: salon.latitude as number,
-                  longitude: salon.longitude as number,
-                }}
-                tracksViewChanges={false}
-                onPress={() => handleMarkerPress(salon)}
-              >
-                <View className="items-center">
-                  <View className="relative">
-                    <View
-                      className={`w-11 h-11 items-center justify-center ${
-                        selectedSalon?.id === salon.id
-                          ? "bg-primary-500"
-                          : salon.is_available_now
-                          ? "bg-white border-2 border-primary-300"
-                          : "bg-white border-2 border-dark-300"
-                      }`}
-                      style={{
-                        ...Bubble.radiiSm,
-                        transform: selectedSalon?.id === salon.id ? [{ scale: 1.15 }] : [],
-                        shadowColor: "#000",
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.15,
-                        shadowRadius: 4,
-                        elevation: 4,
-                      }}
-                    >
-                      <Ionicons
-                        name="cut"
-                        size={20}
-                        color={selectedSalon?.id === salon.id ? "white" : "#0a85f4"}
-                      />
-                    </View>
-                    {salon.is_available_now && (
-                      <View className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" />
-                    )}
-                  </View>
-                </View>
-              </Marker>
+                salon={salon}
+                isSelected={selectedSalon?.id === salon.id}
+                onPress={handleMarkerPress}
+              />
             ))}
           </MapView>
 
@@ -715,23 +688,27 @@ export default function DiscoverScreen() {
                       width: 36,
                       height: 36,
                       ...Bubble.radiiSm,
-                      backgroundColor: discoverFilterCount > 0 ? Colors.primary : "rgba(15,23,42,0.05)",
+                      backgroundColor: "rgba(15,23,42,0.05)",
                       alignItems: "center",
                       justifyContent: "center",
                       opacity: pressed ? 0.85 : 1,
                       ...(discoverFilterCount > 0 ? {
+                        borderWidth: 1.5,
+                        borderColor: Colors.primary,
                         shadowColor: Colors.primary,
                         shadowOpacity: 0.25,
                         shadowRadius: 8,
                         shadowOffset: { width: 0, height: 3 },
                         elevation: 3,
-                      } : {}),
+                      } : {
+                        borderWidth: 0,
+                      }),
                     }}
                   >
                     <Ionicons
                       name="options"
                       size={18}
-                      color={discoverFilterCount > 0 ? "white" : Colors.textSecondary}
+                      color={discoverFilterCount > 0 ? Colors.primary : Colors.textSecondary}
                     />
                     {discoverFilterCount > 0 && (
                       <View
@@ -739,7 +716,7 @@ export default function DiscoverScreen() {
                           position: "absolute",
                           top: -3,
                           right: -3,
-                          backgroundColor: Colors.error,
+                          backgroundColor: Colors.primary,
                           minWidth: 14,
                           height: 14,
                           borderRadius: 7,
@@ -850,6 +827,7 @@ export default function DiscoverScreen() {
           backgroundStyle={{ borderTopLeftRadius: 30, borderTopRightRadius: 14, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, backgroundColor: "#f8fafc" }}
           handleIndicatorStyle={{ backgroundColor: "#cbd5e1", width: 40 }}
           enableDynamicSizing={false}
+          onChange={handleSheetChange}
         >
           <BottomSheetScrollView
             contentContainerStyle={{ paddingBottom: 120 }}
@@ -922,7 +900,11 @@ export default function DiscoverScreen() {
                     <View className="w-[1px] bg-dark-100" />
                     <Pressable
                       className="flex-1 flex-row items-center justify-center py-2.5 active:bg-dark-100"
-                      onPress={() => setSelectedSalon(null)}
+                      onPress={() => {
+                        setSelectedSalon(null);
+                        setSheetIndex(0);
+                        bottomSheetRef.current?.snapToIndex(0);
+                      }}
                     >
                       <Ionicons name="close-outline" size={14} color="#64748b" />
                       <Text className="text-dark-500 text-xs font-semibold ml-1">Închide</Text>
@@ -962,7 +944,7 @@ export default function DiscoverScreen() {
                     justifyContent: "center",
                     gap: 6,
                   }}
-                  onPress={() => router.push({ pathname: "/tryon" as any, params: { salonType: selectedCategory || "barbershop" } })}
+                  onPress={() => router.push({ pathname: "/tryon" as any, params: { salonType: discoverFilters.salonType || "barbershop" } })}
                 >
                   <Text style={{ fontFamily: "EuclidCircularA-Bold", fontSize: 14, lineHeight: 18, color: "#555" }}>Frizură</Text>
                   <Image source={require('@/assets/ai-icon.png')} style={{ width: 24, height: 24, marginTop: -3 }} resizeMode="contain" />
@@ -1049,31 +1031,6 @@ export default function DiscoverScreen() {
               )}
             </Pressable>
 
-            {/* ── Category Filter Chip ── */}
-            {selectedCategory && (
-              <View ref={tutorialCategoryChipRef} className="mx-5 mb-4 flex-row items-center">
-                <View
-                  className="flex-row items-center bg-primary-50 px-4 py-2.5 border border-primary-200"
-                  style={bubbleRadiiSm}
-                >
-                  <Ionicons
-                    name={selectedCategory === "barbershop" ? "cut" : "sparkles"}
-                    size={16}
-                    color={Brand.primary}
-                  />
-                  <Text className="text-primary-700 font-semibold text-sm ml-2">
-                    {selectedCategory === "barbershop" ? "Barbershop" : "Coafor"}
-                  </Text>
-                  <Pressable
-                    onPress={() => setSelectedCategory(null)}
-                    className="ml-2 w-6 h-6 rounded-full bg-primary-100 items-center justify-center"
-                  >
-                    <Ionicons name="close" size={14} color={Brand.primary} />
-                  </Pressable>
-                </View>
-              </View>
-            )}
-
             {/* ── Next Appointment ── */}
             {nextAppointment && (
               <View className="px-5 mb-4">
@@ -1156,7 +1113,8 @@ export default function DiscoverScreen() {
                     onPress={() => {
                       setShowFavoritesOnly(true);
                       setFilterAvailableNow(false);
-                      setSelectedCategory(null);
+                      applyDiscoverFilters({ ...discoverFilters, salonType: null });
+                      setSheetIndex(2);
                       bottomSheetRef.current?.snapToIndex(2);
                     }}
                   >
@@ -1245,8 +1203,8 @@ export default function DiscoverScreen() {
               <Text className="text-dark-700 text-[15px] mb-3" style={{ fontFamily: 'EuclidCircularA-Bold' }}>
                 {showFavoritesOnly
                   ? "Favorite"
-                  : selectedCategory
-                  ? selectedCategory === "barbershop" ? "Barbershop-uri" : "Coafuri"
+                  : discoverFilters.salonType
+                  ? discoverFilters.salonType === "barbershop" ? "Barbershop-uri" : "Coafuri"
                   : filterAvailableNow ? "Disponibile acum" : "Toate saloanele"}
                 <Text className="text-dark-400 text-sm" style={{ fontFamily: 'EuclidCircularA-Regular' }}>
                   {sortedSalons.length > 0 ? ` · ${sortedSalons.length}` : ""}
@@ -1284,13 +1242,13 @@ export default function DiscoverScreen() {
                   <Text className="text-dark-600 font-semibold mt-3 text-center text-sm">
                     Niciun rezultat
                   </Text>
-                  {selectedCategory && (
+                  {discoverFilters.salonType && (
                     <Pressable
                       className="mt-3 bg-primary-500 px-5 py-2"
                       style={bubbleRadiiSm}
                       onPress={() => {
                         setFilterAvailableNow(false);
-                        setSelectedCategory(null);
+                        applyDiscoverFilters({ ...discoverFilters, salonType: null });
                         setShowFavoritesOnly(false);
                       }}
                     >
@@ -1308,7 +1266,14 @@ export default function DiscoverScreen() {
       <FiltersSheet
         ref={filtersSheetRef}
         value={discoverFilters}
-        onApply={applyDiscoverFilters}
+        onApply={(next) => {
+          const categoryChanged = next.salonType !== discoverFilters.salonType;
+          applyDiscoverFilters(next);
+          if (categoryChanged && next.salonType != null) {
+            setSheetIndex(1);
+            bottomSheetRef.current?.snapToIndex(1);
+          }
+        }}
         serviceOptions={serviceOptions}
         computePreview={computeFilterPreview}
       />
@@ -1380,9 +1345,12 @@ export default function DiscoverScreen() {
         visible={showCategoryPicker && !isTutorialActive}
         onClose={() => setShowCategoryPicker(false)}
         onSelect={(type) => {
-          setSelectedCategory(type);
+          applyDiscoverFilters({ ...discoverFilters, salonType: type });
           setShowCategoryPicker(false);
-          bottomSheetRef.current?.snapToIndex(1);
+          if (type != null) {
+            setSheetIndex(1);
+            bottomSheetRef.current?.snapToIndex(1);
+          }
         }}
       />
     </View>

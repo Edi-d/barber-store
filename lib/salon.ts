@@ -110,31 +110,38 @@ export async function fetchSalonReviews(
   return data as SalonReviewWithAuthor[];
 }
 
-// Upload a review photo and return the public URL
-export async function uploadReviewPhoto(
+/**
+ * Upload multiple review photos in parallel. Returns the public URLs in the same order.
+ */
+export async function uploadReviewPhotos(
   userId: string,
-  base64: string,
-  mimeType: string = "image/jpeg"
-): Promise<string> {
-  const ext = mimeType === "image/png" ? "png" : "jpg";
-  const path = `${userId}/${Date.now()}.${ext}`;
+  photos: Array<{ base64: string; mimeType?: string }>
+): Promise<string[]> {
+  if (photos.length === 0) return [];
 
-  const { error } = await supabase.storage
-    .from("review-photos")
-    .upload(path, decode(base64), { contentType: mimeType });
-  if (error) throw error;
+  const uploads = photos.map(async (photo, index) => {
+    const mimeType = photo.mimeType ?? "image/jpeg";
+    const ext = mimeType === "image/png" ? "png" : "jpg";
+    const path = `${userId}/${Date.now()}_${index}.${ext}`;
 
-  const { data } = supabase.storage.from("review-photos").getPublicUrl(path);
-  return data.publicUrl;
+    const { error } = await supabase.storage
+      .from("review-photos")
+      .upload(path, decode(photo.base64), { contentType: mimeType });
+    if (error) throw error;
+
+    const { data } = supabase.storage.from("review-photos").getPublicUrl(path);
+    return data.publicUrl;
+  });
+
+  return Promise.all(uploads);
 }
 
-// Submit a new review (or update existing one)
 export async function submitReview(params: {
   userId: string;
   salonId: string;
   rating: number;
   comment?: string;
-  photoUrl?: string;
+  photoUrls?: string[];
 }): Promise<SalonReview> {
   const { data, error } = await supabase
     .from("salon_reviews")
@@ -144,7 +151,7 @@ export async function submitReview(params: {
         salon_id: params.salonId,
         rating: params.rating,
         comment: params.comment || null,
-        photo_url: params.photoUrl || null,
+        photo_urls: params.photoUrls ?? [],
       },
       { onConflict: "user_id,salon_id" }
     )

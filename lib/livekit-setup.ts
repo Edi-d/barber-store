@@ -1,12 +1,5 @@
-let isLiveKitAvailable = false;
+// Web stub — Metro resolves lib/livekit-setup.native.ts on iOS/Android automatically.
+// This file is only loaded on web, where @livekit/react-native-webrtc (a native binary)
+// must never be imported or Metro's web bundler will crash at bundle time.
 
-try {
-  const { registerGlobals } = require('@livekit/react-native');
-  registerGlobals();
-  isLiveKitAvailable = true;
-} catch {
-  // LiveKit native modules not available (Expo Go or build without LiveKit compiled)
-  console.log('[livekit-setup] Native LiveKit not available - using fallback mode');
-}
-
-export { isLiveKitAvailable };
+export const isLiveKitAvailable = false;

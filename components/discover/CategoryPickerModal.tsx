@@ -59,16 +59,20 @@ const CATEGORIES: {
 type Props = {
   visible: boolean;
   onClose: () => void;
-  onSelect: (type: SalonType) => void;
+  onSelect: (type: SalonType | null) => void;
 };
 
 export function CategoryPickerModal({ visible, onClose, onSelect }: Props) {
   const selecting = useRef(false);
 
-  const handleSelect = (type: SalonType) => {
+  const handleSelect = (type: SalonType | null) => {
     if (selecting.current) return;
     selecting.current = true;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Haptics.impactAsync(
+      type !== null
+        ? Haptics.ImpactFeedbackStyle.Medium
+        : Haptics.ImpactFeedbackStyle.Light,
+    );
     onSelect(type);
     setTimeout(() => { selecting.current = false; }, 500);
   };
@@ -194,6 +198,38 @@ export function CategoryPickerModal({ visible, onClose, onSelect }: Props) {
                 </Pressable>
               );
             })}
+
+            {/* Toate saloanele — subordinate pill card */}
+            <Pressable
+              onPress={() => handleSelect(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Toate saloanele. Barbershop-uri, coafoare și tot ce e între"
+              accessibilityHint="Apasă pentru a vedea toate saloanele fără filtru"
+              style={({ pressed }) => [
+                styles.mixtCardOuter,
+                pressed && styles.cardPressed,
+              ]}
+            >
+              <LinearGradient
+                colors={['#F4F5F7', '#FAFBFC']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.mixtCardGradient}
+              >
+                {/* Glyph */}
+                <View style={styles.mixtGlyphWrap}>
+                  <Ionicons name="apps-outline" size={22} color="#64748B" />
+                </View>
+
+                {/* Text */}
+                <View style={styles.mixtTextArea}>
+                  <Text style={styles.mixtTitle}>Toate saloanele</Text>
+                  <Text style={styles.mixtSubtitle} numberOfLines={1}>
+                    Barbershop-uri, coafoare & tot ce e între
+                  </Text>
+                </View>
+              </LinearGradient>
+            </Pressable>
           </View>
 
           {/* Bottom hint */}
@@ -308,19 +344,18 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing['2xl'] + 8,
-    paddingHorizontal: Spacing['2xl'],
+    paddingLeft: 0,
+    paddingRight: Spacing['2xl'],
     gap: Spacing.lg,
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.7)',
+    height: 144,
     ...Bubble.radiiLg,
   },
   imageWrap: {
-    width: 88,
-    height: 88,
+    width: 112,
+    alignSelf: 'stretch',
     overflow: 'hidden',
-    ...Bubble.radii,
-    ...Shadows.md,
   },
   categoryImage: {
     width: '100%',
@@ -347,6 +382,50 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.9)',
     ...Bubble.radiiSm,
+  },
+
+  /* ── Toate saloanele pill card ── */
+  mixtCardOuter: {
+    ...Bubble.radiiSm,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 },
+      },
+      android: { elevation: 2 },
+    }),
+  },
+  mixtCardGradient: {
+    overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    gap: Spacing.lg,
+    ...Bubble.radiiSm,
+  },
+  mixtGlyphWrap: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(100,116,139,0.10)',
+    ...Bubble.radiiSm,
+  },
+  mixtTextArea: {
+    flex: 1,
+  },
+  mixtTitle: {
+    ...Typography.bodySemiBold,
+    color: Colors.text,
+  },
+  mixtSubtitle: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
   },
 
   /* ── Hint ── */

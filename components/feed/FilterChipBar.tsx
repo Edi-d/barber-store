@@ -23,8 +23,6 @@ const CHIPS: ChipConfig[] = [
   { filter: 'following', label: 'Urmăriți',    icon: 'people-outline'    },
   { filter: 'popular',   label: 'Populare',    icon: 'flame-outline'     },
   { filter: 'recent',    label: 'Recente',     icon: 'time-outline'      },
-  { filter: 'images',    label: 'Imagini',     icon: 'images-outline'    },
-  { filter: 'videos',    label: 'Videoclipuri',icon: 'videocam-outline'  },
 ];
 
 // ─── Single animated chip ────────────────────────────────────────────────────

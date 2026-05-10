@@ -49,7 +49,10 @@ import {
 
 // ── Category icon mapping ──────────────────────────────────────────────────────
 
-const CATEGORY_ICON = 'cut-outline';
+const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
+  vopsit: 'color-palette-outline',
+};
+const DEFAULT_CATEGORY_ICON: React.ComponentProps<typeof Ionicons>['name'] = 'cut-outline';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -462,12 +465,12 @@ export default function TryOnScreen() {
                   end={{ x: 1, y: 1 }}
                   style={[styles.tabPill, styles.tabPillActive]}
                 >
-                  <Ionicons name={CATEGORY_ICON as any} size={14} color={Colors.white} style={styles.tabIcon} />
+                  <Ionicons name={DEFAULT_CATEGORY_ICON} size={14} color={Colors.white} style={styles.tabIcon} />
                   <Text style={styles.tabTextActive}>Toate</Text>
                 </LinearGradient>
               ) : (
                 <View style={[styles.tabPill, styles.tabPillInactive]}>
-                  <Ionicons name={CATEGORY_ICON as any} size={14} color="rgba(255,255,255,0.5)" style={styles.tabIcon} />
+                  <Ionicons name={DEFAULT_CATEGORY_ICON} size={14} color="rgba(255,255,255,0.5)" style={styles.tabIcon} />
                   <Text style={styles.tabTextInactive}>Toate</Text>
                 </View>
               )}
@@ -487,7 +490,7 @@ export default function TryOnScreen() {
                     style={[styles.tabPill, styles.tabPillActive]}
                   >
                     <Ionicons
-                      name={CATEGORY_ICON as any}
+                      name={CATEGORY_ICONS[cat] ?? DEFAULT_CATEGORY_ICON}
                       size={14}
                       color={Colors.white}
                       style={styles.tabIcon}
@@ -499,7 +502,7 @@ export default function TryOnScreen() {
                 ) : (
                   <View style={[styles.tabPill, styles.tabPillInactive]}>
                     <Ionicons
-                      name={CATEGORY_ICON as any}
+                      name={CATEGORY_ICONS[cat] ?? DEFAULT_CATEGORY_ICON}
                       size={14}
                       color="rgba(255,255,255,0.5)"
                       style={styles.tabIcon}

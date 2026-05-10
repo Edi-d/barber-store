@@ -196,8 +196,89 @@ export const HAIRSTYLE_PROMPTS: HairstylePrompt[] = [
     nameRo: "Balayage",
     nameEn: "Balayage",
     prompt:
-      "Edit only the hair: Apply a balayage color technique to the existing hair length and style. The roots remain the natural base color (dark brown or the person's natural tone). Color transitions gradually and naturally into warm caramel, honey-blonde, or golden highlights from mid-shaft downward, concentrating the lightness at the ends and face-framing sections. The blend is soft and seamless — no harsh lines, no foil-block streaks. The result looks sun-kissed and dimensional. Do not change the haircut or length. Same person, preserve all facial features, same skin tone, same background. Photorealistic result.",
-    category: "colorat",
+      "Edit only the hair: apply a balayage technique with soft, hand-painted highlights. Natural base at the roots graduating to warm honey-blonde and golden tones from mid-shaft to ends, sun-kissed and dimensional. No haircut change. Same person, same features, same background. Photorealistic.",
+    category: "vopsit",
+    gender: "female",
+  },
+  {
+    id: "hair-contouring",
+    nameRo: "Hair Contouring",
+    nameEn: "Hair Contouring",
+    prompt:
+      "Edit only the hair: apply hair contouring with strategic face-framing lightness. Softer, brighter tones placed around the face and cheekbones to sculpt and highlight facial features; darker depth preserved at the back and crown for dimension. No haircut change. Same person, same features, same background. Photorealistic.",
+    category: "vopsit",
+    gender: "female",
+  },
+  {
+    id: "airtouch",
+    nameRo: "Airtouch",
+    nameEn: "Airtouch",
+    prompt:
+      "Edit only the hair: apply an airtouch coloring technique producing an ultra-soft, blurred gradient. Seamless transition from the natural base to lighter ends with no visible line of demarcation; luminous, diffused luminosity throughout. No haircut change. Same person, same features, same background. Photorealistic.",
+    category: "vopsit",
+    gender: "female",
+  },
+  {
+    id: "foiled-cashmere",
+    nameRo: "Foiled Cashmere",
+    nameEn: "Foiled Cashmere",
+    prompt:
+      "Edit only the hair: apply foiled cashmere highlights over a warm brunette base. Fine, dimensional golden and caramel foils woven through rich chocolate-warm hair, creating a luxe multi-tonal sheen. No haircut change. Same person, same features, same background. Photorealistic.",
+    category: "vopsit",
+    gender: "female",
+  },
+  {
+    id: "ombre-soft",
+    nameRo: "Ombré Soft",
+    nameEn: "Soft Ombré",
+    prompt:
+      "Edit only the hair: apply a soft ombré gradient. Darker natural tone at the roots smoothly blending into lighter, warmer tones toward the ends; transition subtle and gradual rather than sharp. No haircut change. Same person, same features, same background. Photorealistic.",
+    category: "vopsit",
+    gender: "female",
+  },
+  {
+    id: "color-melting",
+    nameRo: "Color Melting",
+    nameEn: "Color Melting",
+    prompt:
+      "Edit only the hair: apply a color melting technique with three or more harmonious shades blended seamlessly. No visible demarcation lines; colors flow into each other like melted ribbons from root to tip. No haircut change. Same person, same features, same background. Photorealistic.",
+    category: "vopsit",
+    gender: "female",
+  },
+  {
+    id: "babylights",
+    nameRo: "Babylights",
+    nameEn: "Babylights",
+    prompt:
+      "Edit only the hair: apply babylights — extremely fine, delicate highlights throughout the hair. Subtle, sun-kissed brightness evenly distributed, mimicking naturally lightened childhood hair. No haircut change. Same person, same features, same background. Photorealistic.",
+    category: "vopsit",
+    gender: "female",
+  },
+  {
+    id: "expensive-brunette",
+    nameRo: "Expensive Brunette",
+    nameEn: "Expensive Brunette",
+    prompt:
+      "Edit only the hair: apply an expensive brunette treatment. Glossy, rich chocolate-brown base with subtle dimensional caramel and espresso tones woven throughout; mirror-like shine and depth. No haircut change. Same person, same features, same background. Photorealistic.",
+    category: "vopsit",
+    gender: "female",
+  },
+  {
+    id: "cherry-cola",
+    nameRo: "Cherry Cola",
+    nameEn: "Cherry Cola",
+    prompt:
+      "Edit only the hair: recolor to a cherry cola tone. Deep, glossy red-brown with warm cherry and cola undertones; rich, saturated, luminous finish. No haircut change. Same person, same features, same background. Photorealistic.",
+    category: "vopsit",
+    gender: "female",
+  },
+  {
+    id: "gray-blending",
+    nameRo: "Gray Blending",
+    nameEn: "Gray Blending",
+    prompt:
+      "Edit only the hair: apply gray blending. Existing natural gray strands integrated with soft silver, ash, and pearl tones; cohesive, intentional silver-toned look that embraces and highlights the gray. No haircut change. Same person, same features, same background. Photorealistic.",
+    category: "vopsit",
     gender: "female",
   },
   {

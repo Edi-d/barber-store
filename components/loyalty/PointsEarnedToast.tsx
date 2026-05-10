@@ -82,26 +82,30 @@ export function PointsEarnedToast({ visible, points, source, onDismiss }: Props)
     <Animated.View
       entering={FadeInUp.duration(350).easing(SMOOTH)}
       exiting={FadeOutDown.duration(250)}
-      style={[styles.wrap, { bottom: 100 + insets.bottom }]}
       pointerEvents="box-none"
     >
-      <Pressable onPress={onDismiss}>
-        <LinearGradient
-          colors={[Brand.gradientStart, Brand.gradientEnd]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.card}
-        >
-          <View style={styles.iconWrap}>
-            <Ionicons name="trophy" size={22} color="#FFFFFF" />
-          </View>
-          <View style={styles.textWrap}>
-            <Text style={styles.title}>Ai castigat puncte!</Text>
-            <Text style={styles.value}>+{displayed.toLocaleString('ro-RO')} puncte</Text>
-            <Text style={styles.subtitle}>{subtitle}</Text>
-          </View>
-        </LinearGradient>
-      </Pressable>
+      <Animated.View
+        style={[styles.wrap, { bottom: 100 + (insets.bottom ?? 0) }]}
+        pointerEvents="box-none"
+      >
+        <Pressable onPress={onDismiss}>
+          <LinearGradient
+            colors={[Brand.gradientStart, Brand.gradientEnd]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.card}
+          >
+            <View style={styles.iconWrap}>
+              <Ionicons name="trophy" size={22} color="#FFFFFF" />
+            </View>
+            <View style={styles.textWrap}>
+              <Text style={styles.title}>Ai castigat puncte!</Text>
+              <Text style={styles.value}>+{displayed.toLocaleString('ro-RO')} puncte</Text>
+              <Text style={styles.subtitle}>{subtitle}</Text>
+            </View>
+          </LinearGradient>
+        </Pressable>
+      </Animated.View>
     </Animated.View>
   );
 }

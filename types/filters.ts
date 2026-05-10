@@ -1,4 +1,5 @@
 // types/filters.ts
+import type { SalonType } from '@/types/database';
 
 export type DistanceOption = 1 | 3 | 5 | 10 | null; // km, null = orice
 
@@ -21,6 +22,7 @@ export interface DiscoverFilters {
   availability: AvailabilityOption;
   services: string[];
   amenities: string[];
+  salonType: SalonType | null;
   sort: SortOption;
 }
 
@@ -32,6 +34,7 @@ export const DEFAULT_FILTERS: DiscoverFilters = {
   availability: { kind: 'any' },
   services: [],
   amenities: [],
+  salonType: null,
   sort: 'recommended',
 };
 
@@ -43,6 +46,7 @@ export function countActiveFilters(f: DiscoverFilters): number {
   if (f.availability.kind !== 'any') n += 1;
   if (f.services.length > 0) n += 1;
   if (f.amenities.length > 0) n += 1;
+  if (f.salonType != null) n += 1;
   if (f.sort !== 'recommended') n += 1;
   return n;
 }

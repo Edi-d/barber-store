@@ -25,8 +25,7 @@ interface ReviewModalProps {
   onSubmit: (review: {
     rating: number;
     comment: string;
-    photoBase64?: string;
-    photoMimeType?: string;
+    photos?: Array<{ base64: string; mimeType: string }>;
   }) => Promise<void>;
   salonName: string;
 }
@@ -35,6 +34,7 @@ const STAR_COUNT = 5;
 const STAR_SIZE = 40;
 const AMBER = '#f59e0b';
 const STAR_LABELS = ['', 'Slab', 'Ok', 'Bun', 'Foarte bun', 'Excelent'];
+const MAX_PHOTOS = 5;
 
 export function ReviewModal({
   visible,
@@ -44,17 +44,13 @@ export function ReviewModal({
 }: ReviewModalProps) {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
-  const [photoBase64, setPhotoBase64] = useState<string | null>(null);
-  const [photoMimeType, setPhotoMimeType] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<Array<{ uri: string; base64: string; mimeType: string }>>([]);
   const [loading, setLoading] = useState(false);
 
   const resetState = useCallback(() => {
     setRating(0);
     setComment('');
-    setPhotoUri(null);
-    setPhotoBase64(null);
-    setPhotoMimeType(null);
+    setPhotos([]);
     setLoading(false);
   }, []);
 
@@ -69,26 +65,29 @@ export function ReviewModal({
   }, []);
 
   const handlePickPhoto = useCallback(async () => {
+    if (photos.length >= MAX_PHOTOS) return;
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
+      allowsMultipleSelection: true,
+      selectionLimit: MAX_PHOTOS - photos.length,
       quality: 0.7,
       base64: true,
     });
 
-    if (!result.canceled && result.assets[0]) {
-      const asset = result.assets[0];
-      setPhotoUri(asset.uri);
-      setPhotoBase64(asset.base64 ?? null);
-      setPhotoMimeType(asset.mimeType ?? 'image/jpeg');
+    if (!result.canceled && result.assets.length > 0) {
+      const remaining = MAX_PHOTOS - photos.length;
+      const newAssets = result.assets.slice(0, remaining).map((asset) => ({
+        uri: asset.uri,
+        base64: asset.base64 ?? '',
+        mimeType: asset.mimeType ?? 'image/jpeg',
+      }));
+      setPhotos((prev) => [...prev, ...newAssets]);
     }
-  }, []);
+  }, [photos.length]);
 
-  const handleRemovePhoto = useCallback(() => {
-    setPhotoUri(null);
-    setPhotoBase64(null);
-    setPhotoMimeType(null);
+  const handleRemovePhoto = useCallback((index: number) => {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
   const handleSubmit = useCallback(async () => {
@@ -96,12 +95,14 @@ export function ReviewModal({
 
     setLoading(true);
     try {
-      await onSubmit({
+      const review: { rating: number; comment: string; photos?: Array<{ base64: string; mimeType: string }> } = {
         rating,
         comment: comment.trim(),
-        photoBase64: photoBase64 ?? undefined,
-        photoMimeType: photoMimeType ?? undefined,
-      });
+      };
+      if (photos.length > 0) {
+        review.photos = photos.map((p) => ({ base64: p.base64, mimeType: p.mimeType }));
+      }
+      await onSubmit(review);
       resetState();
       onClose();
     } catch {
@@ -109,7 +110,7 @@ export function ReviewModal({
     } finally {
       setLoading(false);
     }
-  }, [rating, comment, photoBase64, photoMimeType, loading, onSubmit, resetState, onClose]);
+  }, [rating, comment, photos, loading, onSubmit, resetState, onClose]);
 
   const isSubmitDisabled = rating === 0 || loading;
 
@@ -205,32 +206,30 @@ export function ReviewModal({
 
             {/* Photo Card */}
             <View style={styles.card}>
-              <Text style={styles.cardLabel}>Poză</Text>
-              {photoUri ? (
-                <View style={styles.photoPreviewContainer}>
-                  <Image
-                    source={{ uri: photoUri }}
-                    style={styles.photoPreview}
-                    resizeMode="cover"
-                  />
-                  <Pressable
-                    onPress={handleRemovePhoto}
-                    style={styles.removePhotoButton}
-                    hitSlop={8}
-                  >
-                    <View style={styles.removePhotoCircle}>
-                      <Ionicons name="close" size={14} color="#fff" />
-                    </View>
-                  </Pressable>
-                </View>
-              ) : (
-                <Pressable onPress={handlePickPhoto} style={styles.addPhotoBox}>
-                  <View style={styles.cameraIconWrap}>
-                    <Ionicons name="camera-outline" size={24} color={Brand.primary} />
+              <View style={styles.photoHeader}>
+                <Text style={styles.cardLabel}>Poze</Text>
+                <Text style={styles.photoCount}>{photos.length}/{MAX_PHOTOS}</Text>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                {photos.map((p, i) => (
+                  <View key={`${p.uri}-${i}`} style={styles.photoTileWrap}>
+                    <Image source={{ uri: p.uri }} style={styles.photoTile} resizeMode="cover" />
+                    <Pressable onPress={() => handleRemovePhoto(i)} style={styles.removePhotoButton} hitSlop={8}>
+                      <View style={styles.removePhotoCircle}>
+                        <Ionicons name="close" size={12} color="#fff" />
+                      </View>
+                    </Pressable>
                   </View>
-                  <Text style={styles.addPhotoText}>Adaugă o poză</Text>
-                  <Text style={styles.addPhotoHint}>Arată-le altora experiența ta</Text>
-                </Pressable>
+                ))}
+                {photos.length < MAX_PHOTOS && (
+                  <Pressable onPress={handlePickPhoto} style={styles.addPhotoTile}>
+                    <Ionicons name="camera-outline" size={22} color={Brand.primary} />
+                    <Text style={styles.addPhotoTileHint}>{photos.length === 0 ? 'Adaugă' : '+'}</Text>
+                  </Pressable>
+                )}
+              </ScrollView>
+              {photos.length === 0 && (
+                <Text style={styles.addPhotoHint}>Arată-le altora experiența ta (până la {MAX_PHOTOS})</Text>
               )}
             </View>
 
@@ -382,41 +381,46 @@ const styles = StyleSheet.create({
   },
 
   /* Photo */
-  addPhotoBox: {
+  photoHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  photoCount: {
+    ...Typography.small,
+    color: Colors.textTertiary,
+  },
+  photoTileWrap: {
+    position: 'relative',
+    width: 96,
+    height: 96,
+  },
+  photoTile: {
+    width: 96,
+    height: 96,
+    borderRadius: 14,
+  },
+  addPhotoTile: {
+    width: 96,
+    height: 96,
     borderWidth: 1.5,
     borderStyle: 'dashed',
     borderColor: Colors.inputBorder,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    height: 150,
     backgroundColor: Colors.inputBackground,
+    gap: 4,
   },
-  cameraIconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: Brand.primaryMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addPhotoText: {
-    ...Typography.captionSemiBold,
-    color: Colors.text,
-    marginTop: Spacing.sm,
+  addPhotoTileHint: {
+    ...Typography.small,
+    color: Colors.textTertiary,
   },
   addPhotoHint: {
     ...Typography.small,
     color: Colors.textTertiary,
-    marginTop: 2,
-  },
-  photoPreviewContainer: {
-    position: 'relative',
-  },
-  photoPreview: {
-    width: '100%',
-    height: 180,
-    borderRadius: 14,
+    marginTop: Spacing.sm,
   },
   removePhotoButton: {
     position: 'absolute',

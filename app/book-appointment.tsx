@@ -17,6 +17,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { Barber, BarberService } from "@/types/database";
 import { formatPrice } from "@/lib/utils";
 import { generateTimeSlots, getNext14Days, formatCalendarDay, findFirstAvailableDate } from "@/lib/booking";
+import { addBookingToCalendar, openAppSettings, CalendarError } from "@/lib/calendar";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Button } from "@/components/ui/Button";
@@ -61,12 +62,17 @@ export default function BookAppointmentScreen() {
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAddingCalendar, setIsAddingCalendar] = useState(false);
+  const [calendarEventAdded, setCalendarEventAdded] = useState(false);
   const [paramsApplied, setParamsApplied] = useState(false);
   const [bookingResult, setBookingResult] =
     useState<BookingSuccessResult | null>(null);
 
   // ── Tutorial refs ────────────────────────────────────────────────────────
   const { registerRef, unregisterRef } = useTutorialContext();
+
+  // Tracks whether the user has manually visited step 2 at least once
+  const step2VisitedRef = useRef(false);
 
   // Step 1
   const stepIndicatorRef = useRef<View>(null);
@@ -200,11 +206,11 @@ export default function BookAppointmentScreen() {
         setSelectedTime(null);
       }
     }
-  }, [step, firstAvailableData]);
+  }, [step, firstAvailableData, selectedDate]);
 
   // ── Auto-apply route params ────────────────────────────────────────────
   useEffect(() => {
-    if (paramsApplied || !barbers) return;
+    if (paramsApplied || !barbers || (serviceId && !services)) return;
 
     // If barberId is provided, pre-select that barber and skip to step 2
     if (barberId) {
@@ -262,7 +268,8 @@ export default function BookAppointmentScreen() {
   // ── Navigation ─────────────────────────────────────────────────────────
   const goNext = useCallback(() => {
     if (step === 1) {
-      if (selectedServices.length > 0) {
+      if (selectedServices.length > 0 && !step2VisitedRef.current) {
+        // Deep-link shortcut: services pre-selected and user hasn't visited step 2 yet
         setStep(3);
       } else {
         setStep(2);
@@ -273,24 +280,24 @@ export default function BookAppointmentScreen() {
   }, [step, selectedServices]);
 
   const goBack = useCallback(() => {
-    if (
-      step === 3 &&
-      selectedServices.length > 0 &&
-      salonId &&
-      barbers &&
-      barbers.length > 1
-    ) {
-      setStep(1);
-    } else if (step === 2 && salonId && barbers && barbers.length === 1) {
+    if (step === 2 && salonId && barbers && barbers.length === 1) {
+      // Single-barber salon: no step 1 to return to
       router.back();
     } else if (
       step === 3 &&
       salonId &&
       barbers &&
       barbers.length === 1 &&
-      selectedServices.length > 0
+      selectedServices.length > 0 &&
+      !step2VisitedRef.current
     ) {
+      // Single-barber + pre-selected service + step 2 never manually visited = exit
       router.back();
+    } else if (step === 3) {
+      // Going back from date/time to services: clear date/time so auto-select works fresh
+      setSelectedTime(null);
+      setSelectedDate(null);
+      setStep(2);
     } else if (step > 1) {
       setStep((step - 1) as BookingStep);
     } else {
@@ -306,6 +313,7 @@ export default function BookAppointmentScreen() {
       return [...prev, service];
     });
     setSelectedTime(null);
+    setSelectedDate(null);
   }, []);
 
   // ── Submit ─────────────────────────────────────────────────────────────
@@ -397,6 +405,9 @@ export default function BookAppointmentScreen() {
       if (servicesError) throw servicesError;
 
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["appointments-upcoming"] });
+      queryClient.invalidateQueries({ queryKey: ["next-appointment"] });
+      queryClient.invalidateQueries({ queryKey: ["today-appointments-all"] });
 
       setBookingResult({
         id: inserted.id,
@@ -418,13 +429,44 @@ export default function BookAppointmentScreen() {
     }
   };
 
-  const handleAddToCalendar = () => {
-    if (!bookingResult) return;
-    Alert.alert(
-      "Calendar",
-      "Funcționalitate disponibilă în curând.",
-      [{ text: "OK" }]
-    );
+  const handleAddToCalendar = async () => {
+    if (!bookingResult || isAddingCalendar || calendarEventAdded) return;
+    setIsAddingCalendar(true);
+    try {
+      await addBookingToCalendar({
+        id: bookingResult.id,
+        barberName: bookingResult.barberName,
+        serviceNames: bookingResult.serviceNames,
+        date: bookingResult.date,
+        time: bookingResult.time,
+        totalDurationMin: bookingResult.totalDurationMin,
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      setCalendarEventAdded(true);
+      Alert.alert("Adăugat în calendar", "Programarea apare acum în calendarul tău.", [{ text: "OK" }]);
+    } catch (err) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+      if (err instanceof CalendarError) {
+        if (err.code === "permission_denied") {
+          Alert.alert(
+            "Permisiune refuzată",
+            "Tapzi nu are acces la calendar. Deschide Setări pentru a permite.",
+            [
+              { text: "Anulează", style: "cancel" },
+              { text: "Setări", onPress: () => openAppSettings() },
+            ]
+          );
+        } else if (err.code === "no_calendar") {
+          Alert.alert("Nu există calendar", "Nu am găsit un calendar editabil pe acest dispozitiv.", [{ text: "OK" }]);
+        } else {
+          Alert.alert("Eroare", "Nu am putut salva programarea în calendar.", [{ text: "OK" }]);
+        }
+      } else {
+        Alert.alert("Eroare", "Nu am putut salva programarea în calendar.", [{ text: "OK" }]);
+      }
+    } finally {
+      setIsAddingCalendar(false);
+    }
   };
 
   // ── Services summary for step 3 info chip ──────────────────────────────
@@ -456,6 +498,8 @@ export default function BookAppointmentScreen() {
         <BookingSuccess
           result={bookingResult}
           onAddToCalendar={handleAddToCalendar}
+          isAddingToCalendar={isAddingCalendar}
+          calendarEventAdded={calendarEventAdded}
           onViewAppointments={() => {
             router.replace("/appointments" as any);
           }}
@@ -467,6 +511,8 @@ export default function BookAppointmentScreen() {
             setSelectedDate(null);
             setSelectedTime(null);
             setNotes("");
+            setCalendarEventAdded(false);
+            setIsAddingCalendar(false);
           }}
           onGoHome={() => {
             router.replace("/(tabs)/discover" as any);
@@ -505,7 +551,23 @@ export default function BookAppointmentScreen() {
 
       {/* ── Step indicator (animated) ── */}
       <View ref={stepIndicatorRef}>
-        <BookingStepIndicator currentStep={step} stepTitles={STEP_TITLES} />
+        <BookingStepIndicator
+          currentStep={step}
+          stepTitles={STEP_TITLES}
+          onStepPress={(target) => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+            if (target < step) {
+              if (step === 3 && target === 2) {
+                setSelectedTime(null);
+                setSelectedDate(null);
+              } else if (step === 4 && target === 2) {
+                setSelectedTime(null);
+                setSelectedDate(null);
+              }
+              setStep(target);
+            }
+          }}
+        />
       </View>
 
       {/* ── Content ── */}
@@ -710,6 +772,7 @@ export default function BookAppointmentScreen() {
               selectedServices={selectedServices}
               onContinue={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                step2VisitedRef.current = true;
                 setStep(3);
               }}
               formatPrice={formatPrice}

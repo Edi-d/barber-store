@@ -11,7 +11,7 @@ export type { StoryItem } from '@/lib/stories';
 const CHANNEL_NAME = 'stories-inserts';
 
 export function useStories() {
-  const { session } = useAuthStore();
+  const { session, isInitialized } = useAuthStore();
   const userId = session?.user?.id;
   const queryClient = useQueryClient();
 
@@ -41,7 +41,7 @@ export function useStories() {
       if (!userId) return [];
       return fetchStoriesWithSeenState(userId);
     },
-    enabled: !!userId,
+    enabled: isInitialized && !!userId,
     staleTime: 30_000, // 30s — new inserts bypass this via the realtime subscription above
   });
 }

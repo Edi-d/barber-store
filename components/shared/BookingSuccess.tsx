@@ -16,7 +16,7 @@
  */
 
 import { useEffect } from "react";
-import { View, Text, ScrollView, StyleSheet, Platform, Pressable } from "react-native";
+import { View, Text, ScrollView, StyleSheet, Platform, Pressable, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
   FadeIn,
@@ -28,6 +28,7 @@ import Animated, {
   withTiming,
   withDelay,
   withSequence,
+  cancelAnimation,
   Easing,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -55,6 +56,8 @@ export interface BookingSuccessProps {
   onBookAnother: () => void;
   onGoHome: () => void;
   formatPrice: (cents: number, currency: string) => string;
+  isAddingToCalendar?: boolean;
+  calendarEventAdded?: boolean;
 }
 
 // ─── Confetti particle config ─────────────────────────────────────────────────
@@ -140,6 +143,13 @@ function ConfettiParticle({ config }: { config: ParticleConfig }) {
         withDelay(360, withTiming(0, TIMING_FADE))
       )
     );
+
+    return () => {
+      cancelAnimation(tx);
+      cancelAnimation(ty);
+      cancelAnimation(scale);
+      cancelAnimation(opacity);
+    };
   }, []);
 
   const txStyle = useAnimatedStyle(() => ({
@@ -194,6 +204,13 @@ function CheckmarkCircle() {
       220,
       withSpring(1, { damping: 10, stiffness: 200 })
     );
+
+    return () => {
+      cancelAnimation(circleScale);
+      cancelAnimation(circleBorder);
+      cancelAnimation(checkOpacity);
+      cancelAnimation(checkScale);
+    };
   }, []);
 
   const circleAnimStyle = useAnimatedStyle(() => ({
@@ -290,6 +307,8 @@ export function BookingSuccess({
   onBookAnother,
   onGoHome,
   formatPrice,
+  isAddingToCalendar = false,
+  calendarEventAdded = false,
 }: BookingSuccessProps) {
   const insets = useSafeAreaInsets();
   const {
@@ -473,14 +492,52 @@ export function BookingSuccess({
           entering={FadeInUp.delay(940).duration(340).easing(Easing.out(Easing.cubic))}
           style={styles.secondaryRow}
         >
-          <Pressable onPress={onAddToCalendar} style={styles.secondaryButton}>
-            <Ionicons name="calendar-outline" size={18} color={Colors.gradientStart} />
-            <Text style={[styles.secondaryButtonText, { color: Colors.gradientStart }]}>Calendar</Text>
+          <Pressable
+            onPress={onAddToCalendar}
+            disabled={isAddingToCalendar || calendarEventAdded}
+            style={[
+              styles.secondaryButton,
+              isAddingToCalendar && { opacity: 0.6 },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={
+              isAddingToCalendar
+                ? "Se adaugă în calendar..."
+                : calendarEventAdded && !isAddingToCalendar
+                ? "Programare adăugată în calendar"
+                : "Adaugă programarea în calendar"
+            }
+            accessibilityState={{
+              disabled: isAddingToCalendar || calendarEventAdded,
+              busy: isAddingToCalendar,
+            }}
+          >
+            {isAddingToCalendar ? (
+              <ActivityIndicator size="small" color={Colors.gradientStart} />
+            ) : (
+              <Ionicons
+                name={calendarEventAdded && !isAddingToCalendar ? "checkmark-circle" : "calendar-outline"}
+                size={18}
+                color={calendarEventAdded && !isAddingToCalendar ? "#16a34a" : Colors.gradientStart}
+              />
+            )}
+            <Text
+              style={[
+                styles.secondaryButtonText,
+                { color: calendarEventAdded && !isAddingToCalendar ? "#16a34a" : Colors.gradientStart },
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              {calendarEventAdded && !isAddingToCalendar
+                ? "Adăugat în calendar"
+                : "Adaugă în Calendar"}
+            </Text>
           </Pressable>
 
           <Pressable onPress={onBookAnother} style={styles.secondaryButton}>
             <Ionicons name="add-circle-outline" size={18} color={Colors.text} />
-            <Text style={styles.secondaryButtonText}>Programare Nouă</Text>
+            <Text style={styles.secondaryButtonText} numberOfLines={1} adjustsFontSizeToFit>Programare Nouă</Text>
           </Pressable>
         </Animated.View>
       </View>

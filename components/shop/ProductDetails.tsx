@@ -2,7 +2,9 @@ import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import Animated, { FadeInDown, Easing } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { Spacing, Typography, Colors } from '@/constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Feather } from '@expo/vector-icons';
+import { Spacing, Typography, Colors, Brand, Bubble } from '@/constants/theme';
 import { formatPrice } from '@/lib/utils';
 
 const SMOOTH = Easing.bezier(0.25, 0.1, 0.25, 1);
@@ -15,6 +17,10 @@ interface ProductDetailsProps {
   /** Whether the product is active/available for sale. Defaults to true. */
   active?: boolean;
   categoryLabel?: string;
+  /** Display the PRO gradient badge next to the category pill. */
+  isPro?: boolean;
+  /** Brand name displayed above the product title when provided. */
+  brand?: string | null;
 }
 
 export default function ProductDetails({
@@ -24,6 +30,8 @@ export default function ProductDetails({
   stock,
   active = true,
   categoryLabel,
+  isPro = false,
+  brand,
 }: ProductDetailsProps) {
   const inStock = active && (stock === null || stock > 0);
 
@@ -35,17 +43,30 @@ export default function ProductDetails({
         .withInitialValues({ transform: [{ translateY: 12 }] })}
       style={styles.container}
     >
-      {/* Top row — Category pill + Stock badge */}
+      {/* Top row — Category pill + PRO badge + Stock badge */}
       <View style={styles.topRow}>
-        {categoryLabel ? (
-          <View style={[styles.categoryPill, { backgroundColor: Colors.primaryMuted }]}>
-            <Text style={[styles.categoryText, { color: Colors.primary }]}>
-              {categoryLabel}
-            </Text>
-          </View>
-        ) : (
-          <View />
-        )}
+        <View style={styles.topLeft}>
+          {categoryLabel ? (
+            <View style={[styles.categoryPill, { backgroundColor: Colors.primaryMuted }]}>
+              <Text style={[styles.categoryText, { color: Colors.primary }]}>
+                {categoryLabel}
+              </Text>
+            </View>
+          ) : (
+            <View />
+          )}
+          {isPro && (
+            <LinearGradient
+              colors={[Brand.gradientStart, Brand.primary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.proBadge, Bubble.radiiSm]}
+            >
+              <Feather name="award" size={10} color="#fff" />
+              <Text style={styles.proBadgeText}>PRO</Text>
+            </LinearGradient>
+          )}
+        </View>
 
         <View style={styles.stockBadge}>
           <View
@@ -59,6 +80,13 @@ export default function ProductDetails({
           </Text>
         </View>
       </View>
+
+      {/* Brand line (optional) */}
+      {brand ? (
+        <Text style={[styles.brandText, { color: Colors.textTertiary }]}>
+          {brand.toUpperCase()}
+        </Text>
+      ) : null}
 
       {/* Product name */}
       <Text style={[Typography.h2, styles.productName, { color: Colors.text }]}>
@@ -105,6 +133,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  topLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   categoryPill: {
     borderRadius: 999,
     paddingHorizontal: 12,
@@ -112,6 +145,25 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     ...Typography.smallSemiBold,
+  },
+  proBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  proBadgeText: {
+    fontFamily: 'EuclidCircularA-Bold',
+    fontSize: 9,
+    letterSpacing: 0.6,
+    color: '#fff',
+  },
+  brandText: {
+    fontFamily: 'EuclidCircularA-Bold',
+    fontSize: 10,
+    letterSpacing: 0.8,
+    marginTop: 10,
   },
   stockBadge: {
     flexDirection: 'row',

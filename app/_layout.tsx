@@ -2,7 +2,7 @@ import "../global.css";
 import { useEffect, useCallback } from "react";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { View, Image, ActivityIndicator, StyleSheet } from "react-native";
+import { Platform, View, Image, ActivityIndicator, StyleSheet } from "react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { LinearGradient } from "expo-linear-gradient";
@@ -17,11 +17,24 @@ import Animated, {
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { useAuthStore } from "@/stores/authStore";
+import { AuthProvider } from '@/providers/auth-provider';
+import { SalonProvider } from '@/providers/salon-provider';
 import { TutorialProvider } from '@/components/tutorial/TutorialProvider';
 import { useLoyaltyNotifications } from '@/hooks/useLoyaltyNotifications';
 import { PointsEarnedToast } from '@/components/loyalty/PointsEarnedToast';
 import { TierUpModal } from '@/components/loyalty/TierUpModal';
+import { XpQueueRoot } from '@/components/shared/XpQueueRoot';
 import '@/lib/livekit-setup';
+import { featureFlags } from 'react-native-screens';
+
+// Enable react-native-screens 4.21+ fix for the iOS Fabric crash where dismissed
+// RNSScreens get reattached to the navigation controller, causing
+// UIViewControllerHierarchyInconsistency → objc_exception_rethrow → SIGABRT.
+// Default-on in 4.24+, but we're pinned to 4.21.x for expo-router compat.
+// Guarded for web: featureFlags.experiment is only defined on native builds.
+if (Platform.OS !== 'web') {
+  featureFlags.experiment.iosPreventReattachmentOfDismissedScreens = true;
+}
 
 SplashScreen.preventAutoHideAsync();
 
@@ -189,6 +202,7 @@ function RootLayoutNav() {
         <Stack.Screen name="book-appointment" />
         <Stack.Screen name="cart" options={{ presentation: "modal" }} />
         <Stack.Screen name="checkout" options={{ presentation: "modal" }} />
+        <Stack.Screen name="marketplace" />
         <Stack.Screen name="orders" />
         <Stack.Screen
           name="live/[id]"
@@ -201,25 +215,36 @@ function RootLayoutNav() {
         <Stack.Screen name="tutorial/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="tutorial-lesson/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="profile/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="shop-xp" options={{ headerShown: false }} />
       </Stack>
       <LoyaltyGlobalOverlays />
+      <XpQueueRoot />
     </>
   );
 }
 
 export default function RootLayout() {
-  const [fontsLoaded, fontError] = useFonts({
-    "EuclidCircularA-Light": require("../assets/euclid-circular-a/Euclid-Circular-A-Light.ttf"),
-    "EuclidCircularA-LightItalic": require("../assets/euclid-circular-a/Euclid-Circular-A-Light-Italic.ttf"),
-    "EuclidCircularA-Regular": require("../assets/euclid-circular-a/Euclid-Circular-A-Regular.ttf"),
-    "EuclidCircularA-Italic": require("../assets/euclid-circular-a/Euclid-Circular-A-Italic.ttf"),
-    "EuclidCircularA-Medium": require("../assets/euclid-circular-a/Euclid-Circular-A-Medium.ttf"),
-    "EuclidCircularA-MediumItalic": require("../assets/euclid-circular-a/Euclid-Circular-A-Medium-Italic.ttf"),
-    "EuclidCircularA-SemiBold": require("../assets/euclid-circular-a/Euclid-Circular-A-SemiBold.ttf"),
-    "EuclidCircularA-SemiBoldItalic": require("../assets/euclid-circular-a/Euclid-Circular-A-SemiBold-Italic.ttf"),
-    "EuclidCircularA-Bold": require("../assets/euclid-circular-a/Euclid-Circular-A-Bold.ttf"),
-    "EuclidCircularA-BoldItalic": require("../assets/euclid-circular-a/Euclid-Circular-A-Bold-Italic.ttf"),
-  });
+  // On web, expo-font's useFonts can hang indefinitely if the .ttf assets fail
+  // to resolve over HTTP, leaving fontsLoaded=false and fontError=null forever
+  // — which makes the `return null` guard below permanent and renders a blank
+  // page. On web we skip font loading entirely; the @font-face rules from
+  // tailwind/CSS handle font loading at the browser level instead.
+  const [fontsLoaded, fontError] = useFonts(
+    Platform.OS === "web"
+      ? {}
+      : {
+          "EuclidCircularA-Light": require("../assets/euclid-circular-a/Euclid-Circular-A-Light.ttf"),
+          "EuclidCircularA-LightItalic": require("../assets/euclid-circular-a/Euclid-Circular-A-Light-Italic.ttf"),
+          "EuclidCircularA-Regular": require("../assets/euclid-circular-a/Euclid-Circular-A-Regular.ttf"),
+          "EuclidCircularA-Italic": require("../assets/euclid-circular-a/Euclid-Circular-A-Italic.ttf"),
+          "EuclidCircularA-Medium": require("../assets/euclid-circular-a/Euclid-Circular-A-Medium.ttf"),
+          "EuclidCircularA-MediumItalic": require("../assets/euclid-circular-a/Euclid-Circular-A-Medium-Italic.ttf"),
+          "EuclidCircularA-SemiBold": require("../assets/euclid-circular-a/Euclid-Circular-A-SemiBold.ttf"),
+          "EuclidCircularA-SemiBoldItalic": require("../assets/euclid-circular-a/Euclid-Circular-A-SemiBold-Italic.ttf"),
+          "EuclidCircularA-Bold": require("../assets/euclid-circular-a/Euclid-Circular-A-Bold.ttf"),
+          "EuclidCircularA-BoldItalic": require("../assets/euclid-circular-a/Euclid-Circular-A-Bold-Italic.ttf"),
+        }
+  );
 
   const onLayoutRootView = useCallback(async () => {
     if (fontsLoaded || fontError) {
@@ -242,9 +267,13 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
-        <TutorialProvider>
-          <RootLayoutNav />
-        </TutorialProvider>
+        <AuthProvider>
+          <SalonProvider>
+            <TutorialProvider>
+              <RootLayoutNav />
+            </TutorialProvider>
+          </SalonProvider>
+        </AuthProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>
   );

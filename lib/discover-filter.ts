@@ -2,6 +2,7 @@
 import type { SalonWithDistance } from '@/lib/discover';
 import type { BarberService } from '@/types/database';
 import type { DiscoverFilters, SortOption } from '@/types/filters';
+import type { SalonType } from '@/types/database';
 
 export interface FilterContext {
   /** Services per salon_id — used for the "services" filter. */
@@ -80,6 +81,11 @@ function matchesAmenities(salon: SalonWithDistance, filters: DiscoverFilters): b
   return filters.amenities.every((a) => have.has(a.toLowerCase()));
 }
 
+function matchesSalonType(salon: SalonWithDistance, filters: DiscoverFilters): boolean {
+  if (filters.salonType == null) return true;
+  return (salon.salon_types ?? []).includes(filters.salonType as SalonType);
+}
+
 // ─── Sort comparators ────────────────────────────────────────────────────────
 
 function cmpNullLast(
@@ -138,7 +144,8 @@ export function applyFilters(
       matchesRating(s, filters) &&
       matchesAvailability(s, filters, ctx) &&
       matchesServices(s, filters, ctx) &&
-      matchesAmenities(s, filters)
+      matchesAmenities(s, filters) &&
+      matchesSalonType(s, filters)
   );
   return sortSalons(filtered, filters.sort);
 }

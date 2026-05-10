@@ -404,61 +404,69 @@ export function NotificationsModal({ visible, onClose }: NotificationsModalProps
         </View>
 
         {/* Tab bar */}
-        <FlatList
-          horizontal
-          data={TABS}
-          keyExtractor={(t) => t.key}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={st.tabRow}
-          style={{ flexGrow: 0 }}
-          renderItem={({ item: t }) => {
+        <View style={st.tabRow}>
+          {TABS.map((t) => {
             const on = tab === t.key;
-            // Count for this tab
-            const tabCount = filterItems(notifications, t.key).filter(
-              (n) => !n.read
-            ).length;
+            const tabCount = filterItems(notifications, t.key).filter((n) => !n.read).length;
+
+            const label = (
+              <Text
+                style={on ? st.tabChipOn : st.tabChipOffText}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.85}
+              >
+                {t.label}
+              </Text>
+            );
+
+            const badge = tabCount > 0 && (
+              <View style={on ? st.tabBadgeOn : st.tabBadgeOff}>
+                <Text style={on ? st.tabBadgeOnText : st.tabBadgeOffText}>
+                  {tabCount > 9 ? '9+' : tabCount}
+                </Text>
+              </View>
+            );
+
+            const onPress = () => {
+              Haptics.selectionAsync().catch(() => {});
+              setTab(t.key);
+            };
 
             if (on) {
               return (
-                <LinearGradient
-                  colors={[Colors.gradientStart, Colors.gradientEnd]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={st.tabChip}
+                <TouchableOpacity
+                  key={t.key}
+                  onPress={onPress}
+                  activeOpacity={0.85}
+                  style={st.tabCell}
                 >
-                  <Text style={st.tabChipOn}>{t.label}</Text>
-                  {tabCount > 0 && (
-                    <View style={st.tabBadgeOn}>
-                      <Text style={st.tabBadgeOnText}>
-                        {tabCount > 9 ? '9+' : tabCount}
-                      </Text>
-                    </View>
-                  )}
-                </LinearGradient>
+                  <LinearGradient
+                    colors={[Colors.gradientStart, Colors.gradientEnd]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={st.tabChip}
+                  >
+                    {label}
+                    {badge}
+                  </LinearGradient>
+                </TouchableOpacity>
               );
             }
 
             return (
               <TouchableOpacity
-                style={st.tabChipOff}
-                onPress={() => {
-                  Haptics.selectionAsync().catch(() => {});
-                  setTab(t.key);
-                }}
+                key={t.key}
+                onPress={onPress}
                 activeOpacity={0.7}
+                style={[st.tabCell, st.tabChipOff]}
               >
-                <Text style={st.tabChipOffText}>{t.label}</Text>
-                {tabCount > 0 && (
-                  <View style={st.tabBadgeOff}>
-                    <Text style={st.tabBadgeOffText}>
-                      {tabCount > 9 ? '9+' : tabCount}
-                    </Text>
-                  </View>
-                )}
+                {label}
+                {badge}
               </TouchableOpacity>
             );
-          }}
-        />
+          })}
+        </View>
 
         {/* Divider */}
         <View style={st.divider} />
@@ -567,26 +575,46 @@ const st = StyleSheet.create({
     color: Colors.primary,
   },
 
-  tabRow: { paddingHorizontal: 20, gap: 8, paddingBottom: 12 },
+  tabRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    paddingHorizontal: 12,
+    gap: 6,
+    paddingBottom: 12,
+  },
+  tabCell: {
+    flex: 1,
+    minHeight: 44,
+  },
   tabChip: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 16,
+    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
     paddingVertical: 8,
+    minHeight: 44,
     ...Bubble.radiiSm,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
   tabChipOn: {
     fontFamily: 'EuclidCircularA-SemiBold',
     fontSize: 13,
     color: '#fff',
+    textAlign: 'center',
+    flexShrink: 1,
   },
   tabChipOff: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 16,
+    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
     paddingVertical: 8,
+    minHeight: 44,
     ...Bubble.radiiSm,
     borderWidth: 1.5,
     borderColor: Colors.separator,
@@ -596,6 +624,8 @@ const st = StyleSheet.create({
     fontFamily: 'EuclidCircularA-Regular',
     fontSize: 13,
     color: Colors.textSecondary,
+    textAlign: 'center',
+    flexShrink: 1,
   },
   tabBadgeOn: {
     backgroundColor: 'rgba(255,255,255,0.28)',

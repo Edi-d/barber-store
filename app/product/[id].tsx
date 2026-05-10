@@ -105,7 +105,7 @@ export default function ProductDetailScreen() {
 
   const handleAddToCart = useCallback(() => {
     if (!product) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     addItem(product, qty);
     router.back();
   }, [product, qty, addItem, router]);
@@ -169,7 +169,11 @@ export default function ProductDetailScreen() {
 
         {/* 2. Category pill, name, price, low-stock indicator */}
         <ProductDetails
-          product={product}
+          title={product.title}
+          priceCents={product.price_cents}
+          currency={product.currency}
+          stock={product.stock ?? null}
+          active={product.active}
         />
 
         {/* 3. Trust bar: stock status, delivery, quality */}
@@ -189,6 +193,7 @@ export default function ProductDetailScreen() {
           onQuantityChange={changeQuantity}
           onAddToCart={handleAddToCart}
           bottomInset={insets.bottom}
+          allowRemove={false}
         />
       )}
 

@@ -11,6 +11,8 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { Colors, Bubble, Shadows, Spacing } from "@/constants/theme";
 import { useTutorialContext } from "@/components/tutorial/TutorialProvider";
 import { useLoyaltyProfile } from "@/hooks/useLoyaltyProfile";
+import { useShopXP } from "@/hooks/use-shop-xp";
+import { XPBadge } from "@/components/shop-gamification/XPBadge";
 
 import { ProfileHero } from "@/components/profile/ProfileHero";
 import { ProfileMenu } from "@/components/profile/ProfileMenu";
@@ -35,6 +37,7 @@ export default function ProfileScreen() {
   }, [registerRef, unregisterRef]);
 
   const { data: loyaltyProfile } = useLoyaltyProfile();
+  const { xpSummary: shopXP } = useShopXP();
 
   const { data: stats, refetch, isRefetching } = useQuery({
     queryKey: ["profile-stats", session?.user.id],
@@ -78,6 +81,14 @@ export default function ProfileScreen() {
       badge: loyaltyProfile?.balance ?? undefined,
       iconColor: '#F5A623',
       iconBgColor: 'rgba(245,166,35,0.1)',
+    },
+    {
+      icon: 'flash',
+      label: 'XP Magazin',
+      onPress: () => router.push('/shop-xp' as any),
+      badge: shopXP?.level ?? undefined,
+      iconColor: '#FFB300',
+      iconBgColor: 'rgba(255,179,0,0.1)',
     },
     {
       icon: "calendar",
@@ -134,13 +145,23 @@ export default function ProfileScreen() {
                 style={s.headerLogo}
                 resizeMode="contain"
               />
-              <Pressable
-                onPress={() => router.push("/settings")}
-                className="w-10 h-10 items-center justify-center active:opacity-70"
-                style={s.settingsBtn}
-              >
-                <Ionicons name="settings-outline" size={20} color={Colors.text} />
-              </Pressable>
+              <View style={s.headerRight}>
+                {shopXP && (
+                  <Pressable
+                    onPress={() => router.push('/shop-xp' as any)}
+                    className="active:opacity-70"
+                  >
+                    <XPBadge xp={shopXP.currentXP} level={shopXP.level} size="sm" />
+                  </Pressable>
+                )}
+                <Pressable
+                  onPress={() => router.push("/settings")}
+                  className="w-10 h-10 items-center justify-center active:opacity-70"
+                  style={s.settingsBtn}
+                >
+                  <Ionicons name="settings-outline" size={20} color={Colors.text} />
+                </Pressable>
+              </View>
             </View>
           </Animated.View>
 
@@ -195,6 +216,11 @@ const s = StyleSheet.create({
   headerLogo: {
     width: 100,
     height: 32,
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
   },
   settingsBtn: {
     backgroundColor: "rgba(255,255,255,0.65)",

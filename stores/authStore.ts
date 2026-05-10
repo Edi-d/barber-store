@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { Platform } from "react-native";
 import { supabase } from "@/lib/supabase";
 import { cleanupAllChannels } from "@/lib/realtime";
 import { Profile } from "@/types/database";
@@ -107,7 +108,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isSubmitting: true });
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: "tapzi://reset-password",
+        redirectTo:
+          Platform.OS === "web"
+            ? `${typeof window !== "undefined" ? window.location.origin : "https://tapzi.ro"}/reset-password`
+            : "tapzi://reset-password",
       });
       if (error) throw error;
       return { error: null };

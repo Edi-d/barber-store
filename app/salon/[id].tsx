@@ -31,7 +31,7 @@ import {
   fetchSalonReviews,
   fetchActiveHappyHour,
   toggleFavorite,
-  uploadReviewPhoto,
+  uploadReviewPhotos,
   submitReview,
   AMENITY_CONFIG,
   SERVICE_CATEGORY_ORDER,
@@ -40,6 +40,7 @@ import {
 } from "@/lib/salon";
 import { CountdownTimer } from "@/components/shared/CountdownTimer";
 import { ReviewModal } from "@/components/salon/ReviewModal";
+import { ReviewPhotoStrip } from "@/components/shared/ReviewPhotoStrip";
 import { Bubble, Shadows } from "@/constants/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -188,21 +189,29 @@ export default function SalonDetailScreen() {
   // ── Review submit ──
 
   const handleReviewSubmit = useCallback(
-    async (review: { rating: number; comment: string; photoBase64?: string; photoMimeType?: string }) => {
-      if (!session || !id) return;
-      let photoUrl: string | undefined;
-      if (review.photoBase64) {
-        photoUrl = await uploadReviewPhoto(session.user.id, review.photoBase64, review.photoMimeType);
+    async (review: {
+      rating: number;
+      comment: string;
+      photos?: Array<{ base64: string; mimeType: string }>;
+    }) => {
+      if (!session?.user || !id) return;
+      try {
+        let photoUrls: string[] = [];
+        if (review.photos && review.photos.length > 0) {
+          photoUrls = await uploadReviewPhotos(session.user.id, review.photos);
+        }
+        await submitReview({
+          userId: session.user.id,
+          salonId: id,
+          rating: review.rating,
+          comment: review.comment,
+          photoUrls,
+        });
+        queryClient.invalidateQueries({ queryKey: ["salon-reviews", id] });
+        queryClient.invalidateQueries({ queryKey: ["salon", id] });
+      } catch (err) {
+        console.error("Failed to submit review", err);
       }
-      await submitReview({
-        userId: session.user.id,
-        salonId: id,
-        rating: review.rating,
-        comment: review.comment,
-        photoUrl,
-      });
-      queryClient.invalidateQueries({ queryKey: ["salon-reviews", id] });
-      queryClient.invalidateQueries({ queryKey: ["salon", id] });
     },
     [session, id, queryClient]
   );
@@ -903,15 +912,8 @@ export default function SalonDetailScreen() {
                 </Text>
               )}
 
-              {/* Photo */}
-              {review.photo_url && (
-                <Image
-                  source={{ uri: review.photo_url }}
-                  className="w-full h-40 mt-2"
-                  style={{ borderRadius: 12 }}
-                  resizeMode="cover"
-                />
-              )}
+              {/* Photos */}
+              <ReviewPhotoStrip photos={review.photo_urls ?? []} />
 
               {/* Owner reply */}
               {review.owner_reply ? (

@@ -29,7 +29,11 @@ export async function fetchStoriesWithSeenState(viewerId: string): Promise<Story
     .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false });
 
-  if (error || !data) return [];
+  if (error) {
+    console.error('[stories] fetch error:', error);
+    return [];
+  }
+  if (!data) return [];
 
   const rows = data as any[];
 

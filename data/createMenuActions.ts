@@ -46,30 +46,3 @@ export const CLIENT_ACTIONS: CreateMenuAction[] = [
     requiresAuth: false,
   },
 ];
-
-export const BARBER_ACTIONS: CreateMenuAction[] = [
-  {
-    id: 'today',
-    label: 'Programări azi',
-    icon: 'calendar-number-outline',
-    route: '/appointments',
-    colorKey: 'today',
-    requiresAuth: true,
-  },
-  {
-    id: 'transform',
-    label: 'Postare transformare',
-    icon: 'camera',
-    route: '/post/new?type=transformation',
-    colorKey: 'booking',
-    requiresAuth: true,
-  },
-  {
-    id: 'story',
-    label: 'Story nou',
-    icon: 'camera-outline',
-    route: '/story/new',
-    colorKey: 'tryon',
-    requiresAuth: true,
-  },
-];

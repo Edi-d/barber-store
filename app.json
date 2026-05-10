@@ -17,13 +17,18 @@
       "supportsTablet": true,
       "buildNumber": "23",
       "bundleIdentifier": "com.tapzi.app",
-      "associatedDomains": ["applinks:tapzi.ro"],
+      "associatedDomains": [
+        "applinks:tapzi.ro"
+      ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "Avem nevoie de locația ta pentru a-ți arăta saloanele din apropiere.",
         "NSCameraUsageDescription": "Permite Tapzi să acceseze camera pentru streaming live și fotografii",
         "NSMicrophoneUsageDescription": "Permite Tapzi să acceseze microfonul pentru streaming live",
-        "UIBackgroundModes": ["audio", "voip"]
+        "UIBackgroundModes": [
+          "audio",
+          "voip"
+        ]
       },
       "config": {
         "googleMapsApiKey": "AIzaSyDbT_UzI5kiXBNZuimGb5ms-1_VpRqCW7k"
@@ -47,7 +52,10 @@
               "pathPrefix": "/"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "permissions": [
@@ -78,7 +86,14 @@
         }
       ],
       "@livekit/react-native-expo-plugin",
-      "@config-plugins/react-native-webrtc"
+      "@config-plugins/react-native-webrtc",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Permite Tapzi să adauge programările tale în calendar."
+        }
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

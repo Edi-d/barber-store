@@ -48,6 +48,13 @@ import {
   formatAmenities,
   formatSort,
 } from './filters/formatValue';
+import type { SalonType } from '@/types/database';
+
+const SALON_TYPE_OPTIONS: { value: SalonType | null; label: string }[] = [
+  { value: null, label: 'Toate' },
+  { value: 'barbershop', label: 'Barbershop' },
+  { value: 'coafor', label: 'Coafor' },
+];
 
 export interface FiltersSheetHandle {
   open: () => void;
@@ -72,6 +79,7 @@ interface Props {
 }
 
 type RowKey =
+  | 'salonType'
   | 'distance'
   | 'price'
   | 'rating'
@@ -184,6 +192,21 @@ export const FiltersSheet = forwardRef<FiltersSheetHandle, Props>(function Filte
       </View>
 
       <BottomSheetScrollView contentContainerStyle={styles.body}>
+        <AccordionRow
+          label="Tip salon"
+          value={draft.salonType == null ? 'Toate' : draft.salonType === 'barbershop' ? 'Barbershop' : 'Coafor'}
+          isSet={draft.salonType != null}
+          expanded={expanded === 'salonType'}
+          onToggle={() => handleToggle('salonType')}
+        >
+          <ChipGroup
+            mode="single"
+            items={SALON_TYPE_OPTIONS}
+            selected={draft.salonType}
+            onChange={(v) => setDraft({ ...draft, salonType: v })}
+          />
+        </AccordionRow>
+
         <AccordionRow
           label="Distanță"
           value={formatDistance(draft.distanceKm)}

@@ -20,7 +20,7 @@ import { SearchResultItem } from '@/components/search/SearchResultItem';
 import { useSearch, type SearchProfile, type SearchSalon, type SearchPost } from '@/hooks/useSearch';
 import { useTrendingTopics } from '@/hooks/useTrendingTopics';
 import { useRecentSearches } from '@/hooks/useRecentSearches';
-import { Colors, FontFamily, Spacing, Radius, Bubble, Shadows } from '@/constants/theme';
+import { Colors, FontFamily, Spacing, Radius, Shadows, Bubble } from '@/constants/theme';
 
 // ─── Section data types ───────────────────────────────────────────────────────
 
@@ -297,26 +297,17 @@ export default function SearchScreen() {
             showsVerticalScrollIndicator={false}
             stickySectionHeadersEnabled={false}
             contentContainerStyle={styles.resultsContainer}
-            SectionSeparatorComponent={() => <View style={{ height: 8 }} />}
+            SectionSeparatorComponent={() => <View style={{ height: 4 }} />}
             renderSectionHeader={({ section }) => (
               <SectionHeader title={section.title} />
             )}
-            renderItem={({ item, index, section }) => (
-              <View
-                style={[
-                  styles.resultItemWrapper,
-                  index === 0 && styles.resultItemFirst,
-                  index === section.data.length - 1 && styles.resultItemLast,
-                ]}
-              >
+            renderItem={({ item }) => (
+              <View style={styles.resultItemWrapper}>
                 <SearchResultItem
                   type={item.kind}
                   item={item.data as any}
                   onPress={() => handleResultPress(item)}
                 />
-                {index < section.data.length - 1 && (
-                  <View style={styles.itemSeparator} />
-                )}
               </View>
             )}
             ListFooterComponent={<View style={{ height: 40 }} />}
@@ -460,6 +451,11 @@ const styles = StyleSheet.create({
   },
 
   // ── Results ──
+  resultItemWrapper: {
+    marginBottom: 10,
+    ...Shadows.sm,
+    ...Bubble.radiiSm,
+  },
   resultsContainer: {
     paddingHorizontal: Spacing.base,
     paddingTop: Spacing.sm,
@@ -475,26 +471,9 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
-  resultItemWrapper: {
-    backgroundColor: Colors.white,
-    overflow: 'hidden',
-  },
-  resultItemFirst: {
-    borderTopLeftRadius: Radius.lg,
-    borderTopRightRadius: Radius.lg,
-  },
-  resultItemLast: {
-    borderBottomLeftRadius: Radius.lg,
-    borderBottomRightRadius: Radius.lg,
-  },
   separator: {
     height: 1,
     backgroundColor: Colors.separator,
-    marginLeft: Spacing.base + 46 + Spacing.md, // align after avatar
-  },
-  itemSeparator: {
-    height: 1,
-    backgroundColor: Colors.separator,
-    marginLeft: Spacing.base + 46 + Spacing.md,
+    marginLeft: Spacing.base + 48 + Spacing.md,
   },
 });

@@ -31,10 +31,7 @@ import { featureFlags } from 'react-native-screens';
 // RNSScreens get reattached to the navigation controller, causing
 // UIViewControllerHierarchyInconsistency → objc_exception_rethrow → SIGABRT.
 // Default-on in 4.24+, but we're pinned to 4.21.x for expo-router compat.
-// Guarded for web: featureFlags.experiment is only defined on native builds.
-if (Platform.OS !== 'web') {
-  featureFlags.experiment.iosPreventReattachmentOfDismissedScreens = true;
-}
+featureFlags.experiment.iosPreventReattachmentOfDismissedScreens = true;
 
 SplashScreen.preventAutoHideAsync();
 
@@ -224,27 +221,18 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-  // On web, expo-font's useFonts can hang indefinitely if the .ttf assets fail
-  // to resolve over HTTP, leaving fontsLoaded=false and fontError=null forever
-  // — which makes the `return null` guard below permanent and renders a blank
-  // page. On web we skip font loading entirely; the @font-face rules from
-  // tailwind/CSS handle font loading at the browser level instead.
-  const [fontsLoaded, fontError] = useFonts(
-    Platform.OS === "web"
-      ? {}
-      : {
-          "EuclidCircularA-Light": require("../assets/euclid-circular-a/Euclid-Circular-A-Light.ttf"),
-          "EuclidCircularA-LightItalic": require("../assets/euclid-circular-a/Euclid-Circular-A-Light-Italic.ttf"),
-          "EuclidCircularA-Regular": require("../assets/euclid-circular-a/Euclid-Circular-A-Regular.ttf"),
-          "EuclidCircularA-Italic": require("../assets/euclid-circular-a/Euclid-Circular-A-Italic.ttf"),
-          "EuclidCircularA-Medium": require("../assets/euclid-circular-a/Euclid-Circular-A-Medium.ttf"),
-          "EuclidCircularA-MediumItalic": require("../assets/euclid-circular-a/Euclid-Circular-A-Medium-Italic.ttf"),
-          "EuclidCircularA-SemiBold": require("../assets/euclid-circular-a/Euclid-Circular-A-SemiBold.ttf"),
-          "EuclidCircularA-SemiBoldItalic": require("../assets/euclid-circular-a/Euclid-Circular-A-SemiBold-Italic.ttf"),
-          "EuclidCircularA-Bold": require("../assets/euclid-circular-a/Euclid-Circular-A-Bold.ttf"),
-          "EuclidCircularA-BoldItalic": require("../assets/euclid-circular-a/Euclid-Circular-A-Bold-Italic.ttf"),
-        }
-  );
+  const [fontsLoaded, fontError] = useFonts({
+    "EuclidCircularA-Light": require("../assets/euclid-circular-a/Euclid-Circular-A-Light.ttf"),
+    "EuclidCircularA-LightItalic": require("../assets/euclid-circular-a/Euclid-Circular-A-Light-Italic.ttf"),
+    "EuclidCircularA-Regular": require("../assets/euclid-circular-a/Euclid-Circular-A-Regular.ttf"),
+    "EuclidCircularA-Italic": require("../assets/euclid-circular-a/Euclid-Circular-A-Italic.ttf"),
+    "EuclidCircularA-Medium": require("../assets/euclid-circular-a/Euclid-Circular-A-Medium.ttf"),
+    "EuclidCircularA-MediumItalic": require("../assets/euclid-circular-a/Euclid-Circular-A-Medium-Italic.ttf"),
+    "EuclidCircularA-SemiBold": require("../assets/euclid-circular-a/Euclid-Circular-A-SemiBold.ttf"),
+    "EuclidCircularA-SemiBoldItalic": require("../assets/euclid-circular-a/Euclid-Circular-A-SemiBold-Italic.ttf"),
+    "EuclidCircularA-Bold": require("../assets/euclid-circular-a/Euclid-Circular-A-Bold.ttf"),
+    "EuclidCircularA-BoldItalic": require("../assets/euclid-circular-a/Euclid-Circular-A-Bold-Italic.ttf"),
+  });
 
   const onLayoutRootView = useCallback(async () => {
     if (fontsLoaded || fontError) {

@@ -228,33 +228,28 @@ export const Shadows = {
   sm: Platform.select<ViewStyle>({
     ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.10, shadowRadius: 3 },
     android: { elevation: 2 },
-    web: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.10, shadowRadius: 3 },
     default: {},
   })!,
   md: Platform.select<ViewStyle>({
     ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
     android: { elevation: 3 },
-    web: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
     default: {},
   })!,
   lg: Platform.select<ViewStyle>({
     ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 16 },
     android: { elevation: 6 },
-    web: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 16 },
     default: {},
   })!,
   /** Soft diffuse card shadow — glassmorphism */
   glass: Platform.select<ViewStyle>({
     ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 25 }, shadowOpacity: 0.08, shadowRadius: 50 },
     android: { elevation: 8 },
-    web: { shadowColor: '#000', shadowOffset: { width: 0, height: 25 }, shadowOpacity: 0.08, shadowRadius: 50 },
     default: {},
   })!,
   /** Blue glow — for primary buttons */
   glow: Platform.select<ViewStyle>({
     ios: { shadowColor: Brand.gradientStart, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20 },
     android: { elevation: 10 },
-    web: { shadowColor: Brand.gradientStart, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20 },
     default: {},
   })!,
 } as const;

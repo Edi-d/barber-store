@@ -342,7 +342,7 @@ export default function CheckoutScreen() {
 
           {/* ─── Contact Info ─── */}
           <Animated.View entering={slideIn(100)} style={[styles.card, Shadows.sm]}>
-            <View ref={contactRef} style={styles.cardInner}>
+            <View ref={contactRef} collapsable={false} style={styles.cardInner}>
               <View style={styles.sectionHeader}>
                 <Feather name="user" size={18} color={Brand.primary} />
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -434,7 +434,7 @@ export default function CheckoutScreen() {
                 </Text>
               </View>
 
-              <View ref={deliveryModeRef} style={styles.deliveryToggle}>
+              <View ref={deliveryModeRef} collapsable={false} style={styles.deliveryToggle}>
                 <TouchableOpacity
                   style={[
                     styles.deliveryOption,
@@ -496,7 +496,7 @@ export default function CheckoutScreen() {
 
               {deliveryMode === 'delivery' && (
                 <>
-                  <View ref={addressRef} style={styles.inputGroup}>
+                  <View ref={addressRef} collapsable={false} style={styles.inputGroup}>
                     <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
                       Adresa de livrare *
                     </Text>
@@ -606,7 +606,7 @@ export default function CheckoutScreen() {
 
           {/* ─── Payment Method ─── */}
           <Animated.View entering={slideIn(350)} style={[styles.card, Shadows.sm]}>
-            <View ref={paymentRef} style={styles.cardInner}>
+            <View ref={paymentRef} collapsable={false} style={styles.cardInner}>
               <View style={styles.sectionHeader}>
                 <Feather name="credit-card" size={18} color={Brand.primary} />
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -723,7 +723,7 @@ export default function CheckoutScreen() {
               </Text>
             </View>
 
-            <Animated.View ref={placeOrderRef} style={[styles.submitBtnWrapper, btnAnimStyle]}>
+            <Animated.View ref={placeOrderRef} collapsable={false} style={[styles.submitBtnWrapper, btnAnimStyle]}>
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={handleSubmit(onSubmit)}

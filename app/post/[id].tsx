@@ -47,6 +47,7 @@ export default function PostViewerScreen() {
   const { session } = useAuthStore();
   const queryClient = useQueryClient();
   const [commentsItem, setCommentsItem] = useState<ContentWithAuthor | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
 
   // ── Fetch single post ──────────────────────────────────────────────────
 
@@ -184,6 +185,9 @@ export default function PostViewerScreen() {
           }}
           onComment={handleComment}
           isLikePending={likeMutation.isPending}
+          isActiveVideo={true}
+          isMuted={isMuted}
+          onMuteToggle={() => setIsMuted((m) => !m)}
         />
       </ScrollView>
 

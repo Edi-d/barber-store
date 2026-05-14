@@ -17,6 +17,8 @@ interface AuthState {
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
+  verifyResetPasswordOtp: (email: string, token: string) => Promise<{ error: Error | null }>;
+  updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
   createProfile: (data: { username: string; display_name: string; bio?: string }) => Promise<{ error: Error | null }>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: Error | null }>;
   fetchProfile: () => Promise<void>;
@@ -79,10 +81,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signUp: async (email: string, password: string) => {
     set({ isSubmitting: true });
     try {
-      const { error: signUpError } = await supabase.auth.signUp({
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: "tapzi://auth/callback",
+          data: {
+            signup_source: "customer_app",
+          },
+        },
       });
+      console.log("[AUTH] signUp result - email:", email);
+      console.log("[AUTH] signUp result - user:", data?.user ? {
+        id: data.user.id,
+        email: data.user.email,
+        email_confirmed_at: data.user.email_confirmed_at,
+        confirmation_sent_at: data.user.confirmation_sent_at,
+        created_at: data.user.created_at,
+        identities_count: data.user.identities?.length,
+      } : null);
+      console.log("[AUTH] signUp result - session:", data?.session ? "SET" : "null");
+      console.log("[AUTH] signUp result - error:", signUpError);
       if (signUpError) throw signUpError;
       return { error: null };
     } catch (error) {
@@ -109,6 +128,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: "tapzi://reset-password",
       });
+      if (error) throw error;
+      return { error: null };
+    } catch (error) {
+      return { error: error as Error };
+    } finally {
+      set({ isSubmitting: false });
+    }
+  },
+
+  verifyResetPasswordOtp: async (email: string, token: string) => {
+    set({ isSubmitting: true });
+    try {
+      const { error } = await supabase.auth.verifyOtp({ email, token, type: "recovery" });
+      console.log("[AUTH] verifyResetPasswordOtp result:", error ?? "ok");
+      if (error) throw error;
+      return { error: null };
+    } catch (error) {
+      return { error: error as Error };
+    } finally {
+      set({ isSubmitting: false });
+    }
+  },
+
+  updatePassword: async (newPassword: string) => {
+    if (!get().session) return { error: new Error("Not authenticated") };
+    set({ isSubmitting: true });
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      console.log("[AUTH] updatePassword result:", error ?? "ok");
       if (error) throw error;
       return { error: null };
     } catch (error) {

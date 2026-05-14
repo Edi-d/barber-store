@@ -33,8 +33,8 @@ export function useRealtimeLikes(userId: string | undefined): void {
         },
         (payload) => {
           const contentId = (payload.new as { content_id: string }).content_id;
-          queryClient.setQueryData<InfiniteData<ContentWithAuthor[]>>(
-            ['feed'],
+          queryClient.setQueriesData<InfiniteData<ContentWithAuthor[]>>(
+            { queryKey: ['feed'], exact: false },
             (old) => {
               if (!old) return old;
               return {
@@ -62,8 +62,8 @@ export function useRealtimeLikes(userId: string | undefined): void {
         (payload) => {
           if (!payload.old || !('content_id' in payload.old)) return;
           const contentId = (payload.old as { content_id: string }).content_id;
-          queryClient.setQueryData<InfiniteData<ContentWithAuthor[]>>(
-            ['feed'],
+          queryClient.setQueriesData<InfiniteData<ContentWithAuthor[]>>(
+            { queryKey: ['feed'], exact: false },
             (old) => {
               if (!old) return old;
               return {

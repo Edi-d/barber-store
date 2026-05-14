@@ -550,7 +550,7 @@ export default function BookAppointmentScreen() {
       </View>
 
       {/* ── Step indicator (animated) ── */}
-      <View ref={stepIndicatorRef}>
+      <View ref={stepIndicatorRef} collapsable={false}>
         <BookingStepIndicator
           currentStep={step}
           stepTitles={STEP_TITLES}
@@ -605,8 +605,9 @@ export default function BookAppointmentScreen() {
                   <View
                     key={barber.id}
                     ref={index === 0 ? barberCardRef : undefined}
+                    collapsable={false}
                   >
-                    <View ref={index === 0 ? barberSelectedRef : undefined}>
+                    <View ref={index === 0 ? barberSelectedRef : undefined} collapsable={false}>
                       <BarberCard
                         barber={barber}
                         isSelected={selectedBarber?.id === barber.id}
@@ -664,8 +665,9 @@ export default function BookAppointmentScreen() {
                   <View
                     key={service.id}
                     ref={index === 0 ? serviceCardRef : undefined}
+                    collapsable={false}
                   >
-                    <View ref={index === 0 ? serviceCheckboxRef : undefined}>
+                    <View ref={index === 0 ? serviceCheckboxRef : undefined} collapsable={false}>
                       <ServiceCard
                         service={service}
                         isSelected={selectedServices.some(
@@ -715,7 +717,7 @@ export default function BookAppointmentScreen() {
             </View>
 
             {/* Animated date picker */}
-            <View ref={datePickerRef}>
+            <View ref={datePickerRef} collapsable={false}>
               <BookingDatePicker
                 selectedDate={selectedDate}
                 onSelectDate={(date) => {
@@ -766,8 +768,8 @@ export default function BookAppointmentScreen() {
 
       {/* ── Step 2: Floating bar (animated) ── */}
       {step === 2 && (
-        <View ref={floatingBarRef} style={{ position: "absolute", bottom: 0, left: 0, right: 0 }} pointerEvents="box-none">
-          <View ref={continueBtnRef} pointerEvents="box-none">
+        <View ref={floatingBarRef} collapsable={false} style={{ position: "absolute", bottom: 0, left: 0, right: 0 }} pointerEvents="box-none">
+          <View ref={continueBtnRef} collapsable={false} pointerEvents="box-none">
             <BookingFloatingBar
               selectedServices={selectedServices}
               onContinue={() => {
@@ -783,7 +785,7 @@ export default function BookAppointmentScreen() {
 
       {/* ── Step 3: Sticky CTA when time is selected ── */}
       {step === 3 && selectedTime ? (
-        <View ref={timeCtaRef} style={styles.stickyBar}>
+        <View ref={timeCtaRef} collapsable={false} style={styles.stickyBar}>
           <Button variant="primary" size="lg" onPress={() => setStep(4)}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <Ionicons

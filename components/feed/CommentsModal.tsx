@@ -5,7 +5,6 @@ import {
   Text,
   TouchableOpacity,
   TextInput,
-  KeyboardAvoidingView,
   Platform,
   Dimensions,
   FlatList,
@@ -28,6 +27,7 @@ import {
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
+  useAnimatedKeyboard,
   withSpring,
   withTiming,
   withDelay,
@@ -600,6 +600,8 @@ export function CommentsModal({ visible, item, onClose }: Props) {
 
   /* ── Drag to dismiss ── */
   const pan = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onUpdate((e) => {
       if (e.translationY > 0) {
         translateY.value = e.translationY * 0.6;
@@ -634,6 +636,16 @@ export function CommentsModal({ visible, item, onClose }: Props) {
         ),
       },
     ],
+  }));
+
+  const keyboard = useAnimatedKeyboard();
+
+  const inputBarAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: -Math.max(keyboard.height.value - insets.bottom, 0) }],
+  }));
+
+  const listContainerAnimStyle = useAnimatedStyle(() => ({
+    paddingBottom: Math.max(keyboard.height.value - insets.bottom, 0),
   }));
 
   const handleAuthorPress = useCallback(
@@ -725,11 +737,6 @@ export function CommentsModal({ visible, item, onClose }: Props) {
         </Animated.View>
 
         {/* Sheet */}
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.keyboardAvoid}
-          keyboardVerticalOffset={0}
-        >
         <GestureDetector gesture={pan}>
           <Animated.View style={[styles.sheetContainer, sheetStyle]}>
             <BlurView
@@ -753,7 +760,7 @@ export function CommentsModal({ visible, item, onClose }: Props) {
             </View>
 
             {/* Comments list - constrained to flex:1 so input stays visible */}
-            <View style={styles.listContainer}>
+            <Animated.View style={[styles.listContainer, listContainerAnimStyle]}>
               {isLoading ? (
                 <View style={styles.loadingContainer}>
                   <ActivityIndicator size="small" color={Brand.primary} />
@@ -794,7 +801,7 @@ export function CommentsModal({ visible, item, onClose }: Props) {
                   }
                 />
               )}
-            </View>
+            </Animated.View>
 
             {/* Reply indicator */}
             {replyTarget && (
@@ -818,7 +825,7 @@ export function CommentsModal({ visible, item, onClose }: Props) {
             )}
 
             {/* Input bar - Instagram style */}
-            <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+            <Animated.View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 16) }, inputBarAnimStyle]}>
               {profile?.avatar_url ? (
                 <Image
                   source={{ uri: profile.avatar_url }}
@@ -869,11 +876,10 @@ export function CommentsModal({ visible, item, onClose }: Props) {
                   </TouchableOpacity>
                 ) : null}
               </View>
-            </View>
+            </Animated.View>
             </BlurView>
           </Animated.View>
         </GestureDetector>
-        </KeyboardAvoidingView>
       </View>
 
       <ReactionPicker
@@ -1176,12 +1182,6 @@ const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: Colors.backdropBlack,
-  },
-  keyboardAvoid: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
   },
   sheetContainer: {
     position: 'absolute',

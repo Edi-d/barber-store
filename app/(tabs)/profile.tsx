@@ -167,7 +167,7 @@ export default function ProfileScreen() {
 
           {/* Profile Hero Card */}
           <Animated.View entering={FadeInDown.duration(400).delay(80)} style={{ marginTop: 4 }}>
-            <View ref={heroRef}>
+            <View ref={heroRef} collapsable={false}>
             <ProfileHero
               avatarUrl={profile.avatar_url}
               displayName={profile.display_name || profile.username}

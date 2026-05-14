@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,11 +9,9 @@ import {
   ScrollView,
   Image,
   StyleSheet,
-  Alert,
-  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Link, router } from "expo-router";
+import { router } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
 import { useAuthStore } from "@/stores/authStore";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,14 +21,15 @@ import { SwipeButton, SwipeButtonRef } from "@/components/auth/SwipeButton";
 import { Colors, Typography, Bubble, Spacing } from "@/constants/theme";
 import { mapAuthError } from "@/lib/authErrors";
 
-interface SignUpForm {
-  email: string;
+interface ResetPasswordForm {
   password: string;
   confirmPassword: string;
 }
 
-export default function SignUpScreen() {
-  const { signUp, isSubmitting } = useAuthStore();
+export default function ResetPasswordScreen() {
+  const { updatePassword, isSubmitting, session, isInitialized } =
+    useAuthStore();
+
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -38,8 +37,6 @@ export default function SignUpScreen() {
   const [swipeLoading, setSwipeLoading] = useState(false);
 
   const swipeRef = useRef<SwipeButtonRef>(null);
-  const emailRef = useRef<TextInput>(null);
-  const passwordRef = useRef<TextInput>(null);
   const confirmPasswordRef = useRef<TextInput>(null);
 
   const {
@@ -47,35 +44,50 @@ export default function SignUpScreen() {
     handleSubmit,
     watch,
     formState: { errors },
-  } = useForm<SignUpForm>({
-    defaultValues: { email: "", password: "", confirmPassword: "" },
+  } = useForm<ResetPasswordForm>({
+    defaultValues: { password: "", confirmPassword: "" },
   });
 
   const password = watch("password");
 
-  const onSubmit = async (data: SignUpForm) => {
+  // Redirect if recovery session is absent after store is ready
+  useEffect(() => {
+    console.log("[RESET_PASSWORD_SUBMIT] session guard effect — isInitialized:", isInitialized, "session:", session ? "present" : "null");
+    if (isInitialized && !session) {
+      console.log("[RESET_PASSWORD_SUBMIT] session guard triggering router.replace('/(auth)/welcome')");
+      router.replace("/(auth)/welcome");
+    }
+  }, [isInitialized, session]);
+
+  const onSubmit = async (data: ResetPasswordForm) => {
+    console.log("[RESET_PASSWORD_SUBMIT] onSubmit called, password length:", data.password?.length);
     setError(null);
     setSwipeLoading(true);
-    const { error } = await signUp(data.email, data.password);
-    if (error) {
-      setError(mapAuthError(error.message));
+    console.log("[RESET_PASSWORD_SUBMIT] calling updatePassword...");
+    const { error: updateError } = await updatePassword(data.password);
+    console.log("[RESET_PASSWORD_SUBMIT] updatePassword returned, error:", updateError);
+    if (updateError) {
+      console.log("[RESET_PASSWORD_SUBMIT] entering error branch, message:", updateError.message);
+      setError(mapAuthError(updateError.message));
       setSwipeLoading(false);
       swipeRef.current?.reset();
     } else {
-      router.replace({ pathname: "/(auth)/confirm-email", params: { email: data.email } });
+      console.log("[RESET_PASSWORD_SUBMIT] entering success branch — scheduling router.replace('/(tabs)') in 1200ms");
+      // Brief moment on the success state, then enter the app
+      setTimeout(() => {
+        console.log("[RESET_PASSWORD_SUBMIT] setTimeout fired — calling router.replace('/(tabs)') now");
+        router.replace("/(tabs)");
+        console.log("[RESET_PASSWORD_SUBMIT] router.replace called");
+      }, 1200);
     }
+    console.log("[RESET_PASSWORD_SUBMIT] onSubmit complete (setTimeout may still be pending)");
   };
 
   const handleSwipe = useCallback(() => {
+    console.log("[RESET_PASSWORD_SUBMIT] handleSwipe called — invoking handleSubmit(onSubmit)");
     handleSubmit(onSubmit)();
+    console.log("[RESET_PASSWORD_SUBMIT] handleSubmit(onSubmit)() returned");
   }, [handleSubmit]);
-
-  const handleSocialLogin = (provider: "Google" | "Apple") => {
-    Alert.alert(
-      "În curând",
-      `Autentificarea cu ${provider} va fi disponibilă în curând.`
-    );
-  };
 
   return (
     <AuthBackground>
@@ -101,13 +113,18 @@ export default function SignUpScreen() {
 
             {/* Glass Card */}
             <GlassCard style={styles.card}>
+              {/* Lock icon badge */}
+              <View style={styles.iconContainer}>
+                <Ionicons name="lock-closed" size={48} color={Colors.gradientStart} />
+              </View>
+
               {/* Title */}
-              <Text style={[Typography.h1, styles.title]}>Creează cont</Text>
+              <Text style={[Typography.h1, styles.title]}>Parolă nouă</Text>
               <Text style={[Typography.caption, styles.subtitle]}>
-                Începe călătoria ta în lumea frizuriei
+                Alege o parolă pe care nu ai folosit-o până acum
               </Text>
 
-              {/* Error */}
+              {/* Error banner */}
               {error && (
                 <View style={styles.errorContainer}>
                   <Ionicons
@@ -120,66 +137,10 @@ export default function SignUpScreen() {
                 </View>
               )}
 
-              {/* Email Field */}
+              {/* New password field */}
               <View style={styles.fieldContainer}>
                 <Text style={[Typography.captionSemiBold, styles.label]}>
-                  Email
-                </Text>
-                <Controller
-                  control={control}
-                  name="email"
-                  rules={{
-                    required: "Email-ul este obligatoriu",
-                    pattern: {
-                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                      message: "Email invalid",
-                    },
-                  }}
-                  render={({ field: { onChange, value } }) => (
-                    <View
-                      style={[
-                        styles.inputWrapper,
-                        focusedField === "email" && styles.inputWrapperFocused,
-                        errors.email && styles.inputWrapperError,
-                      ]}
-                    >
-                      <Ionicons
-                        name="mail-outline"
-                        size={20}
-                        color={
-                          focusedField === "email"
-                            ? Colors.gradientStart
-                            : Colors.textTertiary
-                        }
-                        style={styles.inputIcon}
-                      />
-                      <TextInput
-                        ref={emailRef}
-                        value={value}
-                        onChangeText={onChange}
-                        placeholder="email@exemplu.ro"
-                        placeholderTextColor={Colors.textTertiary}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        autoComplete="email"
-                        returnKeyType="next"
-                        onSubmitEditing={() => passwordRef.current?.focus()}
-                        onFocus={() => setFocusedField("email")}
-                        onBlur={() => setFocusedField(null)}
-                        style={[Typography.body, styles.input]}
-                      />
-                    </View>
-                  )}
-                />
-                {errors.email && (
-                  <Text style={styles.fieldError}>{errors.email.message}</Text>
-                )}
-              </View>
-
-              {/* Password Field */}
-              <View style={styles.fieldContainer}>
-                <Text style={[Typography.captionSemiBold, styles.label]}>
-                  Parolă
+                  Parolă nouă
                 </Text>
                 <Controller
                   control={control}
@@ -192,8 +153,7 @@ export default function SignUpScreen() {
                     <View
                       style={[
                         styles.inputWrapper,
-                        focusedField === "password" &&
-                          styles.inputWrapperFocused,
+                        focusedField === "password" && styles.inputWrapperFocused,
                         errors.password && styles.inputWrapperError,
                       ]}
                     >
@@ -208,17 +168,14 @@ export default function SignUpScreen() {
                         style={styles.inputIcon}
                       />
                       <TextInput
-                        ref={passwordRef}
                         value={value}
                         onChangeText={onChange}
                         placeholder="Minim 6 caractere"
                         placeholderTextColor={Colors.textTertiary}
                         secureTextEntry={!showPassword}
-                        autoComplete="password"
+                        autoComplete="password-new"
                         returnKeyType="next"
-                        onSubmitEditing={() =>
-                          confirmPasswordRef.current?.focus()
-                        }
+                        onSubmitEditing={() => confirmPasswordRef.current?.focus()}
                         onFocus={() => setFocusedField("password")}
                         onBlur={() => setFocusedField(null)}
                         style={[Typography.body, styles.input]}
@@ -228,9 +185,7 @@ export default function SignUpScreen() {
                         hitSlop={8}
                       >
                         <Ionicons
-                          name={
-                            showPassword ? "eye-off-outline" : "eye-outline"
-                          }
+                          name={showPassword ? "eye-off-outline" : "eye-outline"}
                           size={20}
                           color={Colors.textTertiary}
                         />
@@ -239,13 +194,11 @@ export default function SignUpScreen() {
                   )}
                 />
                 {errors.password && (
-                  <Text style={styles.fieldError}>
-                    {errors.password.message}
-                  </Text>
+                  <Text style={styles.fieldError}>{errors.password.message}</Text>
                 )}
               </View>
 
-              {/* Confirm Password Field */}
+              {/* Confirm password field */}
               <View style={styles.fieldContainer}>
                 <Text style={[Typography.captionSemiBold, styles.label]}>
                   Confirmă parola
@@ -291,16 +244,12 @@ export default function SignUpScreen() {
                         style={[Typography.body, styles.input]}
                       />
                       <Pressable
-                        onPress={() =>
-                          setShowConfirmPassword(!showConfirmPassword)
-                        }
+                        onPress={() => setShowConfirmPassword(!showConfirmPassword)}
                         hitSlop={8}
                       >
                         <Ionicons
                           name={
-                            showConfirmPassword
-                              ? "eye-off-outline"
-                              : "eye-outline"
+                            showConfirmPassword ? "eye-off-outline" : "eye-outline"
                           }
                           size={20}
                           color={Colors.textTertiary}
@@ -316,96 +265,16 @@ export default function SignUpScreen() {
                 )}
               </View>
 
-              {/* Terms */}
-              <Text style={styles.terms}>
-                Prin înregistrare, accepți{" "}
-                <Text
-                  style={{ color: Colors.primaryLight }}
-                  onPress={() => Linking.openURL("https://tapzi.ro/terms")}
-                >
-                  Termenii și Condițiile
-                </Text>{" "}
-                și{" "}
-                <Text
-                  style={{ color: Colors.primaryLight }}
-                  onPress={() => Linking.openURL("https://tapzi.ro/privacy")}
-                >
-                  Politica de Confidențialitate
-                </Text>
-              </Text>
-
-              {/* Swipe to Sign Up */}
+              {/* Swipe to save */}
               <View style={styles.swipeContainer}>
                 <SwipeButton
                   ref={swipeRef}
                   onSwipeComplete={handleSwipe}
                   loading={swipeLoading || isSubmitting}
-                  label="Glisează pentru înregistrare"
-                  successLabel="Cont creat!"
+                  label="Glisează pentru a salva"
+                  successLabel="Parolă salvată!"
                   icon="arrow-forward"
                 />
-              </View>
-
-              {/* Divider */}
-              <View style={styles.dividerRow}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>sau</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              {/* Social Login Buttons */}
-              <Pressable
-                style={styles.socialButton}
-                onPress={() => handleSocialLogin("Google")}
-              >
-                <Ionicons
-                  name="logo-google"
-                  size={20}
-                  color={Colors.text}
-                  style={styles.socialIcon}
-                />
-                <Text style={styles.socialButtonText}>Continuă cu Google</Text>
-              </Pressable>
-
-              {Platform.OS === "ios" && (
-                <Pressable
-                  style={[styles.socialButton, styles.appleButton]}
-                  onPress={() => handleSocialLogin("Apple")}
-                >
-                  <Ionicons
-                    name="logo-apple"
-                    size={20}
-                    color="#fff"
-                    style={styles.socialIcon}
-                  />
-                  <Text style={[styles.socialButtonText, { color: "#fff" }]}>
-                    Continuă cu Apple
-                  </Text>
-                </Pressable>
-              )}
-
-              {/* Login Link */}
-              <View style={styles.footer}>
-                <Text
-                  style={[
-                    Typography.caption,
-                    { color: Colors.textSecondary },
-                  ]}
-                >
-                  Ai deja cont?{" "}
-                </Text>
-                <Link href="/(auth)/login" asChild>
-                  <Pressable>
-                    <Text
-                      style={[
-                        Typography.captionSemiBold,
-                        { color: Colors.primaryLight },
-                      ]}
-                    >
-                      Conectează-te
-                    </Text>
-                  </Pressable>
-                </Link>
               </View>
             </GlassCard>
           </ScrollView>
@@ -432,6 +301,18 @@ const styles = StyleSheet.create({
   },
   card: {
     marginHorizontal: 0,
+    alignItems: "center",
+  },
+  iconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.inputBackground,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.inputBorder,
   },
   title: {
     color: Colors.text,
@@ -451,6 +332,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.base,
     borderRadius: 12,
     marginBottom: Spacing.base,
+    alignSelf: "stretch",
   },
   errorText: {
     ...Typography.caption,
@@ -459,6 +341,7 @@ const styles = StyleSheet.create({
   },
   fieldContainer: {
     marginBottom: Spacing.base,
+    alignSelf: "stretch",
   },
   label: {
     color: Colors.text,
@@ -496,56 +379,8 @@ const styles = StyleSheet.create({
     color: Colors.error,
     marginTop: Spacing.xs,
   },
-  terms: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    textAlign: "center",
-    marginBottom: Spacing.lg,
-  },
   swipeContainer: {
     marginBottom: Spacing.xl,
-  },
-  dividerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: Spacing.base,
-    gap: Spacing.md,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: Colors.inputBorder,
-  },
-  dividerText: {
-    ...Typography.caption,
-    color: Colors.textTertiary,
-  },
-  socialButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.inputBorder,
-    backgroundColor: Colors.white,
-    marginBottom: Spacing.md,
-  },
-  appleButton: {
-    backgroundColor: "#000",
-    borderColor: "#000",
-  },
-  socialIcon: {
-    marginRight: Spacing.md,
-  },
-  socialButtonText: {
-    ...Typography.captionSemiBold,
-    color: Colors.text,
-  },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: Spacing.sm,
+    alignSelf: "stretch",
   },
 });

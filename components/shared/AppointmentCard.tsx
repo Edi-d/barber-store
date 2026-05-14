@@ -15,7 +15,7 @@
  *   - Min 44px touch targets on action buttons.
  */
 
-import { View, Text, Pressable } from "react-native";
+import { View, Text, Pressable, Image } from "react-native";
 import Animated, {
   FadeInDown,
   ZoomIn,
@@ -321,16 +321,23 @@ export function AppointmentCard({
 
           {/* ── 3. Footer: barber left, price right ───────────────────────── */}
           <View className="flex-row items-center gap-2.5 mt-3">
-            {/* Barber avatar placeholder — squircle */}
+            {/* Barber avatar — squircle */}
             <View
               className="w-9 h-9 items-center justify-center bg-black/[0.06]"
-              style={Bubble.radiiSm}
+              style={[Bubble.radiiSm, { overflow: "hidden" }]}
             >
-              <Ionicons
-                name="person"
-                size={18}
-                color={Colors.textSecondary}
-              />
+              {item.barber?.avatar_url ? (
+                <Image
+                  source={{ uri: item.barber.avatar_url }}
+                  style={{ width: 36, height: 36 }}
+                />
+              ) : (
+                <Ionicons
+                  name="person"
+                  size={18}
+                  color={Colors.textSecondary}
+                />
+              )}
             </View>
 
             {/* Barber name block */}

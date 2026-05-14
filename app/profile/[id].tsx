@@ -42,6 +42,7 @@ type Profile = {
 
 type PostThumb = {
   id: string;
+  type: string;
   media_url: string | null;
   thumb_url: string | null;
   likes_count: number;
@@ -158,7 +159,7 @@ export default function UserProfileScreen() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('content')
-        .select('id, media_url, thumb_url, likes_count, comments_count, caption')
+        .select('id, type, media_url, thumb_url, likes_count, comments_count, caption')
         .eq('author_id', id)
         .eq('status', 'published')
         .order('created_at', { ascending: false });

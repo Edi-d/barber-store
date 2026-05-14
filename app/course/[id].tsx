@@ -227,10 +227,9 @@ export default function CourseDetailScreen() {
                       }}
                     >
                       <View
-                        className={`w-9 h-9 items-center justify-center mr-3 ${
-                          isCompleted ? "bg-green-600" : "bg-dark-200"
-                        }`}
+                        className="w-9 h-9 items-center justify-center mr-3"
                         style={{
+                          backgroundColor: isCompleted ? '#16a34a' : '#E2E8F0',
                           borderTopLeftRadius: 12,
                           borderTopRightRadius: 6,
                           borderBottomRightRadius: 12,

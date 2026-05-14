@@ -40,7 +40,7 @@ export function LiveSection({ lives, onSeeAll }: LiveSectionProps) {
   }, [registerRef, unregisterRef]);
 
   return (
-    <View ref={sectionRef} className="pt-1 pb-4" style={{ backgroundColor: "#F0F4F8" }}>
+    <View ref={sectionRef} collapsable={false} className="pt-1 pb-4" style={{ backgroundColor: "#F0F4F8" }}>
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 mb-3">
         <View className="flex-row items-center">
@@ -67,7 +67,7 @@ export function LiveSection({ lives, onSeeAll }: LiveSectionProps) {
         >
           {lives.map((live, index) => (
             index === 0 ? (
-              <View key={live.id} ref={firstCardRef}>
+              <View key={live.id} ref={firstCardRef} collapsable={false}>
                 <LiveCard live={live} />
               </View>
             ) : (

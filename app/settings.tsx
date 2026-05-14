@@ -7,17 +7,20 @@ import {
   Alert,
   StyleSheet,
   ActivityIndicator,
+  Image,
 } from "react-native";
+import { getInitials } from "@/lib/utils";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
+import { decode } from "base64-arraybuffer";
 
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/authStore";
-import { Button, Input, Avatar } from "@/components/ui";
+import { Button, Input } from "@/components/ui";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors, Bubble, Shadows, Spacing } from "@/constants/theme";
 
@@ -57,44 +60,53 @@ export default function SettingsScreen() {
   });
 
   const pickAvatar = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permisiune refuzată", "Acordă acces la galerie din setările telefonului pentru a schimba avatarul.");
+      return;
+    }
+
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
+      base64: true,
     });
 
-    if (!result.canceled && profile) {
-      setIsUploading(true);
-      try {
-        const file = result.assets[0];
-        const fileExt = file.uri.split(".").pop();
-        const fileName = `${profile.id}.${fileExt}`;
-        const filePath = `avatars/${fileName}`;
+    if (result.canceled || !result.assets.length || !profile) return;
 
-        const response = await fetch(file.uri);
-        const blob = await response.blob();
+    setIsUploading(true);
+    try {
+      const asset = result.assets[0];
+      if (!asset.base64) throw new Error("Imaginea nu a putut fi citită.");
+      const ext = "jpg";
+      const path = `avatars/${profile.id}.${ext}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from("avatars")
-          .upload(filePath, blob, { upsert: true });
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(path, decode(asset.base64), {
+          contentType: `image/${ext}`,
+          upsert: true,
+        });
 
-        if (uploadError) throw uploadError;
+      if (uploadError) throw uploadError;
 
-        const { data: urlData } = supabase.storage
-          .from("avatars")
-          .getPublicUrl(filePath);
+      const { data: urlData } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(path);
 
-        await updateProfile({ avatar_url: urlData.publicUrl });
-        await fetchProfile();
+      // Cache-bust so the new image shows immediately in <Image source={{ uri }}>
+      const bustedUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+      await updateProfile({ avatar_url: bustedUrl });
+      await fetchProfile();
 
-        Alert.alert("Succes", "Avatarul a fost actualizat!");
-      } catch (error) {
-        console.error(error);
-        Alert.alert("Eroare", "Nu am putut încărca imaginea.");
-      } finally {
-        setIsUploading(false);
-      }
+      Alert.alert("Succes", "Avatarul a fost actualizat!");
+    } catch (error) {
+      console.error("[AVATAR] Upload failed:", error);
+      Alert.alert("Eroare", "Nu am putut încărca imaginea.");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -156,29 +168,31 @@ export default function SettingsScreen() {
         {/* Avatar Section */}
         <Animated.View entering={FadeInDown.duration(400).delay(100)}>
           <View style={s.avatarCard}>
-            <View style={s.avatarWrapper}>
-              <Avatar
-                source={profile?.avatar_url}
-                name={profile?.display_name || profile?.username}
-                size="xl"
-                useDefaultAvatar={true}
-              />
-              <Pressable
-                onPress={pickAvatar}
-                disabled={isUploading}
-                style={({ pressed }) => [
-                  s.cameraBtn,
-                  pressed && { opacity: 0.8 },
-                  isUploading && { opacity: 0.6 },
-                ]}
-              >
+            <Pressable
+              onPress={pickAvatar}
+              disabled={isUploading}
+              style={({ pressed }) => [
+                s.avatarWrapper,
+                pressed && { opacity: 0.85 },
+              ]}
+            >
+              {profile?.avatar_url ? (
+                <Image source={{ uri: profile.avatar_url }} style={s.avatarImage} />
+              ) : (
+                <View style={s.avatarFallback}>
+                  <Text style={s.avatarInitials}>
+                    {getInitials(profile?.display_name || profile?.username || "")}
+                  </Text>
+                </View>
+              )}
+              <View style={[s.cameraBtn, isUploading && { opacity: 0.6 }]}>
                 {isUploading ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Ionicons name="camera" size={16} color="#fff" />
+                  <Ionicons name="camera" size={22} color="#fff" />
                 )}
-              </Pressable>
-            </View>
+              </View>
+            </Pressable>
             <Text style={s.avatarHint}>Atinge pentru a schimba avatarul</Text>
           </View>
         </Animated.View>
@@ -397,18 +411,37 @@ const s = StyleSheet.create({
   avatarWrapper: {
     position: "relative",
   },
+  avatarImage: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: Colors.inputBackground,
+  },
+  avatarFallback: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarInitials: {
+    fontFamily: "EuclidCircularA-Bold",
+    fontSize: 32,
+    color: Colors.white,
+  },
   cameraBtn: {
     position: "absolute",
-    bottom: 2,
-    right: 2,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    bottom: -2,
+    right: -2,
+    width: 44,
+    height: 44,
     backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 3,
     borderColor: Colors.white,
+    ...Bubble.radiiSm,
     ...Shadows.sm,
   },
   avatarHint: {

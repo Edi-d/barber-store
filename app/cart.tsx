@@ -98,6 +98,7 @@ function SwipeableCartItem({
   return (
     <Animated.View
       ref={itemRef}
+      collapsable={false}
       entering={FadeInDown.delay(index * 60).duration(340).easing(SMOOTH)}
       layout={LinearTransition.duration(280).easing(SMOOTH)}
       style={styles.swipeWrapper}
@@ -150,7 +151,7 @@ function SwipeableCartItem({
 
             {/* Quantity stepper */}
             <View style={styles.stepperCol}>
-              <View ref={quantityRef} style={styles.stepper}>
+              <View ref={quantityRef} collapsable={false} style={styles.stepper}>
                 <TouchableOpacity
                   style={[styles.stepBtn, { backgroundColor: Brand.primary }]}
                   onPress={handleDecrement}
@@ -196,7 +197,7 @@ function DeliveryBanner({ totalPrice, bannerRef }: { totalPrice: number; bannerR
   }));
 
   return (
-    <View ref={bannerRef} style={styles.deliveryBanner}>
+    <View ref={bannerRef} collapsable={false} style={styles.deliveryBanner}>
       <View style={styles.deliveryTextRow}>
         <Feather
           name={isFree ? 'check-circle' : 'truck'}
@@ -466,6 +467,7 @@ export default function CartScreen() {
               {/* Checkout CTA */}
               <TouchableOpacity
                 ref={cartCheckoutBtnRef}
+                collapsable={false}
                 activeOpacity={0.85}
                 style={Shadows.glow}
                 onPress={handleCheckout}

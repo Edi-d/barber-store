@@ -116,6 +116,7 @@ function AnimatedTab({
   return (
     <TouchableOpacity
       ref={tabRef as React.RefObject<any>}
+      collapsable={false}
       onPress={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         onPress();
@@ -457,7 +458,7 @@ const styles = StyleSheet.create({
     borderRadius: BAR_R,
     overflow: "hidden",
     zIndex: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.72)",
+    backgroundColor: Platform.OS === "ios" ? "rgba(255, 255, 255, 0.72)" : "#FFFFFF",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.9)",
     ...Platform.select({

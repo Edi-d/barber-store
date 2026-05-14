@@ -28,7 +28,6 @@ interface ForgotPasswordForm {
 export default function ForgotPasswordScreen() {
   const { resetPassword, isSubmitting } = useAuthStore();
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [swipeLoading, setSwipeLoading] = useState(false);
   const swipeRef = useRef<SwipeButtonRef>(null);
@@ -45,13 +44,15 @@ export default function ForgotPasswordScreen() {
   const onSubmit = async (data: ForgotPasswordForm) => {
     setError(null);
     setSwipeLoading(true);
+    console.log("[RESET_PASSWORD] sending to:", data.email);
     const { error } = await resetPassword(data.email);
+    console.log("[RESET_PASSWORD] result:", error ?? "ok");
     if (error) {
       setError(mapAuthError(error.message));
       setSwipeLoading(false);
       swipeRef.current?.reset();
     } else {
-      setSuccess(true);
+      router.replace({ pathname: "/(auth)/verify-otp", params: { email: data.email } });
     }
   };
 
@@ -100,134 +101,106 @@ export default function ForgotPasswordScreen() {
                 Resetare parolă
               </Text>
               <Text style={[Typography.caption, styles.subtitle]}>
-                Introdu email-ul și îți vom trimite un link de resetare
+                Introdu email-ul și îți vom trimite un cod de resetare
               </Text>
 
-              {success ? (
-                <View style={styles.successCard}>
-                  <View style={styles.successIcon}>
-                    <Ionicons name="checkmark" size={28} color="#fff" />
-                  </View>
-                  <Text style={styles.successTitle}>Email trimis!</Text>
-                  <Text style={styles.successBody}>
-                    Verifică inbox-ul pentru link-ul de resetare a parolei.
-                  </Text>
-                  <Pressable
-                    onPress={() => router.back()}
-                    style={styles.backToLoginBtn}
-                  >
-                    <Ionicons
-                      name="arrow-back"
-                      size={16}
-                      color={Colors.primaryLight}
-                    />
-                    <Text style={styles.backToLoginText}>
-                      Înapoi la conectare
-                    </Text>
-                  </Pressable>
+              {/* Error */}
+              {error && (
+                <View style={styles.errorContainer}>
+                  <Ionicons
+                    name="alert-circle"
+                    size={16}
+                    color={Colors.error}
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text style={styles.errorText}>{error}</Text>
                 </View>
-              ) : (
-                <>
-                  {/* Error */}
-                  {error && (
-                    <View style={styles.errorContainer}>
+              )}
+
+              {/* Email Field */}
+              <View style={styles.fieldContainer}>
+                <Text style={[Typography.captionSemiBold, styles.label]}>
+                  Email
+                </Text>
+                <Controller
+                  control={control}
+                  name="email"
+                  rules={{
+                    required: "Email-ul este obligatoriu",
+                    pattern: {
+                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                      message: "Email invalid",
+                    },
+                  }}
+                  render={({ field: { onChange, value } }) => (
+                    <View
+                      style={[
+                        styles.inputWrapper,
+                        focusedField === "email" && styles.inputWrapperFocused,
+                        errors.email && styles.inputWrapperError,
+                      ]}
+                    >
                       <Ionicons
-                        name="alert-circle"
-                        size={16}
-                        color={Colors.error}
-                        style={{ marginRight: 8 }}
+                        name="mail-outline"
+                        size={20}
+                        color={
+                          focusedField === "email"
+                            ? Colors.gradientStart
+                            : Colors.textTertiary
+                        }
+                        style={styles.inputIcon}
                       />
-                      <Text style={styles.errorText}>{error}</Text>
+                      <TextInput
+                        ref={emailRef}
+                        value={value}
+                        onChangeText={onChange}
+                        placeholder="email@exemplu.ro"
+                        placeholderTextColor={Colors.textTertiary}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        autoComplete="email"
+                        returnKeyType="done"
+                        onSubmitEditing={handleSubmit(onSubmit)}
+                        onFocus={() => setFocusedField("email")}
+                        onBlur={() => setFocusedField(null)}
+                        style={[Typography.body, styles.input]}
+                      />
                     </View>
                   )}
+                />
+                {errors.email && (
+                  <Text style={styles.fieldError}>
+                    {errors.email.message}
+                  </Text>
+                )}
+              </View>
 
-                  {/* Email Field */}
-                  <View style={styles.fieldContainer}>
-                    <Text style={[Typography.captionSemiBold, styles.label]}>
-                      Email
-                    </Text>
-                    <Controller
-                      control={control}
-                      name="email"
-                      rules={{
-                        required: "Email-ul este obligatoriu",
-                        pattern: {
-                          value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                          message: "Email invalid",
-                        },
-                      }}
-                      render={({ field: { onChange, value } }) => (
-                        <View
-                          style={[
-                            styles.inputWrapper,
-                            focusedField === "email" &&
-                              styles.inputWrapperFocused,
-                            errors.email && styles.inputWrapperError,
-                          ]}
-                        >
-                          <Ionicons
-                            name="mail-outline"
-                            size={20}
-                            color={
-                              focusedField === "email"
-                                ? Colors.gradientStart
-                                : Colors.textTertiary
-                            }
-                            style={styles.inputIcon}
-                          />
-                          <TextInput
-                            ref={emailRef}
-                            value={value}
-                            onChangeText={onChange}
-                            placeholder="email@exemplu.ro"
-                            placeholderTextColor={Colors.textTertiary}
-                            keyboardType="email-address"
-                            autoCapitalize="none"
-                            autoComplete="email"
-                            returnKeyType="done"
-                            onSubmitEditing={handleSubmit(onSubmit)}
-                            onFocus={() => setFocusedField("email")}
-                            onBlur={() => setFocusedField(null)}
-                            style={[Typography.body, styles.input]}
-                          />
-                        </View>
-                      )}
-                    />
-                    {errors.email && (
-                      <Text style={styles.fieldError}>
-                        {errors.email.message}
-                      </Text>
-                    )}
-                  </View>
+              {/* Swipe Button */}
+              <View style={styles.swipeContainer}>
+                <SwipeButton
+                  ref={swipeRef}
+                  onSwipeComplete={handleSwipe}
+                  loading={swipeLoading || isSubmitting}
+                  label="Glisează pentru resetare"
+                  successLabel="Cod trimis!"
+                  icon="mail-outline"
+                />
+              </View>
 
-                  {/* Swipe Button */}
-                  <View style={styles.swipeContainer}>
-                    <SwipeButton
-                      ref={swipeRef}
-                      onSwipeComplete={handleSwipe}
-                      loading={swipeLoading || isSubmitting}
-                      label="Glisează pentru resetare"
-                      successLabel="Email trimis!"
-                      icon="mail-outline"
-                    />
-                  </View>
-
-                  {/* Back to Login */}
-                  <Pressable
-                    onPress={() => router.back()}
-                    style={styles.backToLoginBtn}
-                  >
-                    <Ionicons
-                      name="arrow-back"
-                      size={16}
-                      color={Colors.primaryLight}
-                    />
-                    <Text style={styles.backToLoginText}>
-                      Înapoi la conectare
-                    </Text>
-                  </Pressable>
-                </>
-              )}
+              {/* Back to Login */}
+              <Pressable
+                onPress={() => router.back()}
+                style={styles.backToLoginBtn}
+              >
+                <Ionicons
+                  name="arrow-back"
+                  size={16}
+                  color={Colors.primaryLight}
+                />
+                <Text style={styles.backToLoginText}>
+                  Înapoi la conectare
+                </Text>
+              </Pressable>
             </GlassCard>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -294,31 +267,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
     lineHeight: 20,
   },
-  successCard: {
-    alignItems: "center",
-    paddingVertical: Spacing.lg,
-  },
-  successIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "#22c55e",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: Spacing.base,
-  },
-  successTitle: {
-    ...Typography.h2,
-    color: "#16a34a",
-    marginBottom: Spacing.sm,
-  } as object,
-  successBody: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    textAlign: "center",
-    marginBottom: Spacing.xl,
-    lineHeight: 20,
-  } as object,
   errorContainer: {
     flexDirection: "row",
     alignItems: "center",

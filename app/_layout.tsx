@@ -1,8 +1,9 @@
 import "../global.css";
 import { useEffect, useCallback } from "react";
-import { Stack } from "expo-router";
+import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
+import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { Platform, View, Image, ActivityIndicator, StyleSheet } from "react-native";
+import { Platform, View, Image, ActivityIndicator, StyleSheet, Linking } from "react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { LinearGradient } from "expo-linear-gradient";
@@ -17,6 +18,7 @@ import Animated, {
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { useAuthStore } from "@/stores/authStore";
+import { supabase } from "@/lib/supabase";
 import { AuthProvider } from '@/providers/auth-provider';
 import { SalonProvider } from '@/providers/salon-provider';
 import { TutorialProvider } from '@/components/tutorial/TutorialProvider';
@@ -167,9 +169,60 @@ function LoyaltyGlobalOverlays() {
 
 function RootLayoutNav() {
   const { isInitialized, initialize } = useAuthStore();
+  const router = useRouter();
 
   useEffect(() => {
     initialize();
+  }, []);
+
+  useEffect(() => {
+    const handleAuthUrl = async (url: string | null) => {
+      if (!url) return;
+      try {
+        // --- Query-string path: token_hash flow (Supabase "Confirm signup" template) ---
+        const qIndex = url.indexOf("?");
+        if (qIndex !== -1) {
+          const hashIndex = url.indexOf("#", qIndex);
+          const querystring = hashIndex !== -1
+            ? url.substring(qIndex + 1, hashIndex)
+            : url.substring(qIndex + 1);
+          const qParams = new URLSearchParams(querystring);
+          const token_hash = qParams.get("token_hash");
+          const type = qParams.get("type");
+          if (token_hash && type) {
+            const { error } = await supabase.auth.verifyOtp({ token_hash, type: type as any });
+            console.log("[AUTH] verifyOtp from deep link:", error ?? "ok");
+            if (!error) {
+              if (type === "recovery") {
+                router.replace("/(auth)/reset-password");
+              }
+              // For type === "signup", do nothing extra — the confirm-email screen
+              // detects the new session via useAuthStore and forwards to onboarding.
+            }
+            return;
+          }
+        }
+
+        // --- Fragment path: implicit flow fallback (#access_token=...&refresh_token=...) ---
+        const hashIndex = url.indexOf("#");
+        if (hashIndex !== -1) {
+          const fragment = url.substring(hashIndex + 1);
+          const fParams = new URLSearchParams(fragment);
+          const access_token = fParams.get("access_token");
+          const refresh_token = fParams.get("refresh_token");
+          if (access_token && refresh_token) {
+            const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+            console.log("[AUTH] setSession from deep link:", error ?? "ok");
+          }
+        }
+      } catch (err) {
+        console.warn("[AUTH] handleAuthUrl error:", err);
+      }
+    };
+
+    Linking.getInitialURL().then(handleAuthUrl);
+    const subscription = Linking.addEventListener("url", ({ url }) => handleAuthUrl(url));
+    return () => subscription.remove();
   }, []);
 
   if (!isInitialized) {
@@ -221,6 +274,20 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  useEffect(() => {
+    Audio.setAudioModeAsync({
+      playsInSilentModeIOS: true,
+      allowsRecordingIOS: false,
+      staysActiveInBackground: false,
+      interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
+      shouldDuckAndroid: true,
+      interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
+      playThroughEarpieceAndroid: false,
+    }).catch((err) => {
+      if (__DEV__) console.warn('[audio] setAudioModeAsync failed:', err);
+    });
+  }, []);
+
   const [fontsLoaded, fontError] = useFonts({
     "EuclidCircularA-Light": require("../assets/euclid-circular-a/Euclid-Circular-A-Light.ttf"),
     "EuclidCircularA-LightItalic": require("../assets/euclid-circular-a/Euclid-Circular-A-Light-Italic.ttf"),

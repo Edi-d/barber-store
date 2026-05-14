@@ -326,7 +326,7 @@ export default function FeedScreen() {
 
   // ─── Filter / sort state ─────────────────────────────────────────────────
   const [activeFilter, setActiveFilter] = useState<FeedFilter>('all');
-  const [activeSort, setActiveSort] = useState<FeedSort>('trending');
+  const [activeSort, setActiveSort] = useState<FeedSort>('newest');
   const [sortSheetVisible, setSortSheetVisible] = useState(false);
 
   const handleFilterChange = useCallback((filter: FeedFilter) => {
@@ -360,8 +360,8 @@ export default function FeedScreen() {
   );
 
   const viewabilityConfig = useRef({
-    itemVisiblePercentThreshold: 60,
-    minimumViewTime: 300,
+    itemVisiblePercentThreshold: 40,
+    minimumViewTime: 100,
   });
 
   const viewabilityConfigCallbackPairs = useRef([
@@ -479,6 +479,24 @@ export default function FeedScreen() {
   });
 
   const feedItems = feedData?.pages.flatMap((page) => page) ?? [];
+
+  // Auto-activate the first video when feed data loads. Without this,
+  // activeVideoIdState stays null until onViewableItemsChanged fires —
+  // but the tall list header keeps video cards below the visibility
+  // threshold on first render, so the callback never finds a video.
+  useEffect(() => {
+    const firstVideo = feedItems.find((it) => it.type === 'video');
+    const currentStillValid =
+      activeVideoIdState !== null &&
+      feedItems.some((it) => it.id === activeVideoIdState);
+    if (firstVideo && !currentStillValid) {
+      activeVideoId.current = firstVideo.id;
+      setActiveVideoIdState(firstVideo.id);
+    } else if (!firstVideo && activeVideoIdState !== null) {
+      activeVideoId.current = null;
+      setActiveVideoIdState(null);
+    }
+  }, [feedItems, activeVideoIdState]);
 
   // Follow/unfollow mutation
   const followMutation = useMutation({
@@ -654,6 +672,7 @@ export default function FeedScreen() {
         <Text className="text-dark-700 text-lg font-bold">{sectionHeaderLabel}</Text>
         <Pressable
           ref={feedSortBtnRef}
+          collapsable={false}
           className="flex-row items-center"
           onPress={() => setSortSheetVisible(true)}
         >

@@ -381,7 +381,7 @@ export function BookingTimeGrid({
 
   return (
     <View style={styles.root}>
-      <View ref={morningSectionRef}>
+      <View ref={morningSectionRef} collapsable={false}>
         <TimeSection
           slots={morningSlots}
           label="Dimineata"
@@ -391,7 +391,7 @@ export function BookingTimeGrid({
           onSelectTime={onSelectTime}
         />
       </View>
-      <View ref={afternoonSectionRef}>
+      <View ref={afternoonSectionRef} collapsable={false}>
         <TimeSection
           slots={afternoonSlots}
           label="Dupa-amiaza"

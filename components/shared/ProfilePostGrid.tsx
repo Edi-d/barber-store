@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 interface Post {
   id: string;
+  type?: string;
   media_url: string | null;
   thumb_url: string | null;
   likes_count: number;
@@ -37,7 +38,6 @@ export default function ProfilePostGrid({ posts, onPostPress }: ProfilePostGridP
     <View style={styles.grid}>
       {posts.map((post, index) => {
         const rowDelay = Math.floor(index / COLUMNS) * 80;
-        const imageSource = post.thumb_url ?? post.media_url;
 
         return (
           <Animated.View
@@ -50,9 +50,29 @@ export default function ProfilePostGrid({ posts, onPostPress }: ProfilePostGridP
               style={styles.pressable}
               android_ripple={{ color: 'rgba(0,0,0,0.1)' }}
             >
-              {imageSource ? (
+              {post.type === 'video' ? (
+                <View style={styles.videoTile}>
+                  {post.thumb_url ? (
+                    <Image
+                      source={{ uri: post.thumb_url }}
+                      style={styles.image}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <LinearGradient
+                      colors={['#1f2937', '#0f172a']}
+                      style={StyleSheet.absoluteFill}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                    />
+                  )}
+                  <View style={styles.playIconOverlay} pointerEvents="none">
+                    <Ionicons name="play" size={28} color="rgba(255,255,255,0.9)" />
+                  </View>
+                </View>
+              ) : post.thumb_url || post.media_url ? (
                 <Image
-                  source={{ uri: imageSource }}
+                  source={{ uri: post.thumb_url ?? post.media_url ?? '' }}
                   style={styles.image}
                   resizeMode="cover"
                 />
@@ -143,5 +163,19 @@ const styles = StyleSheet.create({
   emptyText: {
     ...Typography.caption,
     color: Colors.textTertiary,
+  },
+  videoTile: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#0f172a',
+  },
+  playIconOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

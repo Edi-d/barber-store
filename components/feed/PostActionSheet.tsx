@@ -19,14 +19,12 @@ import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Bubble, Shadows, Typography } from '@/constants/theme';
 
-interface ProfileActionSheetProps {
+interface PostActionSheetProps {
   visible: boolean;
   onClose: () => void;
-  onShare: () => void;
-  onCopyLink: () => void;
   onReport: () => void;
-  onBlock: () => void;
-  targetName?: string;
+  onHide: () => void;
+  onCopyLink: () => void;
 }
 
 const SPRING_CONFIG = { damping: 22, stiffness: 200, mass: 0.8 };
@@ -64,15 +62,13 @@ function ActionRow({ icon, label, onPress, destructive = false, iconColor }: Act
 }
 
 function OptionsContent({
-  onShare,
+  onHide,
   onCopyLink,
   onReport,
-  onBlock,
 }: {
-  onShare: () => void;
+  onHide: () => void;
   onCopyLink: () => void;
   onReport: () => void;
-  onBlock: () => void;
 }) {
   return (
     <>
@@ -86,28 +82,24 @@ function OptionsContent({
 
       <View style={styles.divider} />
 
-      <ActionRow icon="share-social-outline" label="Distribuie profilul" onPress={onShare} />
+      <ActionRow icon="eye-off-outline" label="Ascunde" onPress={onHide} iconColor={Colors.textSecondary} />
       <View style={styles.rowDivider} />
       <ActionRow icon="link-outline" label="Copiază linkul" onPress={onCopyLink} iconColor={Colors.textSecondary} />
 
       <View style={styles.divider} />
 
       <ActionRow icon="flag-outline" label="Raportează" onPress={onReport} destructive />
-      <View style={styles.rowDivider} />
-      <ActionRow icon="ban-outline" label="Blochează" onPress={onBlock} destructive />
     </>
   );
 }
 
-export default function ProfileActionSheet({
+export default function PostActionSheet({
   visible,
   onClose,
-  onShare,
-  onCopyLink,
   onReport,
-  onBlock,
-  targetName,
-}: ProfileActionSheetProps) {
+  onHide,
+  onCopyLink,
+}: PostActionSheetProps) {
   const insets = useSafeAreaInsets();
   const translateY = useSharedValue(400);
   const backdropOpacity = useSharedValue(0);
@@ -143,9 +135,9 @@ export default function ProfileActionSheet({
     onClose();
   };
 
-  const handleShare = () => {
+  const handleHide = () => {
     onClose();
-    setTimeout(() => onShare(), 200);
+    setTimeout(() => onHide(), 200);
   };
 
   const handleCopyLink = () => {
@@ -158,8 +150,8 @@ export default function ProfileActionSheet({
     onClose();
     setTimeout(() => {
       Alert.alert(
-        'Raportează utilizatorul',
-        `Ești sigur că vrei să raportezi ${targetName ? `pe ${targetName}` : 'acest utilizator'}?`,
+        'Raportează postarea',
+        'Ești sigur că vrei să raportezi această postare?',
         [
           { text: 'Anulează', style: 'cancel' },
           {
@@ -168,27 +160,6 @@ export default function ProfileActionSheet({
             onPress: () => {
               onReport();
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            },
-          },
-        ],
-      );
-    }, 300);
-  };
-
-  const handleBlock = () => {
-    onClose();
-    setTimeout(() => {
-      Alert.alert(
-        'Blochează utilizatorul',
-        `Ești sigur că vrei să blochezi ${targetName ? `pe ${targetName}` : 'acest utilizator'}? Nu vei mai vedea postările acestuia.`,
-        [
-          { text: 'Anulează', style: 'cancel' },
-          {
-            text: 'Blochează',
-            style: 'destructive',
-            onPress: () => {
-              onBlock();
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
             },
           },
         ],
@@ -216,10 +187,9 @@ export default function ProfileActionSheet({
       >
         <View style={[styles.card, { paddingBottom: insets.bottom + 8 }]}>
           <OptionsContent
-            onShare={handleShare}
+            onHide={handleHide}
             onCopyLink={handleCopyLink}
             onReport={handleReport}
-            onBlock={handleBlock}
           />
         </View>
       </Animated.View>

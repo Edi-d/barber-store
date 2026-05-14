@@ -214,7 +214,7 @@ export function BookingConfirmation({
       {/* ------------------------------------------------------------------ */}
       {/* Summary card                                                         */}
       {/* ------------------------------------------------------------------ */}
-      <View ref={summaryCardRef} style={[styles.card, Shadows.md]}>
+      <View ref={summaryCardRef} collapsable={false} style={[styles.card, Shadows.md]}>
         {/* Barber row */}
         <BarberRow barber={barber} />
 
@@ -251,7 +251,7 @@ export function BookingConfirmation({
       {/* ------------------------------------------------------------------ */}
       <Animated.View entering={FadeInRight.delay(400).duration(250)} style={styles.notesWrap}>
         <Text style={styles.notesLabel}>Note (opțional)</Text>
-        <View ref={notesInputRef}>
+        <View ref={notesInputRef} collapsable={false}>
           <Input
             placeholder="Ex: Fade mediu, păstrat lungimea sus..."
             value={notes}
@@ -285,7 +285,7 @@ export function BookingConfirmation({
       {/* ------------------------------------------------------------------ */}
       {/* Submit button */}
       <Animated.View entering={FadeInDown.delay(400).duration(250)}>
-        <View ref={confirmBtnRef}>
+        <View ref={confirmBtnRef} collapsable={false}>
           <Button
             onPress={onSubmit}
             loading={isSubmitting}

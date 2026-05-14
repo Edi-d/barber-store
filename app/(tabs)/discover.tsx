@@ -646,6 +646,7 @@ export default function DiscoverScreen() {
           {/* Search Bar Overlay */}
           <View
             ref={tutorialSearchRef}
+            collapsable={false}
             className="absolute left-4 right-4 z-10"
             style={{ top: insets.top + 8 }}
           >
@@ -917,11 +918,18 @@ export default function DiscoverScreen() {
             {/* ── Header ── */}
             <View className="px-5 pb-4 flex-row items-center justify-between">
               <View className="flex-row items-center flex-1">
-                <View className="w-10 h-10 rounded-full bg-primary-100 items-center justify-center mr-3">
-                  <Text className="text-primary-600 font-bold text-base">
-                    {(profile?.display_name || profile?.username || "U").charAt(0).toUpperCase()}
-                  </Text>
-                </View>
+                {profile?.avatar_url ? (
+                  <Image
+                    source={{ uri: profile.avatar_url }}
+                    className="w-10 h-10 rounded-full mr-3 bg-primary-100"
+                  />
+                ) : (
+                  <View className="w-10 h-10 rounded-full bg-primary-100 items-center justify-center mr-3">
+                    <Text className="text-primary-600 font-bold text-base">
+                      {(profile?.display_name || profile?.username || "U").charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
                 <View>
                   <Text className="text-dark-400 text-xs">{greeting},</Text>
                   <Text className="text-dark-700 text-lg font-bold">
@@ -987,6 +995,7 @@ export default function DiscoverScreen() {
             {/* ── Urgency ── */}
             <Pressable
               ref={tutorialFilterAvailableRef}
+              collapsable={false}
               onPress={handleUrgencyPress}
               className={`mx-5 mb-5 flex-row items-center p-3.5 active:scale-[0.98] ${
                 filterAvailableNow ? "bg-emerald-50" : "bg-white"
@@ -1110,6 +1119,7 @@ export default function DiscoverScreen() {
                   <Text className="text-dark-700 text-[15px]" style={{ fontFamily: 'EuclidCircularA-Bold' }}>Favorite</Text>
                   <Pressable
                     ref={tutorialFavoritesToggleRef}
+                    collapsable={false}
                     onPress={() => {
                       setShowFavoritesOnly(true);
                       setFilterAvailableNow(false);

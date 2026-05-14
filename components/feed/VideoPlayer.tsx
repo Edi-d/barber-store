@@ -108,17 +108,20 @@ export function VideoPlayer({
         return;
       }
 
-      // First frame rendered — clear timeout, mark loaded, fade thumbnail
-      if (status.positionMillis > 0 && isLoading) {
+      // Video metadata is loaded — clear the loading state, cancel the
+      // 10s timeout, and start fading out the thumbnail. The video may
+      // still be paused (shouldPlay=false) but the player has the first
+      // frame ready, so revealing it is safe and avoids the washed-out
+      // look caused by the loading shimmer pulsing over the thumb.
+      if (isLoading) {
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current);
           timeoutRef.current = null;
         }
         setIsLoading(false);
       }
-
-      if (status.positionMillis > 0 && thumbOpacity.value > 0) {
-        thumbOpacity.value = withTiming(0, { duration: 100 });
+      if (thumbOpacity.value > 0) {
+        thumbOpacity.value = withTiming(0, { duration: 150 });
       }
     },
     [isLoading, thumbOpacity]
@@ -209,14 +212,6 @@ export function VideoPlayer({
             style={styles.thumb}
             resizeMode="cover"
           />
-
-          {/* Pulse shimmer overlay on top of the thumb while loading */}
-          {isLoading && (
-            <Animated.View
-              style={[StyleSheet.absoluteFill, styles.skeletonOverlay, pulseStyle]}
-              pointerEvents="none"
-            />
-          )}
         </Animated.View>
       )}
 

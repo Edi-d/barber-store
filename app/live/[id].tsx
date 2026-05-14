@@ -609,7 +609,7 @@ export default function LiveViewerScreen() {
 
             {/* Right: viewer count + share */}
             <View style={s.topRight} pointerEvents="box-none">
-              <View ref={viewerCountRef}>
+              <View ref={viewerCountRef} collapsable={false}>
                 <ViewerCountBadge count={viewerCount} />
               </View>
               <Pressable
@@ -666,7 +666,7 @@ export default function LiveViewerScreen() {
           </View>
 
           {/* ── Chat input bar ───────────────────────────────── */}
-          <View ref={chatInputRef} style={[s.chatInputRow, { paddingBottom: insets.bottom + 6 }]}>
+          <View ref={chatInputRef} collapsable={false} style={[s.chatInputRow, { paddingBottom: insets.bottom + 6 }]}>
             <TextInput
               style={s.chatInput}
               placeholder="Scrie un mesaj..."

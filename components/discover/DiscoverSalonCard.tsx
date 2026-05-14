@@ -58,7 +58,7 @@ const DiscoverSalonCardInner = forwardRef<View, DiscoverSalonCardProps>(
     }
 
     return (
-    <View ref={ref} style={[styles.shadowLayer, cardShadow]}>
+    <View ref={ref} collapsable={false} style={[styles.shadowLayer, cardShadow]}>
       <View style={styles.outerWrapper}>
         <Pressable
           onPress={handlePress}

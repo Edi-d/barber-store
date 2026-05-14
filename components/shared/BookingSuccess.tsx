@@ -16,7 +16,7 @@
  */
 
 import { useEffect } from "react";
-import { View, Text, ScrollView, StyleSheet, Platform, Pressable, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, StyleSheet, Platform, Pressable, ActivityIndicator, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
   FadeIn,
@@ -184,7 +184,7 @@ function ConfettiParticle({ config }: { config: ParticleConfig }) {
 
 // ─── Animated checkmark circle ────────────────────────────────────────────────
 
-function CheckmarkCircle() {
+function CheckmarkCircle({ marginBottom }: { marginBottom?: number }) {
   const circleScale = useSharedValue(0);
   const circleBorder = useSharedValue(0);
   const checkOpacity = useSharedValue(0);
@@ -224,7 +224,7 @@ function CheckmarkCircle() {
   }));
 
   return (
-    <View style={styles.checkmarkOuter}>
+    <View style={[styles.checkmarkOuter, marginBottom !== undefined && { marginBottom }]}>
       {/* Confetti particles burst from the centre of the circle */}
       {PARTICLES.map((p, i) => (
         <ConfettiParticle key={i} config={p} />
@@ -291,7 +291,7 @@ function DetailRow({
     >
       <RowIcon name={icon} bg={iconBg} color={iconColor} />
       <View style={styles.detailContent}>
-        <Text style={styles.detailLabel}>{label}</Text>
+        <Text style={styles.detailLabel} allowFontScaling={false}>{label}</Text>
         {children}
       </View>
     </Animated.View>
@@ -311,6 +311,9 @@ export function BookingSuccess({
   calendarEventAdded = false,
 }: BookingSuccessProps) {
   const insets = useSafeAreaInsets();
+  const { height: screenHeight } = useWindowDimensions();
+  const sp = (full: number, min: number) =>
+    Math.max(min, Math.round(full * Math.min(1, screenHeight / 800)));
   const {
     id,
     barberName,
@@ -347,7 +350,7 @@ export function BookingSuccess({
       style={styles.scroll}
       contentContainerStyle={[
         styles.scrollContent,
-        { paddingBottom: Math.max(insets.bottom + 24, 48) },
+        { paddingBottom: Math.max(insets.bottom + 12, 32) },
       ]}
       showsVerticalScrollIndicator={false}
     >
@@ -370,12 +373,13 @@ export function BookingSuccess({
       </Animated.View>
 
       {/* ── Hero section ── */}
-      <View style={styles.heroSection}>
-        <CheckmarkCircle />
+      <View style={[styles.heroSection, { paddingTop: sp(52, 28), paddingBottom: sp(36, 20) }]}>
+        <CheckmarkCircle marginBottom={sp(28, 14)} />
 
         <Animated.Text
           entering={FadeInDown.delay(300).duration(380).springify().damping(16)}
           style={styles.title}
+          allowFontScaling={false}
         >
           Programare confirmată!
         </Animated.Text>
@@ -383,6 +387,7 @@ export function BookingSuccess({
         <Animated.Text
           entering={FadeIn.delay(500).duration(360)}
           style={styles.subtitle}
+          allowFontScaling={false}
         >
           Rezervarea ta a fost înregistrată cu succes.{"\n"}Te așteptăm!
         </Animated.Text>
@@ -401,7 +406,7 @@ export function BookingSuccess({
           label="Cod rezervare"
           delay={650}
         >
-          <Text style={styles.receiptCode}>#{receiptCode}</Text>
+          <Text style={styles.receiptCode} allowFontScaling={false}>#{receiptCode}</Text>
         </DetailRow>
 
         {/* Barber row */}
@@ -412,7 +417,7 @@ export function BookingSuccess({
           label="Frizer"
           delay={700}
         >
-          <Text style={styles.detailPrimary}>{barberName}</Text>
+          <Text style={styles.detailPrimary} allowFontScaling={false}>{barberName}</Text>
         </DetailRow>
 
         {/* Services row */}
@@ -432,12 +437,12 @@ export function BookingSuccess({
               {serviceNames.map((name, i) => (
                 <View key={i} style={styles.serviceChip}>
                   <View style={styles.serviceDot} />
-                  <Text style={styles.serviceChipText}>{name}</Text>
+                  <Text style={styles.serviceChipText} allowFontScaling={false}>{name}</Text>
                 </View>
               ))}
             </View>
           ) : (
-            <Text style={styles.detailPrimary}>{serviceNames[0]}</Text>
+            <Text style={styles.detailPrimary} allowFontScaling={false}>{serviceNames[0]}</Text>
           )}
         </DetailRow>
 
@@ -449,8 +454,8 @@ export function BookingSuccess({
           label="Data & Ora"
           delay={800}
         >
-          <Text style={styles.detailPrimary}>{formattedDate}</Text>
-          <Text style={styles.detailTime}>{time}</Text>
+          <Text style={styles.detailPrimary} allowFontScaling={false}>{formattedDate}</Text>
+          <Text style={styles.detailTime} allowFontScaling={false}>{time}</Text>
         </DetailRow>
 
         {/* Divider */}
@@ -459,20 +464,20 @@ export function BookingSuccess({
         {/* Total row — no bottom border */}
         <Animated.View
           entering={FadeInUp.delay(850).duration(320).easing(Easing.out(Easing.cubic))}
-          style={[styles.totalRow]}
+          style={[styles.totalRow, { paddingTop: sp(16, 12), paddingBottom: sp(18, 12) }]}
         >
           <View>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalDuration}>{durationLabel}</Text>
+            <Text style={styles.totalLabel} allowFontScaling={false}>Total</Text>
+            <Text style={styles.totalDuration} allowFontScaling={false}>{durationLabel}</Text>
           </View>
-          <Text style={styles.totalPrice}>
+          <Text style={styles.totalPrice} allowFontScaling={false}>
             {formatPrice(totalPriceCents, currency)}
           </Text>
         </Animated.View>
       </Animated.View>
 
       {/* ── Action buttons ── */}
-      <View style={styles.actions}>
+      <View style={[styles.actions, { marginTop: sp(24, 14) }]}>
         {/* PRIMARY — "Vezi Programările" */}
         <Animated.View
           entering={FadeInUp.delay(880).duration(340).easing(Easing.out(Easing.cubic))}
@@ -528,6 +533,7 @@ export function BookingSuccess({
               ]}
               numberOfLines={1}
               adjustsFontSizeToFit
+              allowFontScaling={false}
             >
               {calendarEventAdded && !isAddingToCalendar
                 ? "Adăugat în calendar"
@@ -537,7 +543,7 @@ export function BookingSuccess({
 
           <Pressable onPress={onBookAnother} style={styles.secondaryButton}>
             <Ionicons name="add-circle-outline" size={18} color={Colors.text} />
-            <Text style={styles.secondaryButtonText} numberOfLines={1} adjustsFontSizeToFit>Programare Nouă</Text>
+            <Text style={styles.secondaryButtonText} numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false}>Programare Nouă</Text>
           </Pressable>
         </Animated.View>
       </View>
@@ -596,8 +602,6 @@ const styles = StyleSheet.create({
 
   heroSection: {
     alignItems: "center",
-    paddingTop: 52,
-    paddingBottom: 36,
     paddingHorizontal: 24,
   },
 
@@ -606,7 +610,6 @@ const styles = StyleSheet.create({
     height: CIRCLE_SIZE + 80,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 28,
   },
 
   checkCircle: {
@@ -767,8 +770,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 18,
   },
 
   totalLabel: {
@@ -796,7 +797,6 @@ const styles = StyleSheet.create({
   // ── Actions ───────────────────────────────────────────────────────────────
 
   actions: {
-    marginTop: 24,
     paddingHorizontal: 20,
     gap: 12,
   },

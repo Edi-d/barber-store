@@ -109,6 +109,9 @@ export function useRealtimeFeed() {
         }
       )
       .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          queryClient.invalidateQueries({ queryKey: ['feed'] });
+        }
         if (__DEV__) {
           console.log('[Realtime] feed:content status:', status, err);
         }

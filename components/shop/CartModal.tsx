@@ -272,6 +272,8 @@ export function CartModal({
   }, [onClose]);
 
   const pan = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onUpdate((e) => {
       if (e.translationY > 0) {
         translateY.value = e.translationY * 0.6;

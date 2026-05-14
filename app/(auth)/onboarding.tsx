@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -30,8 +30,15 @@ interface OnboardingForm {
 }
 
 export default function OnboardingScreen() {
-  const { createProfile, updateProfile, session, isSubmitting } =
+  const { createProfile, updateProfile, session, isSubmitting, isInitialized } =
     useAuthStore();
+
+  useEffect(() => {
+    if (isInitialized && !session) {
+      router.replace("/(auth)/welcome");
+    }
+  }, [isInitialized, session]);
+
   const [error, setError] = useState<string | null>(null);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [swipeLoading, setSwipeLoading] = useState(false);

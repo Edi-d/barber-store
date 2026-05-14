@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Image, Dimensions, Share, Alert } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Image, Dimensions, Share } from 'react-native';
+import PostActionSheet from '@/components/feed/PostActionSheet';
 import { BlurView } from 'expo-blur';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -63,6 +64,7 @@ interface FeedCardProps {
 export function FeedCard({ item, onLikeToggle, onLikeAdd, onComment, onShare, isFollowing, onFollow, isLikePending, isActiveVideo, isMuted, onMuteToggle, onHashtagPress, likeRef, commentRef, shareRef, followRef }: FeedCardProps) {
   const { session } = useAuthStore();
   const isOwnPost = session?.user.id === item.author_id;
+  const [optionsSheetVisible, setOptionsSheetVisible] = useState(false);
   const [liked, setLiked] = useState(item.is_liked || false);
   const [displayLikes, setDisplayLikes] = useState(item.likes_count);
   const likedRef = useRef(item.is_liked || false);
@@ -299,14 +301,7 @@ export function FeedCard({ item, onLikeToggle, onLikeAdd, onComment, onShare, is
           <TouchableOpacity
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             style={styles.moreBtn}
-            onPress={() =>
-              Alert.alert('Opțiuni', '', [
-                { text: 'Raportează', onPress: () => {} },
-                { text: 'Ascunde', onPress: () => {} },
-                { text: 'Copiază link', onPress: () => {} },
-                { text: 'Anulează', style: 'cancel' },
-              ])
-            }
+            onPress={() => setOptionsSheetVisible(true)}
           >
             <Feather name="more-horizontal" size={18} color={Colors.textTertiary} />
           </TouchableOpacity>
@@ -433,6 +428,23 @@ export function FeedCard({ item, onLikeToggle, onLikeAdd, onComment, onShare, is
             <Text style={[styles.actionText, { color: Colors.textSecondary }]}>Trimite</Text>
           </TouchableOpacity>
         </View>
+
+        <PostActionSheet
+          visible={optionsSheetVisible}
+          onClose={() => setOptionsSheetVisible(false)}
+          onReport={() => {
+            // TODO: wire to backend report mutation
+            console.log('[post] report', item.id);
+          }}
+          onHide={() => {
+            // TODO: wire to backend hide/dismiss
+            console.log('[post] hide', item.id);
+          }}
+          onCopyLink={() => {
+            // TODO: implement clipboard (expo-clipboard not installed)
+            console.log('[post] copy-link', item.id);
+          }}
+        />
       </BlurView>
     </View>
   );

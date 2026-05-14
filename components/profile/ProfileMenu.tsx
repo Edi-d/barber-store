@@ -28,6 +28,7 @@ export function ProfileMenu({ items }: ProfileMenuProps) {
           <Pressable
             key={item.label}
             ref={item.tutorialRef}
+            collapsable={false}
             onPress={item.onPress}
             className="flex-row items-center px-[18px] py-[15px] active:opacity-70"
             style={!isLast ? styles.rowBorder : undefined}

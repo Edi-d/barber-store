@@ -1,15 +1,3 @@
-/**
- * LevelUpModal
- *
- * Full-screen celebration overlay when user advances to a new XP level.
- * Reanimated 4.x badge/glow/text animations, ConfettiCannon burst, perks list.
- *
- * Migration from Tapzi source:
- * - RNAnimated particle system removed; replaced with react-native-confetti-cannon
- * - All animations migrated to Reanimated 4.x (useSharedValue, withTiming, etc.)
- * - Pressable "Continua" button uses NativeWind className per project convention
- */
-
 import { useEffect, useCallback, useRef } from 'react';
 import {
   StyleSheet,
@@ -20,7 +8,6 @@ import {
   Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   Easing,
@@ -33,103 +20,26 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import ConfettiCannon from 'react-native-confetti-cannon';
+import * as Haptics from 'expo-haptics';
 
 import { FontFamily, Spacing, Bubble, Shadows } from '@/constants/theme';
-import { getLevelTitle } from './XPProgressBar';
+import { levelColorWithAlpha, type LevelConfig } from '@/constants/loyalty';
+import { TierBadge } from '@/components/loyalty/TierBadge';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const SMOOTH = Easing.bezier(0.25, 0.1, 0.25, 1);
 
-// ─── Gold palette ───────────────────────────────────────
-
-const GOLD = {
-  light: '#FFD54F',
-  main: '#FFB300',
-  dark: '#FF8F00',
-  amber: '#F57C00',
-};
-
-// ─── Level perks ────────────────────────────────────────
-
-const LEVEL_PERKS: Record<number, string[]> = {
-  2: [
-    'Acces la oferte exclusive',
-    'Produse recompensa deblocate',
-  ],
-  3: [
-    'Multiplicator XP x1.2',
-    'Acces anticipat la produse noi',
-    'Recompense extra la comenzi',
-  ],
-  4: [
-    'Multiplicator XP x1.5',
-    'Livrare gratuita o data pe luna',
-    'Produse exclusive deblocate',
-  ],
-  5: [
-    'Multiplicator XP x1.8',
-    'Acces la produse premium',
-    'Recompense speciale la comenzi',
-    'Cadou surpriza lunar',
-  ],
-  6: [
-    'Multiplicator XP x2.0',
-    'Livrare gratuita nelimitata',
-    'Produse premium deblocate',
-    'Prioritate la stoc limitat',
-  ],
-  7: [
-    'Multiplicator XP x2.2',
-    'Acces VIP la lansari',
-    'Recompense VIP la comenzi',
-    'Consultanta personalizata',
-  ],
-  8: [
-    'Multiplicator XP x2.5',
-    'Produse exclusive deblocate',
-    'Toate beneficiile deblocate',
-    'Pachet premium aniversar',
-  ],
-  9: [
-    'Multiplicator XP x2.8',
-    'Recompense exclusive Erou',
-    'Produse limitate deblocate',
-  ],
-  10: [
-    'Multiplicator XP x3.0',
-    'Toate produsele deblocate',
-    'Toate recompensele deblocate',
-    'Statut VIP permanent',
-  ],
-};
-
-function getPerksForLevel(level: number): string[] {
-  return LEVEL_PERKS[level] ?? [
-    'Noi beneficii deblocate',
-    'Noi recompense disponibile',
-  ];
-}
-
-// ─── Props ──────────────────────────────────────────────
-
-interface LevelUpModalProps {
+interface PointsLevelUpModalProps {
   visible: boolean;
-  /** The new level the user just reached */
-  newLevel: number;
-  /** Callback when modal is dismissed */
+  from: LevelConfig;
+  to: LevelConfig;
   onDismiss: () => void;
 }
 
-// ─── Component ──────────────────────────────────────────
-
-export function LevelUpModal({ visible, newLevel, onDismiss }: LevelUpModalProps) {
+export function PointsLevelUpModal({ visible, from, to, onDismiss }: PointsLevelUpModalProps) {
   const insets = useSafeAreaInsets();
-  const title = getLevelTitle(newLevel);
-  const perks = getPerksForLevel(newLevel);
-
   const confettiRef = useRef<ConfettiCannon>(null);
 
-  // ── Reanimated shared values ──
   const overlayOpacity = useSharedValue(0);
   const badgeScale = useSharedValue(0.3);
   const badgeOpacity = useSharedValue(0);
@@ -144,7 +54,6 @@ export function LevelUpModal({ visible, newLevel, onDismiss }: LevelUpModalProps
   const buttonOpacity = useSharedValue(0);
   const buttonTranslateY = useSharedValue(16);
 
-  // ── Animated styles ──
   const overlayStyle = useAnimatedStyle(() => ({ opacity: overlayOpacity.value }));
   const badgeStyle = useAnimatedStyle(() => ({
     opacity: badgeOpacity.value,
@@ -178,7 +87,8 @@ export function LevelUpModal({ visible, newLevel, onDismiss }: LevelUpModalProps
   useEffect(() => {
     if (!visible) return;
 
-    // Reset all values
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+
     overlayOpacity.value = 0;
     badgeScale.value = 0.3;
     badgeOpacity.value = 0;
@@ -195,14 +105,11 @@ export function LevelUpModal({ visible, newLevel, onDismiss }: LevelUpModalProps
 
     const cfg = { easing: SMOOTH };
 
-    // 1. Overlay fade in
     overlayOpacity.value = withTiming(1, { duration: 400, ...cfg });
 
-    // 2. Badge entrance (after overlay starts)
     badgeScale.value = withDelay(200, withTiming(1, { duration: 600, ...cfg }));
     badgeOpacity.value = withDelay(200, withTiming(1, { duration: 400, ...cfg }));
 
-    // 3. Glow ring expand + pulse
     glowScale.value = withDelay(300, withTiming(1, { duration: 800, ...cfg }));
     glowOpacity.value = withDelay(300, withRepeat(
       withSequence(
@@ -213,7 +120,6 @@ export function LevelUpModal({ visible, newLevel, onDismiss }: LevelUpModalProps
       true,
     ));
 
-    // 4. Text reveals with staggered delays
     titleOpacity.value = withDelay(500, withTiming(1, { duration: 400, ...cfg }));
     titleTranslateY.value = withDelay(500, withTiming(0, { duration: 400, ...cfg }));
 
@@ -224,7 +130,6 @@ export function LevelUpModal({ visible, newLevel, onDismiss }: LevelUpModalProps
     perksTranslateY.value = withDelay(800, withTiming(0, { duration: 400, ...cfg }));
 
     buttonOpacity.value = withDelay(950, withTiming(1, { duration: 400, ...cfg }, () => {
-      // Fire confetti once the badge is fully on screen
       runOnJS(fireConfetti)();
     }));
     buttonTranslateY.value = withDelay(950, withTiming(0, { duration: 400, ...cfg }));
@@ -236,19 +141,20 @@ export function LevelUpModal({ visible, newLevel, onDismiss }: LevelUpModalProps
     });
   }, [onDismiss]);
 
+  if (from.level === to.level) return null;
+
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={handleDismiss}>
       <Animated.View style={[styles.overlay, overlayStyle]}>
-        {/* ConfettiCannon — fires from top-center of the badge area */}
         <ConfettiCannon
           ref={confettiRef}
-          count={80}
+          count={100}
           origin={{ x: SCREEN_W / 2, y: 0 }}
           autoStart={false}
           fadeOut
-          colors={[GOLD.light, GOLD.main, '#FFFFFF', GOLD.dark]}
+          colors={[to.color, '#FFFFFF', '#FFD60A', '#0A66C2']}
           fallSpeed={2500}
-          explosionSpeed={400}
+          explosionSpeed={450}
         />
 
         <View
@@ -257,54 +163,39 @@ export function LevelUpModal({ visible, newLevel, onDismiss }: LevelUpModalProps
             { paddingTop: insets.top + 60, paddingBottom: insets.bottom + 32 },
           ]}
         >
-          {/* Glow ring */}
           <Animated.View
             style={[
               styles.glowRing,
-              { borderColor: GOLD.main + '40' },
+              { borderColor: to.color + '40' },
               glowStyle,
             ]}
           />
 
-          {/* Badge */}
           <Animated.View style={[styles.badgeContainer, Shadows.glow, badgeStyle]}>
-            <LinearGradient
-              colors={[GOLD.light, GOLD.main, GOLD.amber]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.badgeGradient}
-            >
-              <View style={styles.badgeInner}>
-                <Text style={styles.badgeLevelNumber}>{newLevel}</Text>
-              </View>
-            </LinearGradient>
+            <TierBadge level={to.level} size="lg" />
           </Animated.View>
 
-          {/* Title */}
           <Animated.View style={[styles.titleBlock, titleStyle]}>
             <Text style={styles.levelUpLabel}>NIVEL NOU</Text>
-            <Text style={styles.levelTitle}>{title}</Text>
+            <Text style={[styles.levelTitle, { color: to.color }]}>{to.title}</Text>
           </Animated.View>
 
-          {/* Subtitle */}
           <Animated.View style={subtitleStyle}>
             <Text style={styles.subtitle}>
-              Felicitari! Ai avansat la nivelul {newLevel}!
+              Felicitari! Ai avansat de la {from.title} la {to.title}!
             </Text>
           </Animated.View>
 
-          {/* Perks card */}
-          <Animated.View style={[styles.perksCard, perksStyle]}>
+          <Animated.View style={[styles.perksCard, { borderColor: levelColorWithAlpha(to.color, 0.12) }, perksStyle]}>
             <Text style={styles.perksTitle}>Beneficii deblocate</Text>
-            {perks.map((perk, idx) => (
+            {to.perks.map((perk, idx) => (
               <View key={idx} style={styles.perkRow}>
-                <View style={styles.perkDot} />
+                <View style={[styles.perkDot, { backgroundColor: to.color }]} />
                 <Text style={styles.perkText}>{perk}</Text>
               </View>
             ))}
           </Animated.View>
 
-          {/* CTA — NativeWind className for Pressable layout, inline Bubble.radii for asymmetric shape */}
           <Animated.View style={[styles.ctaWrapper, buttonStyle]}>
             <Pressable
               onPress={handleDismiss}
@@ -312,26 +203,25 @@ export function LevelUpModal({ visible, newLevel, onDismiss }: LevelUpModalProps
               style={Bubble.radii}
             >
               <LinearGradient
-                colors={[GOLD.main, GOLD.amber]}
+                colors={[to.color, levelColorWithAlpha(to.color, 0.75)]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={[styles.ctaButton, Shadows.glow]}
               >
-                <Text style={styles.ctaText}>Continua</Text>
+                <Text style={[styles.ctaText, { color: to.textColor }]}>Continua</Text>
               </LinearGradient>
             </Pressable>
           </Animated.View>
 
-          {/* Level dots */}
           <Animated.View style={[styles.dotsRow, { opacity: buttonOpacity }]}>
-            {Array.from({ length: 10 }, (_, i) => (
+            {[1, 2, 3, 4, 5].map((lvl) => (
               <View
-                key={i}
+                key={lvl}
                 style={[
                   styles.levelDot,
                   {
                     backgroundColor:
-                      i < newLevel ? GOLD.main : 'rgba(255,255,255,0.15)',
+                      lvl <= to.level ? to.color : 'rgba(255,255,255,0.15)',
                   },
                 ]}
               />
@@ -342,8 +232,6 @@ export function LevelUpModal({ visible, newLevel, onDismiss }: LevelUpModalProps
     </Modal>
   );
 }
-
-// ─── Styles ─────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   overlay: {
@@ -356,8 +244,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: Spacing.xl,
   },
-
-  // Glow ring
   glowRing: {
     position: 'absolute',
     width: 180,
@@ -367,35 +253,9 @@ const styles = StyleSheet.create({
     top: '22%',
     alignSelf: 'center',
   },
-
-  // Badge
   badgeContainer: {
     marginBottom: Spacing['2xl'],
   },
-  badgeGradient: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    padding: 3,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeInner: {
-    width: 114,
-    height: 114,
-    borderRadius: 57,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeLevelNumber: {
-    fontFamily: FontFamily.bold,
-    fontSize: 48,
-    color: '#FFFFFF',
-    lineHeight: 56,
-  },
-
-  // Title
   titleBlock: {
     alignItems: 'center',
     marginBottom: Spacing.sm,
@@ -411,12 +271,9 @@ const styles = StyleSheet.create({
   levelTitle: {
     fontFamily: FontFamily.bold,
     fontSize: 36,
-    color: GOLD.main,
     textAlign: 'center',
     marginBottom: Spacing.md,
   },
-
-  // Subtitle
   subtitle: {
     fontFamily: FontFamily.regular,
     fontSize: 16,
@@ -426,13 +283,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing['2xl'],
     paddingHorizontal: Spacing.xl,
   },
-
-  // Perks card
   perksCard: {
     width: '100%',
     backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(255,179,0,0.12)',
     ...Bubble.radii,
     paddingVertical: Spacing.lg,
     paddingHorizontal: Spacing.xl,
@@ -456,7 +310,6 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: GOLD.main,
   },
   perkText: {
     fontFamily: FontFamily.regular,
@@ -465,8 +318,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.85)',
     flex: 1,
   },
-
-  // CTA
   ctaWrapper: {
     width: '100%',
     paddingHorizontal: Spacing['2xl'],
@@ -480,11 +331,8 @@ const styles = StyleSheet.create({
   ctaText: {
     fontFamily: FontFamily.semiBold,
     fontSize: 17,
-    color: '#000000',
     letterSpacing: 0.3,
   },
-
-  // Level dots
   dotsRow: {
     flexDirection: 'row',
     alignItems: 'center',

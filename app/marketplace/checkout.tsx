@@ -46,11 +46,9 @@ import { supabase } from '@/lib/supabase';
 import { useMarketplaceCartStore } from '@/hooks/use-marketplace-cart-store';
 import { useMarketplaceQuote } from '@/hooks/use-marketplace-quote';
 import { useDefaultSalonBilling } from '@/hooks/use-salon-billing-details';
-import { useShopXP } from '@/hooks/use-shop-xp';
 import { useAuth } from '@/providers/auth-provider';
 import { useSalon } from '@/providers/salon-provider';
 import { useUIStore } from '@/stores/uiStore';
-import { useXpQueueStore } from '@/stores/xpQueueStore';
 import { Brand, Bubble, Colors, FontFamily, Radius, Shadows, Spacing } from '@/constants/theme';
 
 // ─── Animation helpers ────────────────────────────────────
@@ -117,10 +115,6 @@ export default function MarketplaceCheckoutScreen() {
   const cart = useMarketplaceCartStore();
 
   const { marketplaceIdempotencyKey, setMarketplaceIdempotencyKey } = useUIStore();
-
-  // ── Shop XP — fire-and-forget after order success ─────
-  const { earnXP } = useShopXP();
-  const enqueueXpToast = useXpQueueStore((s) => s.enqueueToast);
 
   // ── Buyer mode ────────────────────────────────────────
   const buyerMode: 'client' | 'salon' = isOwner && !!salon?.id ? 'salon' : 'client';
@@ -298,22 +292,6 @@ export default function MarketplaceCheckoutScreen() {
         }
         // Navigate to order detail with fresh=1 so the OrderSuccessModal fires.
         router.replace(`/marketplace/order/${typed.order_id}?fresh=1` as any);
-
-        // Shop XP — fire-and-forget; never block UX on XP failure.
-        earnXP(typed.order_id, totalCents / 100)
-          .then((xpResult) => {
-            if (!xpResult) return;
-            enqueueXpToast({
-              id: typed.order_id,
-              xp: xpResult.xp_earned,
-              source: 'Comanda finalizata',
-              leveled_up: xpResult.leveled_up,
-              newLevel: xpResult.leveled_up ? xpResult.level : undefined,
-            });
-          })
-          .catch(() => {
-            // Silent — XP failure must never surface to the user.
-          });
       } else {
         const typed = result as SalonCheckoutResult;
         if (Platform.OS === 'ios') {
@@ -321,22 +299,6 @@ export default function MarketplaceCheckoutScreen() {
         }
         // Navigate to order detail with fresh=1 so the OrderSuccessModal fires.
         router.replace(`/marketplace/order/${typed.order_id}?fresh=1` as any);
-
-        // Shop XP — fire-and-forget; never block UX on XP failure.
-        earnXP(typed.order_id, totalCents / 100)
-          .then((xpResult) => {
-            if (!xpResult) return;
-            enqueueXpToast({
-              id: typed.order_id,
-              xp: xpResult.xp_earned,
-              source: 'Comanda finalizata',
-              leveled_up: xpResult.leveled_up,
-              newLevel: xpResult.leveled_up ? xpResult.level : undefined,
-            });
-          })
-          .catch(() => {
-            // Silent — XP failure must never surface to the user.
-          });
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Eroare necunoscuta';
@@ -347,8 +309,6 @@ export default function MarketplaceCheckoutScreen() {
   }, [
     cart,
     buyerMode,
-    earnXP,
-    enqueueXpToast,
     form,
     missingFields,
     router,

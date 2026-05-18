@@ -1,13 +1,5 @@
-/**
- * XPBadge
- *
- * Compact badge showing current XP and level. Designed to sit in headers or
- * inline with other elements. Animated XP count on value change.
- */
-
 import { memo, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
-import { Feather } from '@expo/vector-icons';
 import Animated, {
   Easing,
   FadeInDown,
@@ -18,44 +10,27 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { Colors, FontFamily, Spacing, Bubble, Shadows } from '@/constants/theme';
-import { getLevelTitle } from './XPProgressBar';
-
-// ─── Constants ──────────────────────────────────────────
+import { LEVEL_CONFIG, type LevelConfig } from '@/constants/loyalty';
+import { TierBadge } from '@/components/loyalty/TierBadge';
 
 const SMOOTH = Easing.bezier(0.25, 0.1, 0.25, 1);
 const COUNT_DURATION = 800;
 const COUNT_STEPS = 16;
 
-const XP_BADGE_COLORS = {
-  gold: '#FFB300',
-  goldDark: '#FF8F00',
-  badgeBg: '#FFF8E1',
-  starBg: 'rgba(255, 179, 0, 0.12)',
-  levelBg: 'rgba(255, 143, 0, 0.08)',
-};
-
-// ─── Props ──────────────────────────────────────────────
-
-interface XPBadgeProps {
-  /** Current XP points */
-  xp: number;
-  /** Current level */
-  level: number;
-  /** Size variant */
+interface PointsBadgeProps {
+  points: number;
+  level: LevelConfig;
   size?: 'sm' | 'md';
 }
 
-// ─── Component ──────────────────────────────────────────
-
-function XPBadgeInner({ xp, level, size = 'md' }: XPBadgeProps) {
+function PointsBadgeInner({ points, level, size = 'md' }: PointsBadgeProps) {
   const colors = Colors.light;
   const isSm = size === 'sm';
 
-  const [displayXP, setDisplayXP] = useState(xp);
-  const prevXPRef = useRef(xp);
+  const [displayPoints, setDisplayPoints] = useState(points);
+  const prevPointsRef = useRef(points);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  // Pulse animation when XP changes
   const scale = useSharedValue(1);
 
   const pulseStyle = useAnimatedStyle(() => ({
@@ -63,36 +38,34 @@ function XPBadgeInner({ xp, level, size = 'md' }: XPBadgeProps) {
   }));
 
   useEffect(() => {
-    if (prevXPRef.current === xp) return;
+    if (prevPointsRef.current === points) return;
 
-    // Counting animation
     timersRef.current.forEach(clearTimeout);
     timersRef.current = [];
 
-    const startVal = prevXPRef.current;
-    const diff = xp - startVal;
+    const startVal = prevPointsRef.current;
+    const diff = points - startVal;
 
     for (let i = 1; i <= COUNT_STEPS; i++) {
       const timer = setTimeout(() => {
         const progress = i / COUNT_STEPS;
         const eased = 1 - Math.pow(1 - progress, 3);
-        setDisplayXP(Math.round(startVal + diff * eased));
+        setDisplayPoints(Math.round(startVal + diff * eased));
       }, (COUNT_DURATION / COUNT_STEPS) * i);
       timersRef.current.push(timer);
     }
 
-    // Subtle scale pulse
     scale.value = withSequence(
       withTiming(1.08, { duration: 200, easing: SMOOTH }),
       withTiming(1, { duration: 300, easing: SMOOTH }),
     );
 
-    prevXPRef.current = xp;
+    prevPointsRef.current = points;
 
     return () => {
       timersRef.current.forEach(clearTimeout);
     };
-  }, [xp]);
+  }, [points]);
 
   return (
     <Animated.View
@@ -101,26 +74,22 @@ function XPBadgeInner({ xp, level, size = 'md' }: XPBadgeProps) {
         styles.container,
         Shadows.sm,
         isSm && styles.containerSm,
+        { borderColor: level.color + '26' },
         pulseStyle,
       ]}
     >
-      {/* XP section */}
       <View style={[styles.xpSection, isSm && styles.xpSectionSm]}>
-        <View style={[styles.coinIcon, isSm && styles.coinIconSm]}>
-          <Feather
-            name="zap"
-            size={isSm ? 10 : 13}
-            color={XP_BADGE_COLORS.gold}
-          />
+        <View style={[styles.coinIcon, isSm && styles.coinIconSm, { backgroundColor: level.color + '1F' }]}>
+          <TierBadge level={level.level} size="sm" />
         </View>
         <Text
           style={[
             styles.xpText,
-            { color: XP_BADGE_COLORS.goldDark },
+            { color: level.color },
             isSm && styles.xpTextSm,
           ]}
         >
-          {displayXP.toLocaleString('ro-RO')}
+          {displayPoints.toLocaleString('ro-RO')}
         </Text>
         <Text
           style={[
@@ -129,37 +98,28 @@ function XPBadgeInner({ xp, level, size = 'md' }: XPBadgeProps) {
             isSm && styles.xpLabelSm,
           ]}
         >
-          XP
+          pts
         </Text>
       </View>
 
-      {/* Divider */}
       <View style={[styles.divider, { backgroundColor: colors.separator }]} />
 
-      {/* Level section */}
       <View style={[styles.levelSection, isSm && styles.levelSectionSm]}>
-        <Feather
-          name="star"
-          size={isSm ? 10 : 12}
-          color={XP_BADGE_COLORS.gold}
-        />
         <Text
           style={[
             styles.levelText,
-            { color: XP_BADGE_COLORS.goldDark },
+            { color: level.color },
             isSm && styles.levelTextSm,
           ]}
         >
-          {level}
+          {level.title}
         </Text>
       </View>
     </Animated.View>
   );
 }
 
-export const XPBadge = memo(XPBadgeInner);
-
-// ─── Styles ─────────────────────────────────────────────
+export const PointsBadge = memo(PointsBadgeInner);
 
 const styles = StyleSheet.create({
   container: {
@@ -167,7 +127,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFDF5',
     borderWidth: 1,
-    borderColor: 'rgba(255, 179, 0, 0.15)',
     ...Bubble.radiiSm,
     paddingVertical: Spacing.xs + 2,
     paddingHorizontal: Spacing.sm,
@@ -178,8 +137,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xs + 2,
     gap: Spacing.xs + 2,
   },
-
-  // XP section
   xpSection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -192,9 +149,9 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: XP_BADGE_COLORS.starBg,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   coinIconSm: {
     width: 18,
@@ -220,15 +177,11 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 12,
   },
-
-  // Divider
   divider: {
     width: 1,
     height: 18,
     borderRadius: 0.5,
   },
-
-  // Level section
   levelSection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -239,11 +192,11 @@ const styles = StyleSheet.create({
   },
   levelText: {
     fontFamily: FontFamily.bold,
-    fontSize: 14,
+    fontSize: 13,
     lineHeight: 18,
   },
   levelTextSm: {
-    fontSize: 12,
+    fontSize: 11,
     lineHeight: 15,
   },
 });

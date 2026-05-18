@@ -44,7 +44,7 @@ export const DURATION = {
   snap:      260,
   pulse:     200,
   count:     800,    // XP counting animation
-  progress:  900,    // XPProgressBar fill
+  progress:  900,    // progress bar fill
   confetti: 1200,    // OrderSuccessModal particles
   levelup:   700,    // LevelUpModal particles
 } as const;
@@ -112,7 +112,7 @@ export const SLIDE_IN_DOWN = (delay = 0) =>
         .easing(SMOOTH)
         .withInitialValues({ opacity: 0, transform: [{ translateY: 12 }] } as never);
 
-// ── FadeInDown for cards (XPBadge, XPProgressBar) ───────
+// ── FadeInDown for cards ──────────────────────────────────
 export const CARD_ENTRY = isWeb
   ? undefined
   : FadeInDown.duration(400)

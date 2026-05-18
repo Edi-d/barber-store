@@ -24,8 +24,8 @@ import { SalonProvider } from '@/providers/salon-provider';
 import { TutorialProvider } from '@/components/tutorial/TutorialProvider';
 import { useLoyaltyNotifications } from '@/hooks/useLoyaltyNotifications';
 import { PointsEarnedToast } from '@/components/loyalty/PointsEarnedToast';
-import { TierUpModal } from '@/components/loyalty/TierUpModal';
-import { XpQueueRoot } from '@/components/shared/XpQueueRoot';
+import { PointsLevelUpModal } from '@/components/loyalty/PointsLevelUpModal';
+import { useLoyaltyQueueStore } from '@/stores/loyaltyQueueStore';
 import '@/lib/livekit-setup';
 import { featureFlags } from 'react-native-screens';
 
@@ -143,24 +143,29 @@ function LoadingScreen() {
 }
 
 function LoyaltyGlobalOverlays() {
-  const { lastEarned, dismissEarned, tierChanged, dismissTierChanged } = useLoyaltyNotifications();
+  useLoyaltyNotifications();
+
+  const currentToast = useLoyaltyQueueStore((s) => s.currentToast());
+  const currentLevelUp = useLoyaltyQueueStore((s) => s.currentLevelUp());
+  const dequeueToast = useLoyaltyQueueStore((s) => s.dequeueToast);
+  const dequeueLevelUp = useLoyaltyQueueStore((s) => s.dequeueLevelUp);
 
   return (
     <>
-      {lastEarned && (
+      {currentToast && (
         <PointsEarnedToast
-          visible={!!lastEarned}
-          points={lastEarned.points}
-          source={lastEarned.source}
-          onDismiss={dismissEarned}
+          visible
+          points={currentToast.points}
+          source={currentToast.source}
+          onDismiss={dequeueToast}
         />
       )}
-      {tierChanged && (
-        <TierUpModal
-          visible={!!tierChanged}
-          fromLevel={tierChanged.from}
-          toLevel={tierChanged.to}
-          onClose={dismissTierChanged}
+      {currentLevelUp && (
+        <PointsLevelUpModal
+          visible
+          from={currentLevelUp.from}
+          to={currentLevelUp.to}
+          onDismiss={dequeueLevelUp}
         />
       )}
     </>
@@ -265,10 +270,8 @@ function RootLayoutNav() {
         <Stack.Screen name="tutorial/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="tutorial-lesson/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="profile/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="shop-xp" options={{ headerShown: false }} />
       </Stack>
       <LoyaltyGlobalOverlays />
-      <XpQueueRoot />
     </>
   );
 }

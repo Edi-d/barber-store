@@ -1,4 +1,8 @@
-import { View, Text, Image, Pressable, StyleSheet, Platform, FlatList, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { View, Text, Image, Pressable, StyleSheet, Platform, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+// FlatList from gesture-handler so the horizontal carousel coordinates with the
+// @gorhom/bottom-sheet pan gesture (a plain RN FlatList gets its horizontal pan
+// swallowed by the sheet and won't scroll).
+import { FlatList } from 'react-native-gesture-handler';
 import { forwardRef, useState, useCallback } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';

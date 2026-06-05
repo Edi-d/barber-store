@@ -39,6 +39,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import Animated from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { useQuery } from '@tanstack/react-query';
 
 import { GradientBackground } from '@/components/ui/GradientBackground';
 import { MarketplaceProductCard } from '@/components/marketplace/MarketplaceProductCard';
@@ -54,7 +55,7 @@ import {
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useMarketplaceCartStore } from '@/hooks/use-marketplace-cart-store';
 import { useUIStore } from '@/stores/uiStore';
-import { SLIDE_IN_DOWN } from '@/lib/animations';
+import { fetchHomeBanners, type HomeBannerSlide } from '@/lib/nop-catalog';
 import {
   Brand,
   Bubble,
@@ -148,15 +149,17 @@ const FILTER_PIVOTS: FilterPivot[] = [
 ];
 
 // ─── Hero slides ────────────────────────────────────────
+// `image` accepts a local require() asset (fallback) OR a remote { uri }
+// object built from a live nop banner — both satisfy ImageSourcePropType.
 type HeroSlide = {
   key: string;
   image: ImageSourcePropType;
-  route?: string;
+  route: string | null;
 };
 
 const HERO_SLIDES: HeroSlide[] = [
-  { key: 'hero-1', image: require('@/assets/hero.webp') },
-  { key: 'hero-2', image: require('@/assets/hero2.webp') },
+  { key: 'hero-1', image: require('@/assets/hero.webp'), route: null },
+  { key: 'hero-2', image: require('@/assets/hero2.webp'), route: null },
 ];
 
 // ─── Screen ─────────────────────────────────────────────
@@ -167,8 +170,42 @@ export default function MarketplaceHomeScreen() {
   const colors = Colors[colorScheme];
 
   // Catalog data
-  const { products, categories, brands, loading, refetch } =
+  const { products, categories, brands, loading, error, refetch } =
     useMarketplaceCatalog('consumer');
+
+  // Diagnostic: surfaces in the Metro terminal so we can see what the device gets.
+  useEffect(() => {
+    if (__DEV__) {
+      console.log('[home] catalog state →', {
+        loading,
+        error,
+        products: products.length,
+        categories: categories.length,
+        brands: brands.length,
+        screenW: SCREEN_WIDTH,
+        heroH: HERO_H,
+      });
+    }
+  }, [loading, error, products.length, categories.length, brands.length]);
+
+  // Live hero banners from the nop API. While loading / on empty, we fall back
+  // to the hardcoded HERO_SLIDES so the carousel never looks broken.
+  const { data: banners } = useQuery({
+    queryKey: ['nop', 'home-banners'],
+    queryFn: fetchHomeBanners,
+  });
+
+  // Carousel slides: prefer live banners, otherwise the local fallback.
+  const heroSlides = useMemo<HeroSlide[]>(() => {
+    if (banners && banners.length > 0) {
+      return banners.map((b: HomeBannerSlide, i) => ({
+        key: `nop-banner-${i}`,
+        image: { uri: b.imageUrl } as ImageSourcePropType,
+        route: b.route,
+      }));
+    }
+    return HERO_SLIDES;
+  }, [banners]);
 
   // Cart badge — read total from Zustand store (property not function)
   const cartTotalItems = useMarketplaceCartStore((s) => s.totalItems());
@@ -292,6 +329,34 @@ export default function MarketplaceHomeScreen() {
     [router],
   );
 
+  const handleHeroPress = useCallback(
+    (route: string | null) => {
+      if (!route) return;
+      Haptics.selectionAsync().catch(() => {});
+      router.push(route as never);
+    },
+    [router],
+  );
+
+  // First-load skeleton: only while the catalog has no data yet. The pull-to-
+  // refresh RefreshControl is handled separately and stays available.
+  const showSkeleton = loading && products.length === 0;
+  // Catalog finished loading but came back empty (failed fetch or no data).
+  const catalogEmpty = !loading && products.length === 0 && categories.length === 0;
+
+  // Diagnostic: are the DERIVED lists (what feeds the tiles/cards) populated?
+  useEffect(() => {
+    if (__DEV__) {
+      console.log('[home] derived →', {
+        topCategories: topCategories.length,
+        featuredProducts: featuredProducts.length,
+        filteredProducts: filteredProducts.length,
+        newProducts: newProducts.length,
+        featuredBrands: featuredBrands.length,
+      });
+    }
+  }, [topCategories.length, featuredProducts.length, filteredProducts.length, newProducts.length, featuredBrands.length]);
+
   // ── Hero carousel scroll tracking ─────────────────────
   const [heroIndex, setHeroIndex] = useState(0);
   const onHeroScrollEnd = useCallback(
@@ -360,12 +425,36 @@ export default function MarketplaceHomeScreen() {
         </View>
       </View>
 
+      {showSkeleton ? (
+        <MarketplaceSkeleton colors={colors} bottomInset={insets.bottom} />
+      ) : catalogEmpty ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.xl, gap: Spacing.md }}>
+          <Feather name="cloud-off" size={48} color={colors.textTertiary} />
+          <Text style={{ fontFamily: FontFamily.semiBold, fontSize: 16, color: colors.text, textAlign: 'center' }}>
+            Nu am putut incarca magazinul
+          </Text>
+          <Text style={{ fontFamily: FontFamily.regular, fontSize: 13, lineHeight: 19, color: colors.textTertiary, textAlign: 'center' }}>
+            {error ?? 'Verifica conexiunea la internet si incearca din nou.'}
+          </Text>
+          <TouchableOpacity
+            onPress={refetch}
+            activeOpacity={0.85}
+            style={[styles.viewAllCta, Bubble.radiiSm, { backgroundColor: colors.background, borderColor: colors.inputBorder, paddingHorizontal: Spacing.xl }]}
+          >
+            <Text style={[styles.viewAllText, { color: Brand.primary }]}>REINCEARCA</Text>
+            <Feather name="refresh-cw" size={16} color={Brand.primary} />
+          </TouchableOpacity>
+        </View>
+      ) : (
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
           { paddingBottom: insets.bottom + 80 + Spacing.xl },
         ]}
         showsVerticalScrollIndicator={false}
+        onContentSizeChange={(w, h) => {
+          if (__DEV__) console.log('[home] scroll content size →', Math.round(w), 'x', Math.round(h));
+        }}
         refreshControl={
           <RefreshControl
             refreshing={loading}
@@ -375,7 +464,12 @@ export default function MarketplaceHomeScreen() {
         }
       >
         {/* ── 1. Hero carousel ── */}
-        <Animated.View entering={SLIDE_IN_DOWN(0)} style={styles.heroSection}>
+        <Animated.View
+          style={styles.heroSection}
+          onLayout={(e) => {
+            if (__DEV__) console.log('[home] heroSection height →', Math.round(e.nativeEvent.layout.height));
+          }}
+        >
           {/*
             style={{ width: SCREEN_WIDTH }} is required on the horizontal ScrollView
             so that pagingEnabled snaps at exactly SCREEN_WIDTH intervals.
@@ -389,19 +483,22 @@ export default function MarketplaceHomeScreen() {
             decelerationRate="fast"
             style={{ width: SCREEN_WIDTH }}
           >
-            {HERO_SLIDES.map((slide) => (
+            {heroSlides.map((slide) => (
               <View key={slide.key} style={styles.heroSlide}>
                 {/*
                   Bubble.radii gives the organic asymmetric corners (25/12/25/25).
                   overflow:'hidden' is applied inline to guarantee it comes after
                   the radius values in the style array so the image is correctly
                   clipped to the bubble shape.
+                  Pressable always wraps the image; it's a no-op when route is null.
                 */}
-                <View
-                  style={[
+                <Pressable
+                  onPress={() => handleHeroPress(slide.route)}
+                  disabled={!slide.route}
+                  style={({ pressed }) => [
                     styles.hero,
                     Bubble.radii,
-                    { overflow: 'hidden' },
+                    { overflow: 'hidden', opacity: pressed && slide.route ? 0.9 : 1 },
                   ]}
                 >
                   <Image
@@ -409,13 +506,13 @@ export default function MarketplaceHomeScreen() {
                     style={styles.heroImage}
                     resizeMode="cover"
                   />
-                </View>
+                </Pressable>
               </View>
             ))}
           </ScrollView>
           {/* Dot indicator — always visible and centered below carousel */}
           <View style={styles.heroDots} pointerEvents="none">
-            {HERO_SLIDES.map((s, idx) => (
+            {heroSlides.map((s, idx) => (
               <View
                 key={s.key}
                 style={[
@@ -427,28 +524,13 @@ export default function MarketplaceHomeScreen() {
           </View>
         </Animated.View>
 
-        {/* ── 2. 2-up promo cards ── */}
-        {/*
-          NativeWind className="flex-row" handles the row axis.
-          gap + paddingHorizontal + marginBottom stay in style={} because they
-          reference Spacing tokens (Spacing.sm = 8, Spacing.lg = 20) which have
-          no exact px-* NativeWind equivalent in this tailwind config.
-        */}
+        {/* ── 2. Categorii ── */}
         <Animated.View
-          entering={SLIDE_IN_DOWN(60)}
-          className="flex-row"
-          style={{
-            gap: Spacing.sm,
-            paddingHorizontal: Spacing.lg,
-            marginBottom: Spacing.lg,
+          style={styles.section}
+          onLayout={(e) => {
+            if (__DEV__) console.log('[home] Categorii section → h', Math.round(e.nativeEvent.layout.height), 'y', Math.round(e.nativeEvent.layout.y));
           }}
         >
-          <PromoCard image={require('@/assets/patrat-stanga.webp')} />
-          <PromoCard image={require('@/assets/patrat-dreapta.webp')} />
-        </Animated.View>
-
-        {/* ── 3. Categorii ── */}
-        <Animated.View entering={SLIDE_IN_DOWN(120)} style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>
               Categorii
@@ -514,7 +596,7 @@ export default function MarketplaceHomeScreen() {
         </Animated.View>
 
         {/* ── 4. Filter pivots + dynamic product carousel ── */}
-        <Animated.View entering={SLIDE_IN_DOWN(180)} style={styles.filterSection}>
+        <Animated.View style={styles.filterSection}>
           {/* Filter chips row — 6 chips, horizontal scroll, Bubble.radiiSm */}
           <ScrollView
             horizontal
@@ -596,7 +678,7 @@ export default function MarketplaceHomeScreen() {
 
         {/* ── 5. Branduri ── */}
         {featuredBrands.length > 0 && (
-          <Animated.View entering={SLIDE_IN_DOWN(240)} style={styles.section}>
+          <Animated.View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
                 Branduri
@@ -621,7 +703,7 @@ export default function MarketplaceHomeScreen() {
 
         {/* ── 6. Produse noi ── */}
         {newProducts.length > 0 && (
-          <Animated.View entering={SLIDE_IN_DOWN(300)} style={styles.section}>
+          <Animated.View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
                 Produse noi
@@ -646,12 +728,12 @@ export default function MarketplaceHomeScreen() {
 
         {/* ── 7. Trust badges ── */}
         <Animated.View
-          entering={SLIDE_IN_DOWN(360)}
           style={{ marginBottom: Spacing.xl }}
         >
           <TrustBadgesGrid />
         </Animated.View>
       </ScrollView>
+      )}
 
       {/* ── Overlays — rendered outside ScrollView so they layer above all content ── */}
 
@@ -700,13 +782,15 @@ function CategoryTile({
       style={({ pressed }) => [
         styles.categoryTileShadow,
         Shadows.sm,
-        { borderRadius: 26, opacity: pressed ? 0.88 : 1, overflow: 'hidden' },
+        Bubble.radii,
+        { opacity: pressed ? 0.88 : 1, overflow: 'hidden' },
       ]}
     >
       <View
         style={[
           styles.categoryTile,
-          { backgroundColor: colors.background, borderRadius: 26 },
+          Bubble.radii,
+          { backgroundColor: colors.background },
         ]}
       >
         <View style={[styles.categoryCircle, { backgroundColor: tint }]}>
@@ -776,12 +860,109 @@ function BrandChip({
  *   Inner View — carries overflow:'hidden' + Bubble.radii to clip the image
  *                to the exact organic shape (no shadow props here)
  */
-function PromoCard({ image }: { image: ImageSourcePropType }) {
+function PromoCard({
+  image,
+  onPress,
+}: {
+  image: ImageSourcePropType;
+  onPress?: () => void;
+}) {
+  const inner = (
+    <View style={[styles.promoCardClip, Bubble.radii, { overflow: 'hidden' }]}>
+      <Image source={image} resizeMode="cover" style={styles.promoCardImage} />
+    </View>
+  );
+  if (onPress) {
+    return (
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.promoCardShadow,
+          Bubble.radii,
+          Shadows.glow,
+          { opacity: pressed ? 0.9 : 1 },
+        ]}
+      >
+        {inner}
+      </Pressable>
+    );
+  }
   return (
     <View style={[styles.promoCardShadow, Bubble.radii, Shadows.glow]}>
-      <View style={[styles.promoCardClip, Bubble.radii, { overflow: 'hidden' }]}>
-        <Image source={image} resizeMode="cover" style={styles.promoCardImage} />
+      {inner}
+    </View>
+  );
+}
+
+// ─── MarketplaceSkeleton ──────────────────────────────────
+/**
+ * Full-screen first-load placeholder. Approximates the real layout — hero
+ * block, a row of category tiles, and two rows of product card placeholders —
+ * with simple light-grey rounded blocks. Static (no animation, no new deps).
+ * Mirrors the skeleton style used by the PDP screen.
+ */
+function MarketplaceSkeleton({
+  colors,
+  bottomInset,
+}: {
+  colors: typeof Colors.light;
+  bottomInset: number;
+}) {
+  return (
+    <View
+      style={[styles.skeletonRoot, { paddingBottom: bottomInset + 80 }]}
+      pointerEvents="none"
+    >
+      {/* Hero block */}
+      <View style={styles.skeletonHeroWrap}>
+        <View style={[styles.skeletonBlock, styles.skeletonHero, Bubble.radii]} />
       </View>
+
+      {/* Promo cards row */}
+      <View style={styles.skeletonPromoRow}>
+        <View style={[styles.skeletonBlock, styles.skeletonPromo, Bubble.radii]} />
+        <View style={[styles.skeletonBlock, styles.skeletonPromo, Bubble.radii]} />
+      </View>
+
+      {/* Categorii — title + row of tiles */}
+      <View style={styles.skeletonSection}>
+        <View style={[styles.skeletonBlock, styles.skeletonTitle]} />
+        <View style={styles.skeletonCatRow}>
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={styles.skeletonCatItem}>
+              <View
+                style={[
+                  styles.skeletonBlock,
+                  Bubble.radii,
+                  { height: 96, backgroundColor: colors.background },
+                ]}
+              />
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* Two rows of product card placeholders */}
+      {[0, 1].map((row) => (
+        <View key={row} style={styles.skeletonSection}>
+          <View style={[styles.skeletonBlock, styles.skeletonTitle]} />
+          <View style={styles.skeletonProductRow}>
+            {[0, 1, 2].map((i) => (
+              <View key={i} style={styles.skeletonProductCard}>
+                <View
+                  style={[styles.skeletonBlock, styles.skeletonProductImg, Bubble.radiiSm]}
+                />
+                <View
+                  style={[styles.skeletonBlock, styles.skeletonLine, { width: '90%' }]}
+                />
+                <View
+                  style={[styles.skeletonBlock, styles.skeletonLine, { width: '55%' }]}
+                />
+              </View>
+            ))}
+          </View>
+        </View>
+      ))}
     </View>
   );
 }
@@ -792,6 +973,10 @@ const NEW_PRODUCT_CARD_W = (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.sm) / 2;
 // creating a clear horizontal scroll affordance regardless of screen width.
 const FILTER_CARD_W = 155;
 const HERO_SLIDE_W = SCREEN_WIDTH;
+// Explicit hero height (4:3 of the visible image width). Remote banner images have
+// no intrinsic size until loaded, so we pin the box height rather than rely on
+// `aspectRatio` — otherwise a portrait banner expands to fill the whole screen.
+const HERO_H = Math.round((SCREEN_WIDTH - Spacing.lg * 2) * 0.75);
 // Each promo card: half of (screen - 2x horizontal padding - 1 gap between cards)
 const PROMO_CARD_W = (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.sm) / 2;
 
@@ -876,13 +1061,22 @@ const styles = StyleSheet.create({
   },
   hero: {
     width: '100%',
-    aspectRatio: 4 / 3,
+    height: HERO_H,
     // overflow:'hidden' intentionally NOT set here — applied inline alongside
     // Bubble.radii in JSX so the clip layer is guaranteed to have both properties.
   },
   heroImage: {
     width: '100%',
-    height: '100%',
+    // Explicit numeric height (not '100%') — a remote image with a percentage
+    // height can't resolve inside a horizontal ScrollView and falls back to its
+    // intrinsic (portrait) height, blowing the hero up to full screen.
+    height: HERO_H,
+    // Rounded-bubble corners applied directly to the image so the rounding is
+    // clipped reliably (Android won't clip a child Image via parent overflow).
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 25,
+    borderBottomLeftRadius: 25,
   },
   heroDots: {
     flexDirection: 'row',
@@ -1073,5 +1267,68 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
     textAlign: 'center',
+  },
+
+  // ── First-load skeleton ──
+  // Light grey rounded blocks, mirroring the PDP skeleton tones.
+  skeletonRoot: {
+    flex: 1,
+    paddingTop: Spacing.sm,
+  },
+  skeletonBlock: {
+    backgroundColor: 'rgba(0,0,0,0.06)',
+  },
+  skeletonHeroWrap: {
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  skeletonHero: {
+    width: '100%',
+    aspectRatio: 4 / 3,
+  },
+  skeletonPromoRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  skeletonPromo: {
+    flex: 1,
+    aspectRatio: 1,
+  },
+  skeletonSection: {
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  skeletonTitle: {
+    width: 140,
+    height: 18,
+    borderRadius: 6,
+    backgroundColor: 'rgba(0,0,0,0.07)',
+    marginBottom: Spacing.md,
+  },
+  skeletonCatRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  skeletonCatItem: {
+    flex: 1,
+  },
+  skeletonProductRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  skeletonProductCard: {
+    width: FILTER_CARD_W,
+    gap: 6,
+  },
+  skeletonProductImg: {
+    width: '100%',
+    aspectRatio: 1,
+  },
+  skeletonLine: {
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: 'rgba(0,0,0,0.07)',
   },
 });

@@ -6,11 +6,13 @@ export default function MarketplaceLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="categories" />
       <Stack.Screen name="category/[slug]" />
+      <Stack.Screen name="brand/[slug]" />
       <Stack.Screen name="product/[id]" />
       <Stack.Screen name="cart" />
       <Stack.Screen name="checkout" />
       <Stack.Screen name="orders" />
       <Stack.Screen name="order/[id]" />
+      <Stack.Screen name="favorites" />
       <Stack.Screen name="quick-order" />
       <Stack.Screen name="recurring-list" />
       <Stack.Screen name="spending" />

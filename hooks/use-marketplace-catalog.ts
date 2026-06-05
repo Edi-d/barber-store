@@ -10,13 +10,18 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { supabase } from '@/lib/supabase';
+import { fetchHomeCatalog } from '@/lib/nop-catalog';
 import productsFeed from '@/data/products.json';
 import { CATEGORY_LABELS } from '@/data/types';
 
-// `true` → load 2,752 products from data/products.json (scraped barber-store.ro feed).
-// `false` → fetch from shared Supabase `marketplace_products` table (currently empty).
-// Flip to `false` once the marketplace_products table is seeded in Supabase.
-const USE_LOCAL_FEED = true;
+// Catalogue data source for the store, driven by EXPO_PUBLIC_CATALOG_SOURCE:
+//   'nop'      → live nopCommerce storefront API (lib/nop-client.ts). DEFAULT.
+//   'local'    → 2,752 products from data/products.json (scraped barber-store.ro).
+//   'supabase' → shared Supabase `marketplace_products` table (currently empty).
+// 'local' and 'supabase' are kept as fallbacks for offline / migration work.
+type CatalogSource = 'nop' | 'local' | 'supabase';
+const CATALOG_SOURCE: CatalogSource =
+  (process.env.EXPO_PUBLIC_CATALOG_SOURCE as CatalogSource) || 'nop';
 
 // ─── Types ──────────────────────────────────────────────
 export type MarketplaceSection = 'professional' | 'consumer';
@@ -269,6 +274,30 @@ export function useMarketplaceCatalog(
     }
   }, [section, categoryId]);
 
+  // nop is a single catalogue with no professional/consumer split — the `section`
+  // arg is intentionally ignored here (all callers get the same catalogue). The
+  // home screen slices this seed client-side; the home filter pivots therefore
+  // operate over the seed page, NOT the whole catalogue (full browse lives in the
+  // category/brand screens). `categoryId` likewise doesn't pre-filter the seed —
+  // category browse is handled by useNopCategoryProducts on the category screen.
+  const fetchFromNop = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { products: nopProducts, categories: nopCategories, brands: nopBrands } =
+        await fetchHomeCatalog();
+      setProducts(nopProducts);
+      setCategories(nopCategories);
+      setBrands(nopBrands);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.warn('[useMarketplaceCatalog:nop]', msg);
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const fetchFromSupabase = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -359,7 +388,12 @@ export function useMarketplaceCatalog(
     }
   }, [section, categoryId]);
 
-  const fetchCatalog = USE_LOCAL_FEED ? fetchFromLocalFeed : fetchFromSupabase;
+  const fetchCatalog =
+    CATALOG_SOURCE === 'nop'
+      ? fetchFromNop
+      : CATALOG_SOURCE === 'local'
+        ? fetchFromLocalFeed
+        : fetchFromSupabase;
 
   useEffect(() => {
     fetchCatalog();

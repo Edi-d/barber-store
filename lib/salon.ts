@@ -38,8 +38,39 @@ export async function fetchServicesGrouped(salonId: string): Promise<Record<stri
   return grouped;
 }
 
-// Fetch aggregated salon schedule from all barbers' availability
+// Fetch a salon's working schedule.
+//
+// Prefers the salon's own published hours (`salon_hours` — the authoritative,
+// owner-managed source). Falls back to aggregating barber availability (union of
+// all barbers' hours) only when a salon has no published hours, so older salons
+// without a `salon_hours` row still show something sensible.
+//
+// Returned in the BarberAvailability shape the display helpers
+// (getTodayScheduleText / getWeekSchedule) already consume.
 export async function fetchSalonSchedule(salonId: string): Promise<BarberAvailability[]> {
+  // 1. Authoritative source: the salon's own published hours.
+  const { data: hours, error: hoursErr } = await supabase
+    .from("salon_hours")
+    .select("day_of_week, is_open, open_time, close_time")
+    .eq("salon_id", salonId)
+    .order("day_of_week");
+
+  if (!hoursErr && hours && hours.length > 0) {
+    // Closed days are simply omitted → getWeekSchedule renders them as "Închis".
+    return hours
+      .filter((h: any) => h.is_open)
+      .map((h: any) => ({
+        id: `hours-${h.day_of_week}`,
+        barber_id: salonId,
+        day_of_week: h.day_of_week,
+        start_time: h.open_time,
+        end_time: h.close_time,
+        is_available: true,
+        created_at: "",
+      }));
+  }
+
+  // 2. Fallback: aggregate all barbers' availability for this salon.
   // Get all barbers in this salon
   const { data: barbers } = await supabase
     .from("barbers")

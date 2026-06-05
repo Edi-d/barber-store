@@ -1,20 +1,21 @@
 /**
- * MarketplaceSearchModal — full-screen search overlay.
+ * MarketplaceSearchModal — full-screen search overlay (nopCommerce autocomplete).
  *
- * Slides down from the top when the CAUTA button on the marketplace
- * home is tapped. Search input is auto-focused on open. Typing
- * filters the catalog client-side with a 250ms debounce.
+ * Slides down from the top when the CAUTA button on the marketplace home is
+ * tapped. The input auto-focuses; typing hits the live ElasticSearch autocomplete
+ * endpoint (debounced 250ms, ≥2 chars) and renders the suggestions as a list.
  *
- * Ported verbatim from Tapzi-barber/components/marketplace/MarketplaceSearchModal.tsx.
- * Adaptations for barber-store:
- *   1. Colors[colorScheme] — already nested in target theme.ts
- *   2. All imports rewritten to @/ aliases
+ * Routing by entity_type (guide §5):
+ *   - Product      → PDP (/marketplace/product/{id})
+ *   - Manufacturer → brand screen (best-effort slug from the label)
+ *   - Category     → category screen (best-effort slug from the label)
+ * The <b>…</b> highlight nop wraps around matches is stripped in lib/nop-catalog.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Dimensions,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -29,6 +30,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useQuery } from '@tanstack/react-query';
 import Animated, {
   Easing,
   FadeIn,
@@ -37,12 +39,8 @@ import Animated, {
   SlideOutDown,
 } from 'react-native-reanimated';
 
-import { MarketplaceProductCard } from '@/components/marketplace/MarketplaceProductCard';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import {
-  useMarketplaceCatalog,
-  type MarketplaceProduct,
-} from '@/hooks/use-marketplace-catalog';
+import { searchAutocomplete, slugify, type SearchResultItem } from '@/lib/nop-catalog';
 import {
   Brand,
   Bubble,
@@ -51,23 +49,13 @@ import {
   Spacing,
 } from '@/constants/theme';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SMOOTH = Easing.bezier(0.25, 0.1, 0.25, 1);
 const DEBOUNCE_MS = 250;
-const CARD_W = (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.sm) / 2;
 
 export type MarketplaceSearchModalProps = {
   visible: boolean;
   onClose: () => void;
 };
-
-/** Lowercase + strip Romanian diacritics so "foarfeci" matches "FOARFECA". */
-function fold(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '');
-}
 
 export function MarketplaceSearchModal({
   visible,
@@ -82,9 +70,7 @@ export function MarketplaceSearchModal({
   const [raw, setRaw] = useState('');
   const [query, setQuery] = useState('');
 
-  const { products } = useMarketplaceCatalog('consumer');
-
-  // Auto-focus input on open
+  // Auto-focus input on open; reset on close.
   useEffect(() => {
     if (!visible) {
       setRaw('');
@@ -95,29 +81,33 @@ export function MarketplaceSearchModal({
     return () => clearTimeout(t);
   }, [visible]);
 
-  // Debounce
+  // Debounce raw input → query.
   useEffect(() => {
     const t = setTimeout(() => setQuery(raw.trim()), DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [raw]);
 
-  const results = useMemo(() => {
-    if (query.length < 2) return [];
-    const q = fold(query);
-    return products
-      .filter((p) => {
-        if (!p.is_active || p.stock_qty <= 0) return false;
-        const haystack = fold(`${p.name} ${p.brand ?? ''} ${p.sku}`);
-        return haystack.includes(q);
-      })
-      .slice(0, 30);
-  }, [products, query]);
+  const { data: results = [], isFetching } = useQuery({
+    queryKey: ['nop', 'autocomplete', query],
+    queryFn: () => searchAutocomplete(query),
+    enabled: visible && query.length >= 2,
+  });
 
-  const handleProductPress = useCallback(
-    (productId: string) => {
+  const handleResultPress = useCallback(
+    (item: SearchResultItem) => {
       Haptics.selectionAsync().catch(() => {});
       onClose();
-      setTimeout(() => router.push(`/marketplace/product/${productId}` as never), 200);
+      let route: string | null = null;
+      if (item.entity_type === 'Product') {
+        route = `/marketplace/product/${item.entity_id}`;
+      } else if (item.entity_type === 'Manufacturer') {
+        route = `/marketplace/brand/${slugify(item.label)}`;
+      } else if (item.entity_type === 'Category') {
+        route = `/marketplace/category/${slugify(item.label)}`;
+      }
+      if (route) {
+        setTimeout(() => router.push(route as never), 200);
+      }
     },
     [onClose, router],
   );
@@ -128,6 +118,8 @@ export function MarketplaceSearchModal({
   }, []);
 
   if (!visible) return null;
+
+  const showEmptyResults = query.length >= 2 && !isFetching && results.length === 0;
 
   return (
     <Modal
@@ -209,10 +201,10 @@ export function MarketplaceSearchModal({
                 </Text>
                 <Text style={[styles.emptyHint, { color: colors.textSecondary }]}>
                   Tasteaza cel putin 2 caractere pentru a vedea rezultate.
-                  {'\n'}Cauta dupa nume produs, brand sau cod SKU.
+                  {'\n'}Cauta dupa nume produs sau brand.
                 </Text>
               </View>
-            ) : results.length === 0 ? (
+            ) : showEmptyResults ? (
               <View style={styles.empty}>
                 <Feather name="frown" size={48} color={colors.textTertiary} />
                 <Text style={[styles.emptyTitle, { color: colors.text }]}>
@@ -229,24 +221,46 @@ export function MarketplaceSearchModal({
             ) : (
               <FlatList
                 data={results}
-                keyExtractor={(p) => p.id}
-                numColumns={2}
-                columnWrapperStyle={styles.gridRow}
+                keyExtractor={(item, idx) => `${item.entity_type}-${item.entity_id}-${idx}`}
                 contentContainerStyle={[
-                  styles.grid,
+                  styles.list,
                   { paddingBottom: insets.bottom + Spacing['3xl'] },
                 ]}
-                renderItem={({ item }: { item: MarketplaceProduct }) => (
-                  <View style={styles.gridItem}>
-                    <MarketplaceProductCard
-                      product={item}
-                      onPress={() => handleProductPress(item.id)}
-                    />
-                  </View>
-                )}
-                ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
+                renderItem={({ item }: { item: SearchResultItem }) => (
+                  <Pressable
+                    onPress={() => handleResultPress(item)}
+                    style={({ pressed }) => [
+                      styles.row,
+                      { borderColor: colors.separator },
+                      pressed && { backgroundColor: 'rgba(10,102,194,0.04)' },
+                    ]}
+                  >
+                    {item.image_url ? (
+                      <Image source={{ uri: item.image_url }} style={styles.thumb} resizeMode="contain" />
+                    ) : (
+                      <View style={[styles.thumb, styles.thumbPlaceholder]}>
+                        <Feather
+                          name={item.entity_type === 'Manufacturer' ? 'award' : item.entity_type === 'Category' ? 'grid' : 'package'}
+                          size={18}
+                          color={colors.textTertiary}
+                        />
+                      </View>
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.rowLabel, { color: colors.text }]} numberOfLines={2}>
+                        {item.label}
+                      </Text>
+                      {item.entity_type !== 'Product' && (
+                        <Text style={[styles.rowType, { color: colors.textTertiary }]}>
+                          {item.entity_type === 'Manufacturer' ? 'Brand' : item.entity_type === 'Category' ? 'Categorie' : item.entity_type}
+                        </Text>
+                      )}
+                    </View>
+                    <Feather name="chevron-right" size={18} color={colors.textTertiary} />
+                  </Pressable>
+                )}
               />
             )}
           </KeyboardAvoidingView>
@@ -323,14 +337,36 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: 'center',
   },
-  grid: {
+  list: {
     paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
   },
-  gridRow: {
-    justifyContent: 'space-between',
-    gap: Spacing.sm,
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  gridItem: {
-    width: CARD_W,
+  thumb: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+  },
+  thumbPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F2F2F7',
+  },
+  rowLabel: {
+    fontFamily: FontFamily.semiBold,
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  rowType: {
+    fontFamily: FontFamily.regular,
+    fontSize: 11,
+    marginTop: 2,
   },
 });

@@ -66,7 +66,7 @@ import { useBuyerType } from '@/hooks/use-buyer-type';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SMOOTH = Easing.bezier(0.25, 0.1, 0.25, 1);
 const DRAWER_WIDTH = Math.min(SCREEN_WIDTH * 0.86, 360);
 
@@ -161,7 +161,8 @@ export function MarketplaceDrawer({
   };
   const allMeniuItems: MenuItem[] = [
     { icon: 'shopping-bag', label: 'Comenzi',          path: '/marketplace/orders' },
-    { icon: 'heart',        label: 'Lista mea',         path: '/marketplace/recurring-list' },
+    { icon: 'heart',        label: 'Favorite',          path: '/marketplace/favorites' },
+    { icon: 'repeat',       label: 'Lista mea',         path: '/marketplace/recurring-list' },
     { icon: 'zap',          label: 'Comanda rapida',    path: '/marketplace/quick-order',    ownerOnly: true },
     { icon: 'bar-chart-2',  label: 'Cheltuieli',        path: '/marketplace/spending',       ownerOnly: true },
     { icon: 'rotate-ccw',   label: 'Returnari',         path: null },
@@ -184,19 +185,31 @@ export function MarketplaceDrawer({
         <Animated.View
           entering={FadeIn.duration(200).easing(SMOOTH)}
           exiting={FadeOut.duration(180).easing(SMOOTH)}
-          className="absolute inset-0 z-[9]"
-          style={{ backgroundColor: 'rgba(10,16,28,0.45)' }}
+          style={[
+            StyleSheet.absoluteFill,
+            { zIndex: 9, backgroundColor: 'rgba(10,16,28,0.45)' },
+          ]}
         >
-          <Pressable className="absolute inset-0" onPress={onClose} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         </Animated.View>
 
         {/* Panel — slides from the left edge */}
         <Animated.View
           entering={SlideInLeft.duration(280).easing(SMOOTH)}
           exiting={SlideOutLeft.duration(220).easing(SMOOTH)}
-          className="absolute top-0 bottom-0 left-0 z-10 bg-white"
           style={[
             {
+              // Explicit full-screen height (not top+bottom:0) so the panel stays
+              // full-height: a reanimated SlideInLeft entering animation on a
+              // top/bottom-anchored box measures full height mid-animation, then
+              // collapses to content height once it settles. A fixed height has
+              // nothing to recompute.
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              height: SCREEN_HEIGHT,
+              zIndex: 10,
+              backgroundColor: '#FFFFFF',
               width: DRAWER_WIDTH,
               borderTopRightRadius: 12,
               borderBottomRightRadius: 12,

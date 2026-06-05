@@ -39,18 +39,24 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 
 import { GradientBackground } from '@/components/ui/GradientBackground';
-import { supabase } from '@/lib/supabase';
+import {
+  fetchProductDetail,
+  type ProductSpecGroup,
+  type ProductReviewSummary,
+} from '@/lib/nop-catalog';
 import { useTierPricing } from '@/hooks/use-tier-pricing';
 import { useStockNotifications } from '@/hooks/use-stock-notifications';
 import { useMarketplaceCartStore } from '@/hooks/use-marketplace-cart-store';
+import { useMarketplaceFavorites } from '@/hooks/use-marketplace-favorites';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORY_LABELS } from '@/data/types';
-import productsFeed from '@/data/products.json';
 
 import ProductHero from '@/components/shop/ProductHero';
 import ProductDetails from '@/components/shop/ProductDetails';
 import ProductFeatures from '@/components/shop/ProductFeatures';
 import ProductDescription from '@/components/shop/ProductDescription';
+import ProductSpecs from '@/components/shop/ProductSpecs';
+import ProductReviews from '@/components/shop/ProductReviews';
 import ProductActions from '@/components/shop/ProductActions';
 import { TierTable } from '@/components/shop/TierTable';
 
@@ -63,64 +69,13 @@ import {
   Spacing,
   Typography,
 } from '@/constants/theme';
-import type { MarketplaceProduct, MarketplaceSection } from '@/hooks/use-marketplace-catalog';
+import type { MarketplaceProduct } from '@/hooks/use-marketplace-catalog';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const USE_LOCAL_FEED = false; // mirrors use-marketplace-catalog.ts
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SMOOTH = Easing.bezier(0.25, 0.1, 0.25, 1);
 const HEADER_SCROLL_THRESHOLD = 80;
-
-// ─── Feed helpers ────────────────────────────────────────────────────────────
-
-type FeedProduct = {
-  sku: string;
-  name: string;
-  description: string;
-  brand: string;
-  category: string;
-  images: string[];
-  inStock: boolean;
-  retailPrice: number;
-  partnerPrice: number;
-};
-
-function findProductInFeed(sku: string): MarketplaceProduct | null {
-  const all = ((productsFeed as unknown as { products: FeedProduct[] }).products ?? []) as FeedProduct[];
-  const p = all.find((x) => x.sku === sku);
-  if (!p) return null;
-  return {
-    id: p.sku,
-    sku: p.sku,
-    name: p.name,
-    description: p.description ?? null,
-    brand: p.brand ?? null,
-    price_cents: Math.round(p.partnerPrice * 100),
-    prp_cents: null,
-    compare_at_price_cents: null,
-    stock_qty: p.inStock ? 50 : 0,
-    images: Array.isArray(p.images) ? p.images.filter((u) => typeof u === 'string') : [],
-    section: 'professional' as MarketplaceSection,
-    is_active: true,
-    category_id: p.category ?? null,
-    created_at: null,
-  };
-}
-
-function normalizeImages(raw: unknown): string[] {
-  if (!raw) return [];
-  if (Array.isArray(raw)) return raw.filter((v): v is string => typeof v === 'string' && v.length > 0);
-  if (typeof raw === 'string') {
-    try {
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
-    } catch {
-      return [];
-    }
-  }
-  return [];
-}
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
@@ -133,6 +88,8 @@ export default function MarketplaceProductDetailScreen() {
 
   // ── State ─────────────────────────────────────────────────
   const [product, setProduct] = useState<MarketplaceProduct | null>(null);
+  const [specs, setSpecs] = useState<ProductSpecGroup[]>([]);
+  const [review, setReview] = useState<ProductReviewSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
@@ -140,6 +97,11 @@ export default function MarketplaceProductDetailScreen() {
   // ── Hooks ─────────────────────────────────────────────────
   const tierPricing = useTierPricing(id ?? null);
   const stockNotif = useStockNotifications(id ?? null);
+
+  // Reactive favourite state — re-renders when this product is toggled.
+  const isFavorite = useMarketplaceFavorites((s) =>
+    product ? s.ids.includes(product.id) : false,
+  );
 
   // ── Scroll-driven header animations ──────────────────────
   const scrollY = useSharedValue(0);
@@ -163,63 +125,37 @@ export default function MarketplaceProductDetailScreen() {
     ],
   }));
 
-  // ── Fetch product ─────────────────────────────────────────
+  // ── Fetch product (nopCommerce PDP) ───────────────────────
   useEffect(() => {
     let cancelled = false;
     if (!id) return;
 
+    const productId = Number(id);
+    if (!Number.isFinite(productId)) {
+      setError('Produsul nu a fost gasit');
+      setLoading(false);
+      return;
+    }
+
     (async () => {
       setLoading(true);
       setError(null);
-
-      if (USE_LOCAL_FEED) {
-        const local = findProductInFeed(id as string);
+      try {
+        const result = await fetchProductDetail(productId);
         if (cancelled) return;
-        if (!local) {
+        if (!result) {
           setError('Produsul nu a fost gasit');
-          setLoading(false);
           return;
         }
-        setProduct(local);
-        setLoading(false);
-        return;
+        setProduct(result.product);
+        setSpecs(result.specs);
+        setReview(result.review);
+      } catch (e) {
+        if (cancelled) return;
+        setError(e instanceof Error ? e.message : 'Nu am putut incarca produsul');
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      const { data, error: err } = await supabase
-        .from('marketplace_products')
-        .select('id, sku, name, description, brand, price_cents, prp_cents, compare_at_price_cents, stock_qty, images, section, is_active, category_id, created_at')
-        .eq('id', id)
-        .maybeSingle();
-
-      if (cancelled) return;
-
-      if (err) {
-        setError(err.message);
-        setLoading(false);
-        return;
-      }
-      if (!data) {
-        setError('Produsul nu a fost gasit');
-        setLoading(false);
-        return;
-      }
-      setProduct({
-        id: data.id,
-        sku: data.sku,
-        name: data.name,
-        description: data.description ?? null,
-        brand: data.brand ?? null,
-        price_cents: Number(data.price_cents) || 0,
-        prp_cents: data.prp_cents != null ? Number(data.prp_cents) : null,
-        compare_at_price_cents: data.compare_at_price_cents != null ? Number(data.compare_at_price_cents) : null,
-        stock_qty: Number(data.stock_qty) || 0,
-        images: normalizeImages(data.images),
-        section: data.section as MarketplaceSection,
-        is_active: Boolean(data.is_active),
-        category_id: data.category_id ?? null,
-        created_at: data.created_at ?? null,
-      });
-      setLoading(false);
     })();
 
     return () => { cancelled = true; };
@@ -279,6 +215,12 @@ export default function MarketplaceProductDetailScreen() {
     } catch {}
   }, [product]);
 
+  const handleToggleFavorite = useCallback(() => {
+    if (!product) return;
+    if (Platform.OS === 'ios') Haptics.selectionAsync();
+    useMarketplaceFavorites.getState().toggle(product.id);
+  }, [product]);
+
   // ── Derived ───────────────────────────────────────────────
   const inStock = (product?.stock_qty ?? 0) > 0;
   const categoryLabel = product?.category_id ? (CATEGORY_LABELS[product.category_id] ?? product.category_id) : undefined;
@@ -317,6 +259,20 @@ export default function MarketplaceProductDetailScreen() {
         >
           {product?.name ?? ''}
         </Animated.Text>
+
+        {/* Favourite */}
+        <Pressable
+          className="w-10 h-10 rounded-full items-center justify-center border"
+          style={{
+            backgroundColor: isFavorite ? 'rgba(10,102,194,0.12)' : 'rgba(255,255,255,0.85)',
+            borderColor: isFavorite ? Brand.primary : 'rgba(255,255,255,0.9)',
+            ...Shadows.sm,
+          }}
+          onPress={handleToggleFavorite}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Feather name="heart" size={18} color={isFavorite ? Brand.primary : colors.text} />
+        </Pressable>
 
         {/* Share */}
         <Pressable
@@ -415,6 +371,9 @@ export default function MarketplaceProductDetailScreen() {
           brand={product.brand ?? undefined}
         />
 
+        {/* Rating summary */}
+        <ProductReviews review={review} />
+
         {/* Trust bar */}
         <ProductFeatures
           inStock={inStock}
@@ -439,6 +398,9 @@ export default function MarketplaceProductDetailScreen() {
             categoryLabel={categoryLabel}
           />
         )}
+
+        {/* Spec sheet */}
+        <ProductSpecs groups={specs} />
 
         {/* Notify-when-in-stock CTA — shown only when out of stock */}
         {!inStock && (

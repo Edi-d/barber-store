@@ -17,6 +17,7 @@ import {
 } from "react-native-gesture-handler";
 import { runOnJS } from "react-native-reanimated";
 import { router } from "expo-router";
+import { Video, ResizeMode } from "expo-av";
 
 import { StoryMedia } from "./StoryMedia";
 import { StoryProgressBar } from "./StoryProgressBar";
@@ -134,7 +135,7 @@ export function StoryViewer({
     if (nextStory.type === "image" && nextStory.mediaUrl) {
       Image.prefetch(nextStory.mediaUrl).catch(() => {});
     }
-    // Video stories: expo-video handles its own buffering/caching on load.
+    // For videos: the hidden Video component below handles preloading
   }, [nextStory?.id]);
 
   // Register mute button ref for tutorial spotlight
@@ -221,6 +222,17 @@ export function StoryViewer({
             )}
           </View>
         </GestureDetector>
+
+        {/* Hidden preload Video for next video story — shouldPlay=false keeps it idle */}
+        {nextStory?.type === "video" && nextStory.mediaUrl ? (
+          <Video
+            key={`preload-${nextStory.id}`}
+            source={{ uri: nextStory.mediaUrl }}
+            shouldPlay={false}
+            isMuted
+            style={styles.hiddenPreload}
+          />
+        ) : null}
 
         {/* TOP OVERLAY — outside GestureDetector so taps don't trigger story navigation */}
         <View
@@ -372,5 +384,13 @@ const styles = StyleSheet.create({
   },
   iconBtn: {
     backgroundColor: "rgba(0,0,0,0.3)",
+  },
+
+  // Invisible preload video
+  hiddenPreload: {
+    width: 0,
+    height: 0,
+    position: "absolute",
+    opacity: 0,
   },
 });

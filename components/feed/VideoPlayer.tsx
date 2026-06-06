@@ -1,7 +1,6 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { View, Image, Pressable, StyleSheet, Text } from 'react-native';
-import { useVideoPlayer, VideoView } from 'expo-video';
-import { useEvent } from 'expo';
+import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -44,9 +43,7 @@ function usePulse() {
 }
 
 // ---------------------------------------------------------------------------
-// VideoPlayer — expo-video (SDK 54+). expo-av was removed; this uses the
-// useVideoPlayer/VideoView API. The player drives play/pause via isActive,
-// and we watch its `statusChange` event to fade the thumb / surface errors.
+// VideoPlayer
 // ---------------------------------------------------------------------------
 export function VideoPlayer({
   mediaUrl,
@@ -55,78 +52,124 @@ export function VideoPlayer({
   isMuted,
   onMuteToggle,
 }: VideoPlayerProps) {
-  const [timedOut, setTimedOut] = useState(false);
+  const videoRef = useRef<Video>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
+
   const thumbOpacity = useSharedValue(1);
   const pulseStyle = usePulse();
+
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Create (and auto-release) the player. Looping + initial mute are set once.
-  const player = useVideoPlayer(mediaUrl, (p) => {
-    p.loop = true;
-    p.muted = isMuted;
-  });
-
-  // Latest player status: 'idle' | 'loading' | 'readyToPlay' | 'error'.
-  const { status } = useEvent(player, 'statusChange', { status: player.status });
-
-  const isReady = status === 'readyToPlay';
-  const hasError = status === 'error' || timedOut;
-  const isLoading = !isReady && !hasError;
-
   // -------------------------------------------------------------------------
-  // Play when this card is the active one; pause otherwise.
+  // 10-second load timeout
   // -------------------------------------------------------------------------
   useEffect(() => {
-    if (isActive) player.play();
-    else player.pause();
-  }, [isActive, player]);
+    // Reset state whenever the source or retryKey changes
+    setIsLoading(true);
+    setHasError(false);
+    thumbOpacity.value = 1;
 
-  // -------------------------------------------------------------------------
-  // Keep mute in sync with the parent-controlled prop.
-  // -------------------------------------------------------------------------
-  useEffect(() => {
-    player.muted = isMuted;
-  }, [isMuted, player]);
+    timeoutRef.current = setTimeout(() => {
+      setIsLoading((current) => {
+        if (current) {
+          // Still loading after 10 s — show error
+          setHasError(true);
+          return false;
+        }
+        return current;
+      });
+    }, 10_000);
 
-  // -------------------------------------------------------------------------
-  // Fade the thumbnail out once the first frame is ready.
-  // -------------------------------------------------------------------------
-  useEffect(() => {
-    if (isReady) {
-      thumbOpacity.value = withTiming(0, { duration: 150 });
-    }
-  }, [isReady, thumbOpacity]);
-
-  // -------------------------------------------------------------------------
-  // 10-second safety timeout: if the player never reaches readyToPlay, show
-  // the retry affordance instead of an indefinite spinner.
-  // -------------------------------------------------------------------------
-  useEffect(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-    if (isLoading) {
-      timeoutRef.current = setTimeout(() => setTimedOut(true), 10_000);
-    }
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
     };
-  }, [isLoading]);
+  }, [mediaUrl, retryKey, thumbOpacity]);
 
   // -------------------------------------------------------------------------
-  // Retry — reload the source and resume if active.
+  // Playback status handler
+  // -------------------------------------------------------------------------
+  const handlePlaybackStatusUpdate = useCallback(
+    (status: AVPlaybackStatus) => {
+      if (!status.isLoaded) {
+        // status.error is present when the native player failed
+        if ((status as { error?: string }).error) {
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+            timeoutRef.current = null;
+          }
+          setIsLoading(false);
+          setHasError(true);
+        }
+        return;
+      }
+
+      // Video metadata is loaded — clear the loading state, cancel the
+      // 10s timeout, and start fading out the thumbnail. The video may
+      // still be paused (shouldPlay=false) but the player has the first
+      // frame ready, so revealing it is safe and avoids the washed-out
+      // look caused by the loading shimmer pulsing over the thumb.
+      if (isLoading) {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+        setIsLoading(false);
+      }
+      if (thumbOpacity.value > 0) {
+        thumbOpacity.value = withTiming(0, { duration: 150 });
+      }
+    },
+    [isLoading, thumbOpacity]
+  );
+
+  // -------------------------------------------------------------------------
+  // Native video error callback
+  // -------------------------------------------------------------------------
+  const handleError = useCallback((errorMessage: string) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    setIsLoading(false);
+    setHasError(true);
+    if (__DEV__) {
+      console.warn('[VideoPlayer] native error:', errorMessage);
+    }
+  }, []);
+
+  // -------------------------------------------------------------------------
+  // Sync mute state (still needs setStatusAsync — mute has no Video prop race)
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    if (!videoRef.current) return;
+    videoRef.current.setStatusAsync({ isMuted }).catch(() => {});
+  }, [isMuted]);
+
+  // -------------------------------------------------------------------------
+  // Cleanup on unmount
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      videoRef.current?.unloadAsync().catch(() => {});
+    };
+  }, []);
+
+  // -------------------------------------------------------------------------
+  // Retry handler
   // -------------------------------------------------------------------------
   const handleRetry = useCallback(() => {
-    setTimedOut(false);
-    thumbOpacity.value = 1;
-    player.replace(mediaUrl);
-    if (isActive) player.play();
-  }, [player, mediaUrl, isActive, thumbOpacity]);
+    setRetryKey((k) => k + 1);
+  }, []);
 
+  // -------------------------------------------------------------------------
+  // Animated styles
+  // -------------------------------------------------------------------------
   const thumbStyle = useAnimatedStyle(() => ({
     opacity: thumbOpacity.value,
   }));
@@ -136,17 +179,29 @@ export function VideoPlayer({
   // -------------------------------------------------------------------------
   return (
     <View style={styles.container}>
-      {/* Video surface — play/pause is driven by the player, not props. */}
-      <VideoView
-        player={player}
-        style={StyleSheet.absoluteFill}
-        contentFit="cover"
-        nativeControls={false}
-        allowsFullscreen={false}
-        allowsPictureInPicture={false}
-      />
+      {/* ------------------------------------------------------------------ */}
+      {/* Video — shouldPlay is the single source of truth for play/pause.   */}
+      {/* No duplicate setStatusAsync({ shouldPlay }) effect needed.          */}
+      {/* ------------------------------------------------------------------ */}
+      {!hasError && (
+        <Video
+          key={retryKey}
+          ref={videoRef}
+          source={{ uri: mediaUrl }}
+          style={StyleSheet.absoluteFill}
+          resizeMode={ResizeMode.COVER}
+          isLooping
+          isMuted={isMuted}
+          shouldPlay={isActive}
+          onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
+          onError={handleError}
+          useNativeControls={false}
+        />
+      )}
 
-      {/* Thumbnail overlay — fades out when the first frame is ready */}
+      {/* ------------------------------------------------------------------ */}
+      {/* Thumbnail overlay — fades out when the first frame is ready        */}
+      {/* ------------------------------------------------------------------ */}
       {thumbUrl && (
         <Animated.View
           style={[StyleSheet.absoluteFill, thumbStyle]}
@@ -160,7 +215,9 @@ export function VideoPlayer({
         </Animated.View>
       )}
 
-      {/* Skeleton placeholder — shown when loading and no thumb available */}
+      {/* ------------------------------------------------------------------ */}
+      {/* Skeleton placeholder — shown when loading and no thumb available   */}
+      {/* ------------------------------------------------------------------ */}
       {isLoading && !thumbUrl && (
         <Animated.View
           style={[StyleSheet.absoluteFill, styles.skeleton, pulseStyle]}
@@ -168,7 +225,9 @@ export function VideoPlayer({
         />
       )}
 
-      {/* Error state with retry button */}
+      {/* ------------------------------------------------------------------ */}
+      {/* Error state with retry button                                       */}
+      {/* ------------------------------------------------------------------ */}
       {hasError && (
         <View className="absolute inset-0 items-center justify-center">
           <Pressable
@@ -188,7 +247,9 @@ export function VideoPlayer({
         </View>
       )}
 
-      {/* Mute / unmute pill button */}
+      {/* ------------------------------------------------------------------ */}
+      {/* Mute / unmute pill button                                           */}
+      {/* ------------------------------------------------------------------ */}
       {!hasError && (
         <Pressable
           onPress={onMuteToggle}
@@ -216,6 +277,11 @@ const styles = StyleSheet.create({
   thumb: {
     width: '100%',
     height: '100%',
+  },
+  // Translucent shimmer overlay rendered on top of the thumbnail
+  skeletonOverlay: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 0,
   },
   // Full-area skeleton when no thumbnail is available
   skeleton: {

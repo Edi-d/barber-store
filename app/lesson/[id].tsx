@@ -2,9 +2,8 @@ import { View, Text, ScrollView, Pressable, ActivityIndicator, Alert } from "rea
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useVideoPlayer, VideoView } from "expo-video";
-import { useEvent, useEventListener } from "expo";
-import { useEffect, useRef } from "react";
+import { Video, ResizeMode } from "expo-av";
+import { useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/authStore";
 import { Button, Badge } from "@/components/ui";
@@ -16,6 +15,8 @@ export default function LessonScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session } = useAuthStore();
   const queryClient = useQueryClient();
+  const videoRef = useRef<Video>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["lesson", id],
@@ -102,41 +103,6 @@ export default function LessonScreen() {
     },
   });
 
-  // ── Video player (expo-video) ────────────────────────────────────────────
-  const videoSource =
-    data?.lesson?.type === "video" ? data.lesson.content_url ?? null : null;
-  const lastPositionSec = data?.lastPosition ?? 0;
-  const didSeekRef = useRef(false);
-
-  const player = useVideoPlayer(videoSource, (p) => {
-    p.timeUpdateEventInterval = 10;
-  });
-
-  const { status } = useEvent(player, "statusChange", { status: player.status });
-
-  // Allow a fresh resume-seek when navigating to a different lesson.
-  useEffect(() => {
-    didSeekRef.current = false;
-  }, [id]);
-
-  // Resume from the last saved position once the video is ready (one-shot).
-  useEffect(() => {
-    if (status === "readyToPlay" && !didSeekRef.current && lastPositionSec > 0) {
-      didSeekRef.current = true;
-      player.currentTime = lastPositionSec;
-    }
-  }, [status, lastPositionSec, player]);
-
-  // Persist playback position roughly every 10s.
-  useEventListener(player, "timeUpdate", ({ currentTime }) => {
-    if (currentTime > 0) savePositionMutation.mutate(currentTime);
-  });
-
-  // Mark the lesson complete when the video reaches its end.
-  useEventListener(player, "playToEnd", () => {
-    if (!data?.isCompleted) completeMutation.mutate();
-  });
-
   if (isLoading) {
     return (
       <View className="flex-1 bg-white items-center justify-center">
@@ -153,8 +119,14 @@ export default function LessonScreen() {
     );
   }
 
-  const { lesson, isCompleted, nextLesson, course } = data;
+  const { lesson, isCompleted, lastPosition, nextLesson, course } = data;
   const isPremiumLocked = !!course?.is_premium;
+
+  const handleVideoEnd = () => {
+    if (!isCompleted) {
+      completeMutation.mutate();
+    }
+  };
 
   const handlePremiumTap = () => {
     Alert.alert(
@@ -170,13 +142,25 @@ export default function LessonScreen() {
       <View className="bg-black aspect-video">
         {lesson.type === "video" && lesson.content_url ? (
           <View className="flex-1">
-            <VideoView
-              player={player}
+            <Video
+              ref={videoRef}
+              source={{ uri: lesson.content_url }}
               style={{ flex: 1 }}
-              contentFit="contain"
-              nativeControls
-              allowsFullscreen
-              allowsPictureInPicture={false}
+              resizeMode={ResizeMode.CONTAIN}
+              useNativeControls
+              initialStatus={lastPosition > 0 ? { positionMillis: lastPosition * 1000 } : undefined}
+              onPlaybackStatusUpdate={(status) => {
+                if (status.isLoaded) {
+                  setIsPlaying(status.isPlaying);
+                  // Save position every 10 seconds
+                  if (status.positionMillis % 10000 < 1000) {
+                    savePositionMutation.mutate(status.positionMillis / 1000);
+                  }
+                  if (status.didJustFinish) {
+                    handleVideoEnd();
+                  }
+                }
+              }}
             />
             {/* Premium lock overlay */}
             {isPremiumLocked && (

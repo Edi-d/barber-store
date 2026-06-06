@@ -94,7 +94,8 @@
           "calendarPermission": "Permite Tapzi să adauge programările tale în calendar."
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true

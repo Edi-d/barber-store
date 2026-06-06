@@ -38,6 +38,7 @@
     "expo-secure-store": "~15.0.8",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
+    "expo-video": "~3.0.16",
     "expo-web-browser": "~15.0.11",
     "livekit-client": "^2.17.3",
     "nativewind": "^4.2.1",

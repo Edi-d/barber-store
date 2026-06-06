@@ -6,7 +6,8 @@ import {
   View,
   Text,
 } from "react-native";
-import { Video, ResizeMode, AVPlaybackStatus } from "expo-av";
+import { useVideoPlayer, VideoView } from "expo-video";
+import { useEvent, useEventListener } from "expo";
 
 type LoadPhase = "loading" | "buffering" | "ready";
 
@@ -35,16 +36,27 @@ export function StoryMedia({
   onBufferingChange,
   onVideoError,
 }: StoryMediaProps) {
+  const isVideo = type === "video";
+
   const [phase, setPhase] = useState<LoadPhase>("loading");
   const [hasError, setHasError] = useState(false);
-  const videoRef = useRef<Video>(null);
   const errorAdvanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Timeout that fires if video stays in "loading" phase too long
+  // Timeout that fires if the video stays unready too long
   const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Track whether we've already surfaced the duration so we don't fire twice
   const durationReported = useRef(false);
-  // Track whether the video has successfully loaded to cancel the timeout
-  const videoLoadedRef = useRef(false);
+  // Track whether the video has reached readyToPlay at least once
+  const hasBeenReady = useRef(false);
+
+  // expo-video player. For image stories we pass a null source so the hook is
+  // still called unconditionally (rules of hooks) but loads nothing.
+  const player = useVideoPlayer(isVideo ? uri : null, (p) => {
+    p.loop = false;
+    p.muted = isMuted;
+  });
+
+  // Latest status: 'idle' | 'loading' | 'readyToPlay' | 'error'.
+  const { status } = useEvent(player, "statusChange", { status: player.status });
 
   const clearLoadTimeout = () => {
     if (loadTimeoutRef.current) {
@@ -53,26 +65,35 @@ export function StoryMedia({
     }
   };
 
+  const handleMediaError = () => {
+    clearLoadTimeout();
+    setHasError(true);
+    if (errorAdvanceTimer.current) clearTimeout(errorAdvanceTimer.current);
+    errorAdvanceTimer.current = setTimeout(() => {
+      onVideoError();
+    }, 2000);
+  };
+
+  // Unmount cleanup
   useEffect(() => {
     return () => {
-      videoRef.current?.unloadAsync();
       if (errorAdvanceTimer.current) clearTimeout(errorAdvanceTimer.current);
       clearLoadTimeout();
     };
   }, []);
 
-  // Reset state when uri changes (new story)
+  // Reset state when the story (uri/type) changes
   useEffect(() => {
     setPhase("loading");
     setHasError(false);
     durationReported.current = false;
-    videoLoadedRef.current = false;
+    hasBeenReady.current = false;
     clearLoadTimeout();
 
-    if (type === "video") {
-      // Start a 10-second timeout for the initial video load phase
+    if (isVideo) {
+      // Safety timeout for the initial load phase
       loadTimeoutRef.current = setTimeout(() => {
-        if (!videoLoadedRef.current) {
+        if (!hasBeenReady.current) {
           setHasError(true);
           onVideoError();
         }
@@ -83,6 +104,57 @@ export function StoryMedia({
       clearLoadTimeout();
     };
   }, [uri, type]);
+
+  // Drive play/pause from the parent-controlled isPaused flag
+  useEffect(() => {
+    if (!isVideo) return;
+    if (isPaused) player.pause();
+    else player.play();
+  }, [isPaused, isVideo, player]);
+
+  // Keep mute in sync
+  useEffect(() => {
+    player.muted = isMuted;
+  }, [isMuted, player]);
+
+  // React to player status transitions
+  useEffect(() => {
+    if (!isVideo) return;
+
+    if (status === "readyToPlay") {
+      clearLoadTimeout();
+
+      // Report duration once (player.duration is in seconds)
+      if (!durationReported.current && player.duration > 0) {
+        durationReported.current = true;
+        onVideoDurationKnown(player.duration * 1000);
+      }
+
+      if (!hasBeenReady.current) {
+        // First time ready — reveal media and start the progress bar
+        hasBeenReady.current = true;
+        setPhase("ready");
+        onMediaReady();
+      } else if (phase === "buffering") {
+        // Recovered from a mid-playback stall
+        setPhase("ready");
+        onBufferingChange(false);
+      }
+    } else if (status === "loading") {
+      // Mid-playback buffering (ignore the very first load — that's "loading")
+      if (hasBeenReady.current && phase !== "buffering") {
+        setPhase("buffering");
+        onBufferingChange(true);
+      }
+    } else if (status === "error") {
+      handleMediaError();
+    }
+  }, [status, isVideo]);
+
+  // Advance to the next story when the video reaches its end
+  useEventListener(player, "playToEnd", () => {
+    if (isVideo) onVideoEnd?.();
+  });
 
   const handleImageLoad = () => {
     setPhase("ready");
@@ -96,83 +168,21 @@ export function StoryMedia({
     }, 2000);
   };
 
-  const handleVideoError = () => {
-    clearLoadTimeout();
-    setHasError(true);
-    if (errorAdvanceTimer.current) clearTimeout(errorAdvanceTimer.current);
-    errorAdvanceTimer.current = setTimeout(() => {
-      onVideoError();
-    }, 2000);
-  };
-
-  const handlePlaybackStatusUpdate = (status: AVPlaybackStatus) => {
-    if (!status.isLoaded) {
-      // Unloaded with error
-      if (status.error) {
-        clearLoadTimeout();
-        setHasError(true);
-        if (errorAdvanceTimer.current) clearTimeout(errorAdvanceTimer.current);
-        errorAdvanceTimer.current = setTimeout(() => {
-          onVideoError();
-        }, 2000);
-      }
-      return;
-    }
-
-    // Report duration as soon as we know it (fires once)
-    if (!durationReported.current && status.durationMillis && status.durationMillis > 0) {
-      durationReported.current = true;
-      onVideoDurationKnown(status.durationMillis);
-    }
-
-    // Buffering state
-    if (status.isBuffering) {
-      if (phase === "loading") {
-        // Still in initial load — keep "loading" phase, no mid-playback spinner yet
-      } else {
-        setPhase("buffering");
-        onBufferingChange(true);
-      }
-    } else if (phase === "buffering") {
-      setPhase("ready");
-      onBufferingChange(false);
-    }
-
-    // Video finished
-    if (status.didJustFinish) {
-      onVideoEnd?.();
-    }
-  };
-
-  const handleReadyForDisplay = () => {
-    if (phase === "loading") {
-      // Cancel the load timeout — video is ready
-      videoLoadedRef.current = true;
-      clearLoadTimeout();
-      setPhase("ready");
-      onMediaReady();
-    }
-  };
-
   return (
     <View style={StyleSheet.absoluteFill}>
-      {type === "video" ? (
-        <Video
-          ref={videoRef}
-          source={{ uri }}
-          resizeMode={ResizeMode.COVER}
-          shouldPlay={!isPaused}
-          isMuted={isMuted}
-          isLooping={false}
+      {isVideo ? (
+        <VideoView
+          player={player}
+          contentFit="contain"
+          nativeControls={false}
+          allowsFullscreen={false}
+          allowsPictureInPicture={false}
           style={StyleSheet.absoluteFill}
-          onReadyForDisplay={handleReadyForDisplay}
-          onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
-          onError={handleVideoError}
         />
       ) : (
         <Image
           source={{ uri }}
-          resizeMode="cover"
+          resizeMode="contain"
           style={StyleSheet.absoluteFill}
           onLoad={handleImageLoad}
           onError={handleImageError}

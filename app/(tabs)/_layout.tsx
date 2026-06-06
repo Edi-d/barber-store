@@ -55,7 +55,9 @@ const SPRING_ICON = { damping: 14, stiffness: 200, mass: 0.6 };
  */
 function tabBarBottom(safeBottom: number): number {
   if (Platform.OS === "android") {
-    const trim = safeBottom >= 40 ? 12 : 0;
+    // Tall 3-button inset: trim a little so the bar sits a small gap above the
+    // button row (full inset floats too high; trimming the full 12 sits too low).
+    const trim = safeBottom >= 40 ? 6 : 0;
     return Math.max(safeBottom - trim, 6);
   }
   return Math.max(safeBottom - 12, 6);

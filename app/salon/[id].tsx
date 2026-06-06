@@ -709,7 +709,10 @@ export default function SalonDetailScreen() {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+              // paddingVertical gives the cards' elevation shadow room — without
+              // it the horizontal ScrollView clips the shadow/bottom edge flush,
+              // so the cards look cut off.
+              contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8, gap: 12 }}
             >
               {teamBarbers.map((barber) => (
                 <Pressable

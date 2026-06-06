@@ -296,6 +296,9 @@ const styles = StyleSheet.create({
 
   scrollContent: {
     paddingHorizontal: H_PADDING,
+    // Vertical room so the card shadow, the selected-state glow (elevation 10)
+    // and the 1.05 scale overshoot aren't clipped by the horizontal ScrollView.
+    paddingVertical: 12,
     gap: CARD_GAP,
   },
 

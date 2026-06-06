@@ -184,7 +184,8 @@ export default function BookAppointmentScreen() {
       return generateTimeSlots(
         selectedBarber.id,
         selectedDate,
-        totalDurationMin
+        totalDurationMin,
+        selectedBarber.salon_id
       );
     },
     enabled: !!selectedBarber && !!selectedDate && totalDurationMin > 0,
@@ -193,7 +194,7 @@ export default function BookAppointmentScreen() {
   // Find first available date (checks schedule + appointments)
   const { data: firstAvailableData } = useQuery({
     queryKey: ["first-available-date", selectedBarber?.id, totalDurationMin],
-    queryFn: () => findFirstAvailableDate(selectedBarber!.id, totalDurationMin || 30),
+    queryFn: () => findFirstAvailableDate(selectedBarber!.id, totalDurationMin || 30, selectedBarber!.salon_id),
     enabled: !!selectedBarber && totalDurationMin > 0,
     staleTime: 2 * 60 * 1000, // 2 minutes
   });

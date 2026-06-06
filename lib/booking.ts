@@ -1,9 +1,58 @@
 import { supabase } from "@/lib/supabase";
-import { BarberAvailability } from "@/types/database";
 
 export interface TimeSlot {
   time: string; // "HH:MM" format
   available: boolean;
+}
+
+type DayHours = { start_time: string; end_time: string };
+
+/**
+ * Resolve a barber's effective working schedule: a map of
+ * day_of_week (0=Sunday..6=Saturday) -> { start_time, end_time }.
+ *
+ * Precedence matches the rest of the app (see lib/salon.ts fetchSalonSchedule):
+ * a barber's own `barber_availability` rows win when present (per-barber
+ * override); otherwise we fall back to the salon's published `salon_hours` —
+ * the authoritative schedule owners configure during salon setup. Without this
+ * fallback, barbers created after the demo seed (which only populated
+ * barber_availability for the three sample barbers) look like they have no
+ * working hours, so every date is disabled and no slots are generated.
+ */
+async function resolveSchedule(
+  barberId: string,
+  salonId?: string | null
+): Promise<Map<number, DayHours>> {
+  const map = new Map<number, DayHours>();
+
+  // 1. Barber-specific availability (most specific override)
+  const { data: barberRows } = await supabase
+    .from("barber_availability")
+    .select("day_of_week, start_time, end_time")
+    .eq("barber_id", barberId)
+    .eq("is_available", true);
+
+  if (barberRows && barberRows.length > 0) {
+    for (const r of barberRows) {
+      map.set(r.day_of_week, { start_time: r.start_time, end_time: r.end_time });
+    }
+    return map;
+  }
+
+  // 2. Fallback: the salon's published operating hours
+  if (salonId) {
+    const { data: salonRows } = await supabase
+      .from("salon_hours")
+      .select("day_of_week, is_open, open_time, close_time")
+      .eq("salon_id", salonId);
+    for (const r of salonRows ?? []) {
+      if (r.is_open) {
+        map.set(r.day_of_week, { start_time: r.open_time, end_time: r.close_time });
+      }
+    }
+  }
+
+  return map;
 }
 
 /**
@@ -13,21 +62,17 @@ export interface TimeSlot {
 export async function generateTimeSlots(
   barberId: string,
   date: Date,
-  serviceDurationMin: number
+  serviceDurationMin: number,
+  salonId?: string | null
 ): Promise<TimeSlot[]> {
   const dayOfWeek = date.getDay(); // 0=Sunday, 6=Saturday
 
-  // 1. Get barber's working hours for this day
-  const { data: availability, error: availError } = await supabase
-    .from("barber_availability")
-    .select("*")
-    .eq("barber_id", barberId)
-    .eq("day_of_week", dayOfWeek)
-    .eq("is_available", true)
-    .single();
+  // 1. Resolve working hours for this day (barber override → salon hours)
+  const schedule = await resolveSchedule(barberId, salonId);
+  const dayHours = schedule.get(dayOfWeek);
 
-  if (availError || !availability) {
-    // Barber doesn't work this day
+  if (!dayHours) {
+    // Barber/salon doesn't work this day
     return [];
   }
 
@@ -46,8 +91,8 @@ export async function generateTimeSlots(
     .lte("scheduled_at", endOfDay.toISOString());
 
   // 3. Parse working hours
-  const [startH, startM] = (availability as BarberAvailability).start_time.split(":").map(Number);
-  const [endH, endM] = (availability as BarberAvailability).end_time.split(":").map(Number);
+  const [startH, startM] = dayHours.start_time.split(":").map(Number);
+  const [endH, endM] = dayHours.end_time.split(":").map(Number);
 
   // 4. Generate 30-minute interval slots
   const slots: TimeSlot[] = [];
@@ -136,27 +181,19 @@ export function formatCalendarDay(date: Date): { dayName: string; dayNumber: str
  */
 export async function findFirstAvailableDate(
   barberId: string,
-  serviceDurationMin: number
+  serviceDurationMin: number,
+  salonId?: string | null
 ): Promise<{ date: Date | null; offDays: number[] }> {
   const days = getNext14Days();
   const now = new Date();
 
-  // Query 1: barber's full weekly schedule (all 7 days)
-  const { data: scheduleData } = await supabase
-    .from("barber_availability")
-    .select("day_of_week, start_time, end_time, is_available")
-    .eq("barber_id", barberId);
+  // Query 1: barber's full weekly schedule (barber override → salon hours)
+  const scheduleMap = await resolveSchedule(barberId, salonId);
 
-  // Build schedule map: day_of_week -> { start_time, end_time }
-  const scheduleMap = new Map<number, { start_time: string; end_time: string }>();
+  // Days with no schedule entry are days off (used to disable date cells)
   const offDays: number[] = [];
   for (let d = 0; d <= 6; d++) {
-    const entry = scheduleData?.find((s) => s.day_of_week === d && s.is_available);
-    if (entry) {
-      scheduleMap.set(d, { start_time: entry.start_time, end_time: entry.end_time });
-    } else {
-      offDays.push(d);
-    }
+    if (!scheduleMap.has(d)) offDays.push(d);
   }
 
   // If no working days at all, return early

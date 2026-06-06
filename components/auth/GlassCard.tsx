@@ -8,7 +8,7 @@
 import React from 'react';
 import { StyleSheet, View, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { Bubble, Shadows, Colors } from '@/constants/theme';
+import { Bubble, Shadows } from '@/constants/theme';
 
 interface GlassCardProps {
   children: React.ReactNode;
@@ -33,7 +33,11 @@ export function GlassCard({ children, style }: GlassCardProps) {
     );
   }
 
-  // Android fallback (BlurView may not work as well)
+  // Android fallback — faux frosted glass (no BlurView).
+  // A real blur (expo-blur's dimezisBlurView) is GPU-expensive and janky on
+  // lower-end devices, so instead we let the gradient bleed through a
+  // translucent fill and fake the "light catching the edge" with brighter
+  // top/left borders. Visually close to the iOS blur, but free and consistent.
   return (
     <View
       style={[
@@ -45,7 +49,6 @@ export function GlassCard({ children, style }: GlassCardProps) {
       ]}
     >
       <View style={styles.content}>{children}</View>
-      <View style={[styles.accentBorder, { borderBottomLeftRadius: Bubble.radiiLg.borderBottomLeftRadius, borderBottomRightRadius: Bubble.radiiLg.borderBottomRightRadius }]} />
     </View>
   );
 }
@@ -61,9 +64,18 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   androidCard: {
-    backgroundColor: Colors.card,
+    // overflow stays 'visible': pairing overflow:'hidden' with elevation makes
+    // Android draw the elevation backing as a hard square white box behind the
+    // rounded card. borderRadius alone still clips the fill and the shadow.
+    overflow: 'visible',
+    // Translucent fill so the gradient behind shows through (the glass effect).
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    // Brighter top/left edges read as light hitting a frosted pane; the base
+    // border keeps the bottom/right grounded.
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    borderTopColor: 'rgba(255, 255, 255, 0.9)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.7)',
   },
   accentBorder: {
     position: 'absolute',

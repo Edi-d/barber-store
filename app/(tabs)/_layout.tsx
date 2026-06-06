@@ -44,6 +44,23 @@ const INDICATOR_H = 3;
 const SPRING_SLIDE = { damping: 20, stiffness: 180, mass: 0.8 };
 const SPRING_ICON = { damping: 14, stiffness: 200, mass: 0.6 };
 
+/* ─── Bottom offset ─────────────────────────────────────── */
+/**
+ * Distance from the screen bottom to the floating tab bar.
+ *  - iOS: trim 12px off the tall home-indicator inset.
+ *  - Android gesture nav (short inset, ~24px): use the full inset so the bar
+ *    clears the gesture pill instead of overlapping it.
+ *  - Android 3-button nav (tall inset, ~48px): trim 12px so the bar doesn't
+ *    float too far above the opaque button row.
+ */
+function tabBarBottom(safeBottom: number): number {
+  if (Platform.OS === "android") {
+    const trim = safeBottom >= 40 ? 12 : 0;
+    return Math.max(safeBottom - trim, 6);
+  }
+  return Math.max(safeBottom - 12, 6);
+}
+
 /* ─── Tab config ─────────────────────────────────────────── */
 const TAB_CFG: Record<
   string,
@@ -166,9 +183,7 @@ function GlassTabBar({
   const isOnMarketplace = pathname.startsWith('/marketplace') || pathname === '/shop';
   // Tab badge: show marketplace count when on marketplace routes, legacy cart otherwise
   const cartCount = isOnMarketplace ? marketplaceCartCount : totalItems();
-  // iOS trims the tall home-indicator inset; Android keeps the full gesture
-  // inset so the bar clears the navigation pill instead of overlapping it.
-  const bottom = Math.max(safeInsets.bottom - (Platform.OS === "android" ? 0 : 12), 6);
+  const bottom = tabBarBottom(safeInsets.bottom);
 
   /* ── Tutorial ref registration ── */
   const { registerRef } = useTutorialContext();
@@ -344,9 +359,7 @@ function ShopCartBarMount() {
   const itemCount = totalItems();
   if (!isLegacyShopRoute || itemCount <= 0) return null;
 
-  // iOS trims the tall home-indicator inset; Android keeps the full gesture
-  // inset so the bar clears the navigation pill instead of overlapping it.
-  const bottom = Math.max(safeInsets.bottom - (Platform.OS === "android" ? 0 : 12), 6);
+  const bottom = tabBarBottom(safeInsets.bottom);
   const cartBarBottomInset = safeInsets.bottom + BAR_H + bottom;
 
   return (
@@ -372,9 +385,7 @@ function MarketplaceCartBarMount() {
   const isMarketplaceRoute = pathname.startsWith('/marketplace');
   if (!isMarketplaceRoute || itemCount <= 0) return null;
 
-  // iOS trims the tall home-indicator inset; Android keeps the full gesture
-  // inset so the bar clears the navigation pill instead of overlapping it.
-  const bottom = Math.max(safeInsets.bottom - (Platform.OS === "android" ? 0 : 12), 6);
+  const bottom = tabBarBottom(safeInsets.bottom);
   // Stack marketplace bar above shop bar position (+ 8px extra clearance)
   const cartBarBottomInset = safeInsets.bottom + BAR_H + bottom + Spacing.sm;
   return <MarketplaceCartBar bottomInset={cartBarBottomInset} />;

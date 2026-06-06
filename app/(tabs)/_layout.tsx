@@ -166,7 +166,9 @@ function GlassTabBar({
   const isOnMarketplace = pathname.startsWith('/marketplace') || pathname === '/shop';
   // Tab badge: show marketplace count when on marketplace routes, legacy cart otherwise
   const cartCount = isOnMarketplace ? marketplaceCartCount : totalItems();
-  const bottom = Math.max(safeInsets.bottom - 12, 6);
+  // iOS trims the tall home-indicator inset; Android keeps the full gesture
+  // inset so the bar clears the navigation pill instead of overlapping it.
+  const bottom = Math.max(safeInsets.bottom - (Platform.OS === "android" ? 0 : 12), 6);
 
   /* ── Tutorial ref registration ── */
   const { registerRef } = useTutorialContext();
@@ -342,7 +344,9 @@ function ShopCartBarMount() {
   const itemCount = totalItems();
   if (!isLegacyShopRoute || itemCount <= 0) return null;
 
-  const bottom = Math.max(safeInsets.bottom - 12, 6);
+  // iOS trims the tall home-indicator inset; Android keeps the full gesture
+  // inset so the bar clears the navigation pill instead of overlapping it.
+  const bottom = Math.max(safeInsets.bottom - (Platform.OS === "android" ? 0 : 12), 6);
   const cartBarBottomInset = safeInsets.bottom + BAR_H + bottom;
 
   return (
@@ -368,7 +372,9 @@ function MarketplaceCartBarMount() {
   const isMarketplaceRoute = pathname.startsWith('/marketplace');
   if (!isMarketplaceRoute || itemCount <= 0) return null;
 
-  const bottom = Math.max(safeInsets.bottom - 12, 6);
+  // iOS trims the tall home-indicator inset; Android keeps the full gesture
+  // inset so the bar clears the navigation pill instead of overlapping it.
+  const bottom = Math.max(safeInsets.bottom - (Platform.OS === "android" ? 0 : 12), 6);
   // Stack marketplace bar above shop bar position (+ 8px extra clearance)
   const cartBarBottomInset = safeInsets.bottom + BAR_H + bottom + Spacing.sm;
   return <MarketplaceCartBar bottomInset={cartBarBottomInset} />;

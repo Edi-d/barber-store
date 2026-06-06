@@ -1,6 +1,6 @@
 import "../global.css";
 import { useEffect, useCallback } from "react";
-import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
+import { setAudioModeAsync } from 'expo-audio';
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Platform, View, Image, ActivityIndicator, StyleSheet, Linking } from "react-native";
@@ -278,14 +278,12 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   useEffect(() => {
-    Audio.setAudioModeAsync({
-      playsInSilentModeIOS: true,
-      allowsRecordingIOS: false,
-      staysActiveInBackground: false,
-      interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
-      shouldDuckAndroid: true,
-      interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
-      playThroughEarpieceAndroid: false,
+    setAudioModeAsync({
+      playsInSilentMode: true,
+      allowsRecording: false,
+      shouldPlayInBackground: false,
+      interruptionMode: 'mixWithOthers',
+      shouldRouteThroughEarpiece: false,
     }).catch((err) => {
       if (__DEV__) console.warn('[audio] setAudioModeAsync failed:', err);
     });

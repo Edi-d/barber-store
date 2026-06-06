@@ -22,7 +22,7 @@
     "base64-arraybuffer": "^1.0.2",
     "clsx": "^2.1.1",
     "expo": "~54.0.33",
-    "expo-av": "~16.0.8",
+    "expo-audio": "~1.1.1",
     "expo-blur": "~15.0.8",
     "expo-calendar": "~15.0.8",
     "expo-constants": "~18.0.13",

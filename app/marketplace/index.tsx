@@ -678,8 +678,8 @@ export default function MarketplaceHomeScreen() {
 
         {/* ── 5. Branduri ── */}
         {featuredBrands.length > 0 && (
-          <Animated.View style={styles.section}>
-            <View style={styles.sectionHeader}>
+          <Animated.View style={styles.sectionFlush}>
+            <View style={styles.sectionHeaderFlush}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
                 Branduri
               </Text>
@@ -703,8 +703,8 @@ export default function MarketplaceHomeScreen() {
 
         {/* ── 6. Produse noi ── */}
         {newProducts.length > 0 && (
-          <Animated.View style={styles.section}>
-            <View style={styles.sectionHeader}>
+          <Animated.View style={styles.sectionFlush}>
+            <View style={styles.sectionHeaderFlush}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
                 Produse noi
               </Text>
@@ -781,35 +781,34 @@ function CategoryTile({
       onPress={onPress}
       style={({ pressed }) => [
         styles.categoryTileShadow,
-        Shadows.sm,
         Bubble.radii,
-        { opacity: pressed ? 0.88 : 1, overflow: 'hidden' },
+        Shadows.sm,
+        { opacity: pressed ? 0.88 : 1 },
       ]}
     >
-      <View
-        style={[
-          styles.categoryTile,
-          Bubble.radii,
-          { backgroundColor: colors.background },
-        ]}
-      >
-        <View style={[styles.categoryCircle, { backgroundColor: tint }]}>
-          {category.image_url ? (
-            <Image
-              source={{ uri: category.image_url }}
-              style={styles.categoryImage}
-              resizeMode="contain"
-            />
-          ) : (
+      {/* Clip layer carries overflow:'hidden' + Bubble.radii so the image is
+          shaped to the organic card corners; shadow lives on the parent. */}
+      <View style={[styles.categoryTileClip, Bubble.radii, { overflow: 'hidden' }]}>
+        {/* Image (or icon fallback) fills the card top, edge-to-edge */}
+        {category.image_url ? (
+          <Image
+            source={{ uri: category.image_url }}
+            style={styles.categoryTileImage}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={[styles.categoryTileImage, styles.categoryIconFallback, { backgroundColor: tint }]}>
             <Feather name={iconName} size={28} color={iconColor} />
-          )}
+          </View>
+        )}
+        <View style={styles.categoryLabelWrap}>
+          <Text
+            style={[styles.categoryLabel, { color: colors.text }]}
+            numberOfLines={2}
+          >
+            {category.title_ro.toUpperCase()}
+          </Text>
         </View>
-        <Text
-          style={[styles.categoryLabel, { color: colors.text }]}
-          numberOfLines={2}
-        >
-          {category.title_ro.toUpperCase()}
-        </Text>
       </View>
     </Pressable>
   );
@@ -1034,11 +1033,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     marginBottom: Spacing.lg,
   },
+  // Flush variant for horizontal-scroll sections (Branduri, Produse noi):
+  // no horizontal padding on the wrapper so the scroll row's own Spacing.lg
+  // inset is the single source of truth — aligning cards with the BEST SELLERS
+  // (filterSection) row above instead of double-padding them.
+  sectionFlush: {
+    marginBottom: Spacing.lg,
+  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: Spacing.sm,
+  },
+  // Header for flush sections — carries the horizontal padding the wrapper drops.
+  sectionHeaderFlush: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
   },
   sectionTitle: {
     ...Typography.h3,
@@ -1115,32 +1129,29 @@ const styles = StyleSheet.create({
   },
 
   // ── Categories grid ──
-  // categoriesGrid no longer used — rows rendered via chunked Option B pattern
+  // Shadow layer — Bubble.radii + Shadows.sm applied inline, NO overflow so the
+  // iOS shadow renders freely (it's dropped under overflow:'hidden').
   categoryTileShadow: {
     flex: 1,
-    // Bubble.radii + overflow:'hidden' applied inline — no uniform borderRadius here
   },
-  categoryTile: {
+  // Clip layer — overflow:'hidden' + Bubble.radii applied inline; white card bg.
+  categoryTileClip: {
     width: '100%',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xs,
-    alignItems: 'center',
-    gap: Spacing.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.06)',
-    // borderRadius intentionally omitted — parent Pressable clips with Bubble.radii
+    backgroundColor: '#FFFFFF',
   },
-  categoryCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 22,
+  // Image fills the card top edge-to-edge; the tint circle + podium are baked
+  // into the asset itself, so we don't render a separate backdrop.
+  categoryTileImage: {
+    width: '100%',
+    aspectRatio: 1,
+  },
+  categoryIconFallback: {
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
   },
-  categoryImage: {
-    width: '90%',
-    height: '90%',
+  categoryLabelWrap: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.xs,
   },
   categoryLabel: {
     fontFamily: FontFamily.bold,
@@ -1202,6 +1213,9 @@ const styles = StyleSheet.create({
   newProductsRow: {
     paddingLeft: Spacing.lg,
     paddingRight: Spacing.lg,
+    // Vertical padding so the cards' drop shadow isn't clipped by the
+    // horizontal ScrollView's bounds (which would look cut off at the bottom).
+    paddingVertical: Spacing.sm,
     gap: Spacing.sm,
   },
   newProductWrap: {
@@ -1252,6 +1266,9 @@ const styles = StyleSheet.create({
     // Extra right padding so the last peeking card doesn't clip hard against
     // the screen edge — mirrors the left inset for visual balance.
     paddingRight: Spacing.lg,
+    // Vertical padding so the cards' drop shadow isn't clipped by the
+    // horizontal ScrollView's bounds (which would look cut off at the bottom).
+    paddingVertical: Spacing.sm,
     gap: Spacing.sm,
   },
   filterProductWrap: {

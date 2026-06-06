@@ -1,8 +1,9 @@
 /**
- * /marketplace/categories — Full hierarchical category list.
+ * /marketplace/categories — Full category grid.
  *
- * Reached from "VEZI TOATE CATEGORIILE" on the marketplace home.
- * Lists every top-level category with subcategories, staggered FadeInDown.
+ * Reached from "VEDERE TOATE" on the marketplace home. Lists every top-level
+ * category as a tile in a 3-column grid (circular image + label), mirroring the
+ * "Cautare produse" search grid. Rows cascade in with FadeInDown stagger.
  *
  * Spec: 02-listing-and-search.md §2 "Category Screen Plan"
  */
@@ -123,9 +124,17 @@ const CATEGORY_TINTS: Record<string, string> = {
   'produse-igiena': '#D7E3EE',
 };
 
-// ─── CategoryCircle ───────────────────────────────────────────────────────────
+// ─── CategoryGridTile ─────────────────────────────────────────────────────────
 
-function CategoryCircle({ category }: { category: MarketplaceCategory }) {
+function CategoryGridTile({
+  category,
+  onPress,
+  colors,
+}: {
+  category: MarketplaceCategory;
+  onPress: () => void;
+  colors: typeof Colors.light;
+}) {
   const tint = CATEGORY_TINTS[category.slug] ?? '#E5E7EB';
   // Dark backgrounds (Tapzi barba/mustata pattern) get white icons
   const isDark = tint.startsWith('#3') || tint.startsWith('#2') || tint.startsWith('#1');
@@ -133,17 +142,40 @@ function CategoryCircle({ category }: { category: MarketplaceCategory }) {
   const iconName = CATEGORY_ICONS[category.slug] ?? 'package';
 
   return (
-    <View style={[styles.circle, { backgroundColor: tint }]}>
-      {category.image_url ? (
-        <Image
-          source={{ uri: category.image_url }}
-          style={styles.circleImage}
-          resizeMode="contain"
-        />
-      ) : (
-        <Feather name={iconName} size={22} color={iconColor} />
-      )}
-    </View>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.tileShadow,
+        Bubble.radii,
+        Shadows.sm,
+        { opacity: pressed ? 0.85 : 1 },
+      ]}
+    >
+      {/* Clip layer carries overflow:'hidden' + Bubble.radii so the image is
+          shaped to the organic card corners; shadow lives on the parent. */}
+      <View style={[styles.tileClip, Bubble.radii, { overflow: 'hidden' }]}>
+        {/* Image (or icon fallback) fills the card top, edge-to-edge */}
+        {category.image_url ? (
+          <Image
+            source={{ uri: category.image_url }}
+            style={styles.tileImage}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={[styles.tileImage, styles.tileIconFallback, { backgroundColor: tint }]}>
+            <Feather name={iconName} size={32} color={iconColor} />
+          </View>
+        )}
+        <View style={styles.tileLabelWrap}>
+          <Text
+            style={[styles.tileLabel, { color: colors.text }]}
+            numberOfLines={2}
+          >
+            {category.title_ro.toUpperCase()}
+          </Text>
+        </View>
+      </View>
+    </Pressable>
   );
 }
 
@@ -157,20 +189,14 @@ export default function CategoriesScreen() {
 
   const { categories, loading } = useMarketplaceCatalog('professional');
 
-  // Build parent → children tree
-  const tree = useMemo(() => {
+  // Top-level categories only, chunked into rows of 3 for the grid.
+  const rows = useMemo(() => {
     const top = categories.filter((c) => c.parent_id === null);
-    const byParent = new Map<string, MarketplaceCategory[]>();
-    for (const c of categories) {
-      if (!c.parent_id) continue;
-      const arr = byParent.get(c.parent_id) ?? [];
-      arr.push(c);
-      byParent.set(c.parent_id, arr);
+    const chunked: MarketplaceCategory[][] = [];
+    for (let i = 0; i < top.length; i += 3) {
+      chunked.push(top.slice(i, i + 3));
     }
-    return top.map((parent) => ({
-      parent,
-      children: byParent.get(parent.id) ?? [],
-    }));
+    return chunked;
   }, [categories]);
 
   const handlePress = useCallback(
@@ -188,8 +214,9 @@ export default function CategoriesScreen() {
         style={{ paddingTop: insets.top + Spacing.sm }}
       >
         <Pressable
-          className="w-10 h-10 rounded-full border items-center justify-center"
+          className="w-10 h-10 border items-center justify-center"
           style={{
+            ...Bubble.radiiSm,
             backgroundColor: 'rgba(255,255,255,0.65)',
             borderColor: 'rgba(255,255,255,0.9)',
             ...Shadows.sm,
@@ -219,11 +246,11 @@ export default function CategoriesScreen() {
           { paddingBottom: insets.bottom + Spacing['3xl'] },
         ]}
       >
-        {loading && tree.length === 0 ? (
+        {loading && rows.length === 0 ? (
           <View className="flex-1 items-center justify-center" style={{ paddingTop: Spacing['3xl'] }}>
             <ActivityIndicator size="small" color={Brand.primary} />
           </View>
-        ) : tree.length === 0 ? (
+        ) : rows.length === 0 ? (
           <View className="flex-1 items-center justify-center" style={{ paddingTop: Spacing['3xl'] }}>
             <Feather name="layers" size={36} color={colors.textTertiary} />
             <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
@@ -231,67 +258,26 @@ export default function CategoriesScreen() {
             </Text>
           </View>
         ) : (
-          tree.map((node, idx) => (
+          rows.map((row, rIdx) => (
             <Animated.View
-              key={node.parent.id}
-              entering={slideIn(idx * 60)}
-              style={styles.group}
+              key={rIdx}
+              entering={slideIn(rIdx * 60)}
+              style={styles.gridRow}
             >
-              {/* Parent row */}
-              <Pressable
-                onPress={() => handlePress(node.parent.slug)}
-                style={({ pressed }) => [
-                  styles.parentHeader,
-                  Shadows.sm,
-                  pressed && { opacity: 0.85 },
-                ]}
-              >
-                <CategoryCircle category={node.parent} />
-                <View className="flex-1 gap-0.5">
-                  <Text style={[styles.parentTitle, { color: colors.text }]}>
-                    {node.parent.title_ro.toUpperCase()}
-                  </Text>
-                  <Text style={[styles.parentMeta, { color: colors.textSecondary }]}>
-                    {node.children.length === 0
-                      ? 'Vezi toate produsele'
-                      : `${node.children.length} ${node.children.length === 1 ? 'subcategorie' : 'subcategorii'}`}
-                  </Text>
+              {row.map((cat) => (
+                <View key={cat.id} style={styles.gridCell}>
+                  <CategoryGridTile
+                    category={cat}
+                    onPress={() => handlePress(cat.slug)}
+                    colors={colors}
+                  />
                 </View>
-                <Feather name="chevron-right" size={20} color={colors.textTertiary} />
-              </Pressable>
-
-              {/* Children list */}
-              {node.children.length > 0 && (
-                <View
-                  style={[
-                    styles.childrenList,
-                    { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.separator },
-                  ]}
-                >
-                  {node.children.map((child, cIdx) => (
-                    <Pressable
-                      key={child.id}
-                      onPress={() => handlePress(child.slug)}
-                      style={({ pressed }) => [
-                        styles.childRow,
-                        cIdx > 0 && {
-                          borderTopWidth: StyleSheet.hairlineWidth,
-                          borderTopColor: colors.separator,
-                        },
-                        pressed && { backgroundColor: 'rgba(10,102,194,0.04)' },
-                      ]}
-                    >
-                      <Text
-                        className="text-sm flex-1"
-                        style={[styles.childTitle, { color: colors.text }]}
-                      >
-                        {child.title_ro}
-                      </Text>
-                      <Feather name="chevron-right" size={16} color={colors.textTertiary} />
-                    </Pressable>
-                  ))}
-                </View>
-              )}
+              ))}
+              {/* Spacers keep a short final row left-aligned in the 3-col grid */}
+              {row.length < 3 &&
+                Array.from({ length: 3 - row.length }).map((_, si) => (
+                  <View key={`spacer-${si}`} style={styles.gridCell} />
+                ))}
             </Animated.View>
           ))
         )}
@@ -313,60 +299,47 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  group: {
-    marginBottom: Spacing.lg,
-  },
-
-  // Parent card
-  parentHeader: {
+  // ── Grid ──
+  gridRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    borderRadius: 14,
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
   },
-  parentTitle: {
-    fontFamily: FontFamily.bold,
-    fontSize: 14,
-    letterSpacing: 0.6,
-  },
-  parentMeta: {
-    fontFamily: FontFamily.regular,
-    fontSize: 12,
+  gridCell: {
+    flex: 1,
   },
 
-  // Children list
-  childrenList: {
+  // ── Tile ──
+  // Shadow layer — Bubble.radii + Shadows.sm applied inline, NO overflow so the
+  // iOS shadow renders freely (it's dropped under overflow:'hidden').
+  tileShadow: {
+    width: '100%',
+  },
+  // Clip layer — overflow:'hidden' + Bubble.radii applied inline; white card bg.
+  tileClip: {
+    width: '100%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    marginTop: Spacing.xs,
-    paddingHorizontal: Spacing.md,
-    overflow: 'hidden',
   },
-  childRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.md,
+  // Image fills the card top edge-to-edge; the tint circle + podium are baked
+  // into the asset itself, so we don't render a separate backdrop.
+  tileImage: {
+    width: '100%',
+    aspectRatio: 1,
   },
-  childTitle: {
-    fontFamily: FontFamily.regular,
-    paddingRight: Spacing.sm,
-  },
-
-  // 56×56 circle tile
-  circle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  tileIconFallback: {
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
   },
-  circleImage: {
-    width: '90%',
-    height: '90%',
+  tileLabelWrap: {
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+  },
+  tileLabel: {
+    fontFamily: FontFamily.bold,
+    fontSize: 13,
+    lineHeight: 17,
+    textAlign: 'center',
+    letterSpacing: 0.3,
+    minHeight: 34,
   },
 });

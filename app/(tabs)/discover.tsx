@@ -1059,7 +1059,7 @@ export default function DiscoverScreen() {
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}
+                  contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 10, gap: 10 }}
                 >
                   {happyHourSalons.map((salon) => (
                     <Pressable
@@ -1134,7 +1134,7 @@ export default function DiscoverScreen() {
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}
+                  contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 10, gap: 10 }}
                 >
                   {favoriteSalons.map((salon) => (
                     <Pressable

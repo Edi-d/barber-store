@@ -55,10 +55,11 @@ const SPRING_ICON = { damping: 14, stiffness: 200, mass: 0.6 };
  */
 function tabBarBottom(safeBottom: number): number {
   if (Platform.OS === "android") {
-    // Tall 3-button inset: trim a little so the bar sits a small gap above the
-    // button row (full inset floats too high; trimming the full 12 sits too low).
-    const trim = safeBottom >= 40 ? 6 : 0;
-    return Math.max(safeBottom - trim, 6);
+    // 3-button nav (tall inset): add a small gap so the bar floats ABOVE the
+    // button row instead of sitting flush on it.
+    // Gesture nav (short inset): use the full inset to clear the pill.
+    if (safeBottom >= 40) return safeBottom + 6;
+    return Math.max(safeBottom, 6);
   }
   return Math.max(safeBottom - 12, 6);
 }

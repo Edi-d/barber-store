@@ -255,12 +255,17 @@ export type NopHomepageContentBody = {
 export type NopStory = {
   id: number;
   picture_url: string | null;
+  /** What the story links to: 1 = Product (verified). entity_id is that record's id. */
   entity_type_id: number;
   entity_id: number;
+  /** Usually null in this CMS — the link comes from entity_type_id/entity_id instead. */
   target_url: string | null;
   action_type_id: number;
   published: boolean;
   display_order: number;
+  /** Hex CTA colors supplied by the CMS (e.g. '#E79C50'); may be absent. */
+  button_color?: string | null;
+  text_color?: string | null;
 };
 
 export type NopStoriesResponse = {

@@ -38,6 +38,7 @@ import type {
   NopPicture,
   NopProductDetails,
   NopSlideItem,
+  NopStory,
 } from '@/types/nop';
 
 // How many top categories to sample for the home "Branduri" row.
@@ -443,6 +444,51 @@ export async function fetchHomeBanners(): Promise<HomeBannerSlide[]> {
 }
 
 export { getStories };
+
+// ─── Shop promo stories (guide §7b) ──────────────────────
+/** A single full-screen promo story slide, ready for the shop viewer. */
+export type ShopStorySlide = {
+  id: number;
+  imageUrl: string;
+  /** Resolved in-app route for tap-through; null when the story has no link. */
+  route: string | null;
+  /** CMS-supplied CTA hex colors; null when not provided. */
+  buttonColor: string | null;
+  textColor: string | null;
+};
+
+// nop story entity_type_id values. Verified against the live API: 1 = Product.
+const STORY_ENTITY_PRODUCT = 1;
+
+/** Tap-through route for a story. Prefers the structured entity link (the CMS
+ *  leaves target_url null), falling back to a target_url slug for the rare
+ *  category/brand/url story. */
+function storyRoute(story: NopStory): Promise<string | null> {
+  if (story.entity_type_id === STORY_ENTITY_PRODUCT && story.entity_id) {
+    return Promise.resolve(`/marketplace/product/${story.entity_id}`);
+  }
+  return resolveSlugRoute(story.target_url);
+}
+
+/**
+ * Shop-section promo stories from /api/Story/GetStories. Mirrors fetchHomeBanners:
+ * drop unpublished/imageless entries, order by display_order, resolve each story's
+ * tap-through route, and pass through the CMS CTA colors.
+ */
+export async function fetchShopStories(): Promise<ShopStorySlide[]> {
+  const { stories } = await getStories();
+  const published = stories
+    .filter((s) => s.published && !!s.picture_url)
+    .sort((a, b) => a.display_order - b.display_order);
+  const routes = await Promise.all(published.map(storyRoute));
+  return published.map((s, i) => ({
+    id: s.id,
+    imageUrl: s.picture_url as string,
+    route: routes[i],
+    buttonColor: s.button_color ?? null,
+    textColor: s.text_color ?? null,
+  }));
+}
 
 export type SearchResultItem = {
   entity_type: NopAutoCompleteItem['entity_type'];

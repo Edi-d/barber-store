@@ -46,7 +46,10 @@ import { MarketplaceProductCard } from '@/components/marketplace/MarketplaceProd
 import { MarketplaceDrawer } from '@/components/marketplace/MarketplaceDrawer';
 import { MarketplaceCartModal } from '@/components/marketplace/MarketplaceCartModal';
 import { MarketplaceSearchModal } from '@/components/marketplace/MarketplaceSearchModal';
+import { ShopStoriesRail } from '@/components/marketplace/ShopStoriesRail';
+import { ShopStoriesViewer } from '@/components/marketplace/ShopStoriesViewer';
 import { TrustBadgesGrid } from '@/components/marketplace/TrustBadgesGrid';
+import { useShopStories } from '@/hooks/use-shop-stories';
 import {
   useMarketplaceCatalog,
   type MarketplaceBrand,
@@ -162,6 +165,10 @@ const HERO_SLIDES: HeroSlide[] = [
   { key: 'hero-2', image: require('@/assets/hero2.webp'), route: null },
 ];
 
+// Module scope — survives screen remounts (so re-entering the shop tab doesn't
+// re-open the stories), resets only on a full app restart → "once per session".
+let shopStoriesAutoPresented = false;
+
 // ─── Screen ─────────────────────────────────────────────
 export default function MarketplaceHomeScreen() {
   const insets = useSafeAreaInsets();
@@ -218,6 +225,27 @@ export default function MarketplaceHomeScreen() {
   useEffect(() => {
     setMarketplaceCartCount(cartTotalItems);
   }, [cartTotalItems, setMarketplaceCartCount]);
+
+  // ── Shop promo stories ─────────────────────────────────
+  const { stories } = useShopStories();
+  const [storyViewer, setStoryViewer] = useState({ visible: false, index: 0 });
+
+  // Auto-present once per session, after the async fetch lands. Keying on
+  // stories.length is what makes the effect wait — on first render it's 0, then
+  // re-runs when the data arrives.
+  useEffect(() => {
+    if (shopStoriesAutoPresented || stories.length === 0) return;
+    shopStoriesAutoPresented = true;
+    setStoryViewer({ visible: true, index: 0 });
+  }, [stories.length]);
+
+  const openStoriesAt = useCallback((index: number) => {
+    setStoryViewer({ visible: true, index });
+  }, []);
+
+  const closeStories = useCallback(() => {
+    setStoryViewer((s) => ({ ...s, visible: false }));
+  }, []);
 
   // Derived catalog slices
   const topCategories = useMemo(
@@ -463,6 +491,11 @@ export default function MarketplaceHomeScreen() {
           />
         }
       >
+        {/* ── 0. Shop promo stories rail ── */}
+        <View style={styles.storiesRail}>
+          <ShopStoriesRail onOpen={openStoriesAt} />
+        </View>
+
         {/* ── 1. Hero carousel ── */}
         <Animated.View
           style={styles.heroSection}
@@ -753,6 +786,14 @@ export default function MarketplaceHomeScreen() {
       <MarketplaceSearchModal
         visible={searchOpen}
         onClose={() => setSearchOpen(false)}
+      />
+
+      {/* Shop promo stories — full-screen, auto-presented once per session */}
+      <ShopStoriesViewer
+        visible={storyViewer.visible}
+        stories={stories}
+        initialIndex={storyViewer.index}
+        onClose={closeStories}
       />
     </GradientBackground>
   );
@@ -1062,6 +1103,11 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     paddingVertical: Spacing.lg,
     textAlign: 'center',
+  },
+
+  // ── Shop promo stories rail ──
+  storiesRail: {
+    marginBottom: Spacing.md,
   },
 
   // ── Hero carousel ──

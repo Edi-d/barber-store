@@ -58,6 +58,7 @@ export function VoucherConversionSection({ currentBalance }: Props) {
       );
       queryClient.invalidateQueries({ queryKey: ['xp-balance'] });
       queryClient.invalidateQueries({ queryKey: ['loyalty-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['my-vouchers'] });
     } catch (err: any) {
       Alert.alert('Eroare', err?.message ?? 'Nu am putut genera voucherul.');
     } finally {

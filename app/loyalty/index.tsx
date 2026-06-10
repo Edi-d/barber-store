@@ -13,6 +13,7 @@ import { TierBadge } from '@/components/loyalty/TierBadge';
 import { TierProgressBar } from '@/components/loyalty/TierProgressBar';
 import { PointsTransactionList } from '@/components/loyalty/PointsTransactionList';
 import { VoucherConversionSection } from '@/components/loyalty/VoucherConversionSection';
+import { MyVouchersSection } from '@/components/loyalty/MyVouchersSection';
 import { Brand, Colors, Bubble, Shadows, FontFamily, Typography, Spacing } from '@/constants/theme';
 
 export default function LoyaltyScreen() {
@@ -118,6 +119,12 @@ export default function LoyaltyScreen() {
             <View style={{ marginTop: Spacing.sm }}>
               <VoucherConversionSection currentBalance={xp.balance} />
             </View>
+          </View>
+
+          {/* Section: My vouchers */}
+          <Text style={styles.sectionTitle}>Voucherele mele</Text>
+          <View style={styles.card}>
+            <MyVouchersSection userId={session?.user.id} />
           </View>
 
           {/* Section: How to earn */}

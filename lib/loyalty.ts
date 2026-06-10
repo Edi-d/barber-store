@@ -83,6 +83,36 @@ export async function fetchLevelThresholds(): Promise<XpLevelThreshold[]> {
   return (data ?? []) as XpLevelThreshold[];
 }
 
+export type VoucherStatus = 'active' | 'used' | 'expired' | 'cancelled';
+export type VoucherScope = 'all' | 'services' | 'marketplace';
+
+export interface LoyaltyVoucher {
+  id: string;
+  code: string;
+  status: VoucherStatus;
+  value_cents: number | null;
+  points_spent: number;
+  scope: VoucherScope;
+  expires_at: string;
+  used_at: string | null;
+  created_at: string;
+}
+
+/**
+ * A user's vouchers, newest first. RLS ("Users can view own vouchers") already
+ * scopes this to the caller. Status is taken as stored; callers should treat an
+ * 'active' voucher past expires_at as expired (the DB sweep is lazy).
+ */
+export async function fetchMyVouchers(userId: string): Promise<LoyaltyVoucher[]> {
+  const { data, error } = await supabase
+    .from('loyalty_vouchers')
+    .select('id, code, status, value_cents, points_spent, scope, expires_at, used_at, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as LoyaltyVoucher[];
+}
+
 export async function fetchVoucherTiers(): Promise<XpVoucherTier[]> {
   const { data, error } = await supabase
     .from('xp_voucher_tiers')

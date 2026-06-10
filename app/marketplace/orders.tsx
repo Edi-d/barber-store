@@ -29,6 +29,7 @@ import { GradientBackground } from '@/components/ui/GradientBackground';
 import { useAuthStore } from '@/stores/authStore';
 import { supabase } from '@/lib/supabase';
 import { useSalonOrders, type SalonOrderSummary } from '@/hooks/use-salon-orders';
+import { useClientOrders } from '@/hooks/use-client-orders';
 import { useMarketplaceCart } from '@/hooks/use-marketplace-cart';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import {
@@ -80,21 +81,45 @@ export default function SalonOrdersScreen() {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
 
-  // Derive salonId from salon_members without requiring SalonProvider
+  // Resolve the viewer's role. undefined = still checking; a salon id = salon
+  // member/owner (see the salon's orders); null = a plain client (see their own).
   const session = useAuthStore((s) => s.session);
-  const [salonId, setSalonId] = useState<string | null>(null);
+  const [salonId, setSalonId] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
-    if (!session?.user.id) return;
-    supabase
-      .from('salon_members')
-      .select('salon_id')
-      .eq('user_id', session.user.id)
-      .maybeSingle()
-      .then(({ data }) => setSalonId(data?.salon_id ?? null));
+    const uid = session?.user.id;
+    if (!uid) return;
+    (async () => {
+      // Owner of a salon?
+      const { data: owned } = await supabase
+        .from('salons')
+        .select('id')
+        .eq('owner_id', uid)
+        .limit(1)
+        .maybeSingle();
+      if (owned?.id) {
+        setSalonId(owned.id);
+        return;
+      }
+      // Member of a salon? (salon_members keys on profile_id, not user_id)
+      const { data: member } = await supabase
+        .from('salon_members')
+        .select('salon_id')
+        .eq('profile_id', uid)
+        .limit(1)
+        .maybeSingle();
+      setSalonId(member?.salon_id ?? null);
+    })();
   }, [session?.user.id]);
 
-  const { orders, loading, error, refetch, buildReorderItems } = useSalonOrders(salonId);
+  const isSalon = !!salonId;
+  const salonOrders = useSalonOrders(salonId ?? null);
+  // Only fetch client orders once we know the user is NOT a salon.
+  const clientOrders = useClientOrders(salonId === null ? session?.user.id ?? null : null);
+  const src = isSalon ? salonOrders : clientOrders;
+
+  const { orders, error, refetch, buildReorderItems } = src;
+  const loading = salonId === undefined || src.loading;
   const cart = useMarketplaceCart();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -250,31 +275,13 @@ export default function SalonOrdersScreen() {
         <Feather name="arrow-left" size={20} color={colors.text} />
       </TouchableOpacity>
       <Text style={[styles.headerTitle, { color: colors.text }]}>
-        Comenzile salonului
+        {isSalon ? 'Comenzile salonului' : 'Comenzile mele'}
       </Text>
       <View style={styles.headerSpacer} />
     </View>
   );
 
   const memoOrders = useMemo(() => orders, [orders]);
-
-  if (!salonId) {
-    return (
-      <GradientBackground>
-        <Stack.Screen options={{ headerShown: false }} />
-        {Header}
-        <View style={styles.centerFill}>
-          <Feather name="briefcase" size={44} color={colors.textTertiary} />
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>
-            Niciun salon activ
-          </Text>
-          <Text style={[styles.emptyDesc, { color: colors.textTertiary }]}>
-            Contul tau nu este asociat cu niciun salon.
-          </Text>
-        </View>
-      </GradientBackground>
-    );
-  }
 
   return (
     <GradientBackground>
@@ -319,7 +326,7 @@ export default function SalonOrdersScreen() {
                 Inca nu ai comenzi
               </Text>
               <Text style={[styles.emptyDesc, { color: colors.textTertiary }]}>
-                Comenzile salonului apar aici. Cu un singur tap, le poti repeta
+                Comenzile tale apar aici. Cu un singur tap, le poti repeta
                 instant.
               </Text>
               <TouchableOpacity

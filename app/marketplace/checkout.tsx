@@ -40,9 +40,17 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Haptics from 'expo-haptics';
 import Animated, { Easing, FadeInDown } from 'react-native-reanimated';
 import { v4 as uuidv4 } from 'uuid';
+import { useQuery } from '@tanstack/react-query';
 
 import { GradientBackground } from '@/components/ui/GradientBackground';
 import { supabase } from '@/lib/supabase';
+import {
+  placeMarketplaceClientOrder,
+  fetchShippingAddresses,
+  saveShippingAddress,
+  type ClientPaymentMethod,
+  type ShippingAddress,
+} from '@/lib/marketplace-orders';
 import { useMarketplaceCartStore } from '@/hooks/use-marketplace-cart-store';
 import { useMarketplaceQuote } from '@/hooks/use-marketplace-quote';
 import { useDefaultSalonBilling } from '@/hooks/use-salon-billing-details';
@@ -126,12 +134,46 @@ export default function MarketplaceCheckoutScreen() {
     email: user?.email ?? '',
   }));
   const [submitting, setSubmitting] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<ClientPaymentMethod>('cod');
+  const [saveAddr, setSaveAddr] = useState(true);
+  const [prefilledFromSaved, setPrefilledFromSaved] = useState(false);
 
   const setField = useCallback(
     (key: keyof ShippingForm, value: string) =>
       setForm((f) => ({ ...f, [key]: value })),
     [],
   );
+
+  // ── Saved addresses (client only) ────────────────────
+  const { data: savedAddresses = [] } = useQuery({
+    queryKey: ['marketplace-addresses', user?.id],
+    queryFn: () => (user?.id ? fetchShippingAddresses(user.id) : Promise.resolve([])),
+    enabled: buyerMode === 'client' && !!user?.id,
+  });
+
+  const applyAddress = useCallback((a: ShippingAddress) => {
+    setForm((f) => ({
+      ...f,
+      name: a.name,
+      phone: a.phone,
+      email: a.email ?? f.email,
+      address_line1: a.address_line1,
+      city: a.city,
+      county: a.county,
+      postal: a.postal_code,
+    }));
+    setSaveAddr(false); // already saved
+  }, []);
+
+  // Prefill the form from the default saved address, once.
+  useEffect(() => {
+    if (prefilledFromSaved || savedAddresses.length === 0) return;
+    const def = savedAddresses.find((a) => a.is_default) ?? savedAddresses[0];
+    if (def) {
+      applyAddress(def);
+      setPrefilledFromSaved(true);
+    }
+  }, [savedAddresses, prefilledFromSaved, applyAddress]);
 
   // ── Idempotency key — generate once per checkout session ─
   useEffect(() => {
@@ -192,6 +234,51 @@ export default function MarketplaceCheckoutScreen() {
     setSubmitting(true);
     if (Platform.OS === 'ios') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+
+    // ── Client path: write the order straight into Supabase (nop products). ──
+    if (buyerMode === 'client') {
+      try {
+        const shipping = {
+          name: form.name.trim(),
+          phone: form.phone.trim(),
+          email: form.email.trim(),
+          address_line1: form.address_line1.trim(),
+          city: form.city.trim(),
+          county: form.county.trim(),
+          postal: form.postal.trim(),
+          notes: form.notes.trim() || undefined,
+        };
+
+        const result = await placeMarketplaceClientOrder({
+          items: cart.items,
+          paymentMethod,
+          shipping,
+          voucherCode: voucher_code ?? null,
+        });
+
+        // Remember the address for next time (best-effort).
+        if (saveAddr && user?.id) {
+          try {
+            await saveShippingAddress(user.id, shipping, true);
+          } catch {
+            /* non-fatal — order already placed */
+          }
+        }
+
+        cart.clear();
+        setMarketplaceIdempotencyKey(null);
+        if (Platform.OS === 'ios') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+        router.replace(`/marketplace/order/${result.order_id}?fresh=1` as any);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Eroare necunoscuta';
+        Alert.alert('Nu am putut plasa comanda', msg, [{ text: 'OK' }]);
+      } finally {
+        setSubmitting(false);
+      }
+      return;
     }
 
     try {
@@ -281,25 +368,13 @@ export default function MarketplaceCheckoutScreen() {
       cart.clear();
       setMarketplaceIdempotencyKey(null);
 
-      if (buyerMode === 'client') {
-        const typed = result as ClientCheckoutResult;
-        if (typed.checkout_url) {
-          try {
-            await WebBrowser.openBrowserAsync(typed.checkout_url);
-          } catch {
-            await Linking.openURL(typed.checkout_url);
-          }
-        }
-        // Navigate to order detail with fresh=1 so the OrderSuccessModal fires.
-        router.replace(`/marketplace/order/${typed.order_id}?fresh=1` as any);
-      } else {
-        const typed = result as SalonCheckoutResult;
-        if (Platform.OS === 'ios') {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
-        // Navigate to order detail with fresh=1 so the OrderSuccessModal fires.
-        router.replace(`/marketplace/order/${typed.order_id}?fresh=1` as any);
+      // Salon (marketplace-credit) success. The client path returns earlier.
+      const typed = result as SalonCheckoutResult;
+      if (Platform.OS === 'ios') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
+      // Navigate to order detail with fresh=1 so the OrderSuccessModal fires.
+      router.replace(`/marketplace/order/${typed.order_id}?fresh=1` as any);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Eroare necunoscuta';
       Alert.alert('Nu am putut plasa comanda', msg, [{ text: 'OK' }]);
@@ -318,6 +393,9 @@ export default function MarketplaceCheckoutScreen() {
     billingDetails,
     marketplaceIdempotencyKey,
     setMarketplaceIdempotencyKey,
+    paymentMethod,
+    saveAddr,
+    user?.id,
   ]);
 
   // ── Empty cart guard ──────────────────────────────────
@@ -483,6 +561,44 @@ export default function MarketplaceCheckoutScreen() {
                 Adresa de livrare
               </Text>
 
+              {savedAddresses.length > 0 && (
+                <View className="gap-2">
+                  <Text style={{ fontFamily: FontFamily.regular, fontSize: 12, color: colors.textSecondary }}>
+                    Adrese salvate
+                  </Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ gap: 8, paddingRight: 4 }}
+                  >
+                    {savedAddresses.map((a) => (
+                      <Pressable
+                        key={a.id}
+                        onPress={() => applyAddress(a)}
+                        style={[
+                          Bubble.radiiSm,
+                          {
+                            paddingHorizontal: 12,
+                            paddingVertical: 8,
+                            maxWidth: 230,
+                            backgroundColor: 'rgba(10,102,194,0.06)',
+                            borderWidth: 1,
+                            borderColor: 'rgba(10,102,194,0.18)',
+                          },
+                        ]}
+                      >
+                        <Text numberOfLines={1} style={{ fontFamily: FontFamily.semiBold, fontSize: 13, color: colors.text }}>
+                          {a.name}{a.is_default ? ' · implicit' : ''}
+                        </Text>
+                        <Text numberOfLines={1} style={{ fontFamily: FontFamily.regular, fontSize: 11, color: colors.textSecondary }}>
+                          {a.address_line1}, {a.city}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+
               <FormField
                 label="Nume complet"
                 value={form.name}
@@ -554,6 +670,86 @@ export default function MarketplaceCheckoutScreen() {
                 multiline
                 colors={colors}
               />
+
+              <Pressable
+                onPress={() => setSaveAddr((v) => !v)}
+                className="flex-row items-center gap-2 mt-1"
+                hitSlop={6}
+              >
+                <View
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: 6,
+                    borderWidth: 1.5,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderColor: saveAddr ? Brand.primary : colors.inputBorder,
+                    backgroundColor: saveAddr ? Brand.primary : 'transparent',
+                  }}
+                >
+                  {saveAddr && <Feather name="check" size={14} color="#fff" />}
+                </View>
+                <Text style={{ fontFamily: FontFamily.regular, fontSize: 13, color: colors.text }}>
+                  Salveaza aceasta adresa pentru data viitoare
+                </Text>
+              </Pressable>
+            </Animated.View>
+          )}
+
+          {/* ── Payment method (client only) ── */}
+          {buyerMode === 'client' && (
+            <Animated.View
+              entering={slideIn(90)}
+              className="border p-4 gap-3"
+              style={[Bubble.radii, { backgroundColor: 'rgba(255,255,255,0.55)', borderColor: 'rgba(255,255,255,0.8)' }]}
+            >
+              <Text style={{ fontFamily: FontFamily.semiBold, fontSize: 16, lineHeight: 22, color: colors.text }}>
+                Metoda de plata
+              </Text>
+              {([
+                { key: 'cod', icon: 'truck', title: 'Ramburs la livrare', sub: 'Platesti curierului la primire' },
+                { key: 'card', icon: 'credit-card', title: 'Card bancar', sub: 'Plata online (demo)' },
+              ] as const).map((opt) => {
+                const active = paymentMethod === opt.key;
+                return (
+                  <Pressable
+                    key={opt.key}
+                    onPress={() => setPaymentMethod(opt.key)}
+                    className="flex-row items-center gap-3 p-3 border"
+                    style={[
+                      Bubble.radiiSm,
+                      {
+                        borderColor: active ? Brand.primary : colors.inputBorder,
+                        backgroundColor: active ? Brand.primaryMuted : 'transparent',
+                      },
+                    ]}
+                  >
+                    <Feather name={opt.icon} size={18} color={active ? Brand.primary : colors.textSecondary} />
+                    <View className="flex-1">
+                      <Text style={{ fontFamily: FontFamily.semiBold, fontSize: 14, color: colors.text }}>
+                        {opt.title}
+                      </Text>
+                      <Text style={{ fontFamily: FontFamily.regular, fontSize: 12, color: colors.textSecondary }}>
+                        {opt.sub}
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: 10,
+                        borderWidth: 2,
+                        borderColor: active ? Brand.primary : colors.inputBorder,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {active && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: Brand.primary }} />}
+                    </View>
+                  </Pressable>
+                );
+              })}
             </Animated.View>
           )}
 

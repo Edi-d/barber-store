@@ -192,7 +192,7 @@ export default function MarketplaceOrderScreen() {
   // Show success modal once when order data loads and fresh=1 param is present.
   // Runs once per mount — state gate prevents re-trigger on re-renders.
   useEffect(() => {
-    if (fresh === '1' && order?.status === 'paid' && !showSuccessModal) {
+    if (fresh === '1' && (order?.status === 'paid' || order?.status === 'placed') && !showSuccessModal) {
       setShowSuccessModal(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -15,16 +15,22 @@ const RO_MONTHS = ['ian.', 'feb.', 'mar.', 'apr.', 'mai', 'iun.', 'iul.', 'aug.'
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
+  // A null/invalid timestamp parses to the epoch (or Invalid Date); don't render
+  // a misleading "1 ian. 1970".
+  if (Number.isNaN(d.getTime()) || d.getTime() === 0) return '—';
   return `${d.getDate()} ${RO_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 // An 'active' voucher whose expiry has passed is effectively expired — the DB
 // sweep that flips the status is lazy, so reconcile against the clock here.
 function effectiveStatus(v: LoyaltyVoucher): VoucherStatus {
-  if (v.status === 'active' && new Date(v.expires_at).getTime() < Date.now()) {
-    return 'expired';
-  }
-  return v.status;
+  if (v.status !== 'active') return v.status;
+  const exp = new Date(v.expires_at).getTime();
+  // Guard against null/invalid timestamps: new Date(null) is the Unix epoch (0),
+  // which is always < now and would flip a brand-new voucher to "expired" on the
+  // first render. Treat a missing/unparseable expiry as still active.
+  if (Number.isNaN(exp) || exp === 0) return 'active';
+  return exp < Date.now() ? 'expired' : v.status;
 }
 
 const STATUS_META: Record<VoucherStatus, { label: string; color: string; bg: string }> = {

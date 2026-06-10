@@ -12,6 +12,7 @@ import Animated, {
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { Barber } from "@/types/database";
+import { barberRoleLabel } from "@/lib/utils";
 import { Colors, Bubble, Shadows, Typography } from "@/constants/theme";
 
 // ─── Spring configs ────────────────────────────────────────────────────────────
@@ -28,16 +29,22 @@ const CHECK_SPRING = { damping: 12, stiffness: 320, mass: 0.6 };
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
 interface BarberCardProps {
-  barber: Barber;
+  /** Barber row, optionally joined with its profile for the avatar fallback. */
+  barber: Barber & { profile?: { avatar_url: string | null } | null };
   isSelected: boolean;
   onSelect: () => void;
   /** Zero-based index used to stagger the entrance animation */
   index: number;
+  /**
+   * Authoritative role from salon_members.role. Falls back to barber.role
+   * (unreliable — defaults to 'owner') when not provided.
+   */
+  role?: string;
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 
-export function BarberCard({ barber, isSelected, onSelect, index }: BarberCardProps) {
+export function BarberCard({ barber, isSelected, onSelect, index, role }: BarberCardProps) {
   // 0 = idle/deselected, 1 = selected
   const selection = useSharedValue(isSelected ? 1 : 0);
   // 0 = resting, goes to 1 then snaps back; drives the press-down pulse
@@ -126,7 +133,8 @@ export function BarberCard({ barber, isSelected, onSelect, index }: BarberCardPr
 
   // ── Derived display values ───────────────────────────────────────────────────
 
-  const roleLabel = barber.role === "owner" ? "Proprietar" : "Frizer";
+  const roleLabel = barberRoleLabel(role ?? barber.role);
+  const avatarUrl = barber.avatar_url ?? barber.profile?.avatar_url;
   const specialties = barber.specialties?.slice(0, 3) ?? [];
 
   // ── Render ───────────────────────────────────────────────────────────────────
@@ -159,9 +167,9 @@ export function BarberCard({ barber, isSelected, onSelect, index }: BarberCardPr
             />
 
             <View style={styles.avatar}>
-              {barber.avatar_url ? (
+              {avatarUrl ? (
                 <Image
-                  source={{ uri: barber.avatar_url }}
+                  source={{ uri: avatarUrl }}
                   style={styles.avatarImage}
                   resizeMode="cover"
                 />

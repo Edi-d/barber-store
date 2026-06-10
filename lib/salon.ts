@@ -126,6 +126,20 @@ export async function fetchBarberAvailability(barberId: string): Promise<BarberA
   return data as BarberAvailability[];
 }
 
+// A barber's schedule, falling back to the salon's published hours when the
+// barber has no `barber_availability` rows at all (common — many salons only
+// manage `salon_hours`). Without this, such barbers render as "Închis astăzi"
+// even while the salon page shows the shop open.
+export async function fetchBarberScheduleWithFallback(
+  barberId: string,
+  salonId: string | null
+): Promise<BarberAvailability[]> {
+  const own = await fetchBarberAvailability(barberId);
+  if (own.length > 0) return own;
+  if (salonId) return fetchSalonSchedule(salonId);
+  return own;
+}
+
 // Fetch reviews with author profile
 export async function fetchSalonReviews(
   salonId: string,

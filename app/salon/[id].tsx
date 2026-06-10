@@ -22,7 +22,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/authStore";
 import { useLocationStore } from "@/stores/locationStore";
 import { Salon, Barber, BarberService } from "@/types/database";
-import { formatPrice, getInitials, timeAgo } from "@/lib/utils";
+import { formatPrice, getInitials, timeAgo, barberRoleLabel } from "@/lib/utils";
 import { getDistanceKm } from "@/lib/discover";
 import {
   fetchSalonPhotos,
@@ -45,6 +45,10 @@ import { Bubble, Shadows } from "@/constants/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const GALLERY_HEIGHT = 260;
+
+// Barber row joined with its linked profile so we can backfill the avatar when
+// barbers.avatar_url is NULL (typical for the salon owner).
+type TeamBarber = Barber & { profile: { avatar_url: string | null } | null };
 
 export default function SalonDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -76,21 +80,44 @@ export default function SalonDetailScreen() {
     enabled: !!id,
   });
 
-  // Fetch team barbers for this salon
+  // Fetch team barbers for this salon. A barber's photo may live only on their
+  // linked profile (barbers.avatar_url is often NULL for the owner), so embed
+  // the profile to backfill the avatar.
   const { data: teamBarbers } = useQuery({
     queryKey: ["salon-team", id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("barbers")
-        .select("*")
+        .select("*, profile:profiles(avatar_url)")
         .eq("salon_id", id)
         .eq("active", true)
         .order("name");
       if (error) throw error;
-      return data as Barber[];
+      return data as TeamBarber[];
     },
     enabled: !!id,
   });
+
+  // Authoritative roles live in salon_members.role (barbers.role defaults to
+  // 'owner' and is unreliable). Fetch the roster and key it by profile_id.
+  const { data: memberRoles } = useQuery({
+    queryKey: ["salon-member-roles", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("salon_members")
+        .select("profile_id, role")
+        .eq("salon_id", id);
+      if (error) throw error;
+      return data as { profile_id: string; role: string }[];
+    },
+    enabled: !!id,
+  });
+
+  const roleByProfileId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const m of memberRoles ?? []) map.set(m.profile_id, m.role);
+    return map;
+  }, [memberRoles]);
 
   const { data: photos } = useQuery({
     queryKey: ["salon-photos", id],
@@ -732,19 +759,22 @@ export default function SalonDetailScreen() {
                       borderBottomRightRadius: 0,
                     }}
                   >
-                    {barber.avatar_url ? (
-                      <Image
-                        source={{ uri: barber.avatar_url }}
-                        className="w-full h-full"
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View className="w-full h-full items-center justify-center bg-[#E8F3FF]">
-                        <Text className="text-2xl font-bold text-[#4481EB]">
-                          {getInitials(barber.name)}
-                        </Text>
-                      </View>
-                    )}
+                    {(() => {
+                      const avatar = barber.avatar_url ?? barber.profile?.avatar_url;
+                      return avatar ? (
+                        <Image
+                          source={{ uri: avatar }}
+                          className="w-full h-full"
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View className="w-full h-full items-center justify-center bg-[#E8F3FF]">
+                          <Text className="text-2xl font-bold text-[#4481EB]">
+                            {getInitials(barber.name)}
+                          </Text>
+                        </View>
+                      );
+                    })()}
                   </View>
 
                   {/* Info */}
@@ -755,13 +785,27 @@ export default function SalonDetailScreen() {
                     >
                       {barber.name}
                     </Text>
-                    {barber.role === "owner" && (
-                      <View className="self-start bg-amber-50 px-1.5 py-0.5 rounded-md mt-1">
-                        <Text className="text-amber-700 text-[10px] font-semibold">
-                          Proprietar
-                        </Text>
-                      </View>
-                    )}
+                    {(() => {
+                      const role =
+                        (barber.profile_id && roleByProfileId.get(barber.profile_id)) ||
+                        barber.role;
+                      const isOwner = role === "owner";
+                      return (
+                        <View
+                          className={`self-start px-1.5 py-0.5 rounded-md mt-1 ${
+                            isOwner ? "bg-amber-50" : "bg-slate-100"
+                          }`}
+                        >
+                          <Text
+                            className={`text-[10px] font-semibold ${
+                              isOwner ? "text-amber-700" : "text-slate-600"
+                            }`}
+                          >
+                            {barberRoleLabel(role)}
+                          </Text>
+                        </View>
+                      );
+                    })()}
                     {/* Rating + reviews */}
                     {barber.rating_avg != null && (
                       <View className="flex-row items-center mt-1 gap-0.5">

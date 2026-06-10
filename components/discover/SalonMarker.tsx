@@ -1,6 +1,6 @@
-import React, { memo, useEffect, useRef, useState } from "react";
-import { View, Text } from "react-native";
-import { Marker } from "react-native-maps";
+import React, { memo } from "react";
+import { View, Text, Pressable, Platform } from "react-native";
+import Mapbox from "@/lib/mapbox";
 import { Bubble } from "@/constants/theme";
 import type { SalonWithDistance } from "@/lib/discover";
 
@@ -11,41 +11,13 @@ interface Props {
 }
 
 const SalonMarker = memo(function SalonMarker({ salon, isSelected, onPress }: Props) {
-  const [tracksViewChanges, setTracksViewChanges] = useState(false);
-  const isFirstRender = useRef(true);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-    if (timerRef.current != null) {
-      clearTimeout(timerRef.current);
-    }
-    setTracksViewChanges(true);
-    timerRef.current = setTimeout(() => {
-      setTracksViewChanges(false);
-      timerRef.current = null;
-    }, 250);
-    return () => {
-      if (timerRef.current != null) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-    };
-  }, [isSelected]);
-
   return (
-    <Marker
-      coordinate={{
-        latitude: salon.latitude as number,
-        longitude: salon.longitude as number,
-      }}
-      tracksViewChanges={tracksViewChanges}
-      onPress={() => onPress(salon)}
+    <Mapbox.MarkerView
+      coordinate={[salon.longitude as number, salon.latitude as number]}
+      anchor={{ x: 0.5, y: 0.5 }}
+      allowOverlap
     >
-      <View className="items-center">
+      <Pressable onPress={() => onPress(salon)} className="items-center">
         <View className="relative">
           <View
             className={`w-11 h-11 items-center justify-center ${
@@ -58,11 +30,19 @@ const SalonMarker = memo(function SalonMarker({ salon, isSelected, onPress }: Pr
             style={{
               ...Bubble.radiiSm,
               transform: isSelected ? [{ scale: 1.15 }] : [],
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.15,
-              shadowRadius: 4,
-              elevation: 4,
+              // iOS shadow follows the rounded shape. Android `elevation` can't
+              // render a rounded shadow for asymmetric corner radii (it falls
+              // back to a square bounding box), so it's omitted there — the
+              // border already gives the marker enough separation.
+              ...Platform.select({
+                ios: {
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 4,
+                },
+                default: {},
+              }),
             }}
           >
             <Text
@@ -84,8 +64,8 @@ const SalonMarker = memo(function SalonMarker({ salon, isSelected, onPress }: Pr
             <View className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" />
           )}
         </View>
-      </View>
-    </Marker>
+      </Pressable>
+    </Mapbox.MarkerView>
   );
 });
 

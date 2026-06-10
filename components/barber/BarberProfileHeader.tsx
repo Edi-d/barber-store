@@ -1,17 +1,23 @@
 import { View, Text, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Barber } from "@/types/database";
-import { getInitials } from "@/lib/utils";
+import { getInitials, barberRoleLabel } from "@/lib/utils";
 import { Bubble, Shadows, FontFamily } from "@/constants/theme";
 
 interface BarberProfileHeaderProps {
-  barber: Barber;
+  /** Barber row, optionally joined with its profile for the avatar fallback. */
+  barber: Barber & { profile?: { avatar_url: string | null } | null };
+  /** Authoritative role from salon_members.role; falls back to barber.role. */
+  role?: string;
 }
 
-export function BarberProfileHeader({ barber }: BarberProfileHeaderProps) {
+export function BarberProfileHeader({ barber, role }: BarberProfileHeaderProps) {
   const rating = barber.rating_avg ?? 0;
   const reviewCount = barber.reviews_count ?? 0;
   const specialties = barber.specialties ?? [];
+  const effectiveRole = role ?? barber.role;
+  const isOwner = effectiveRole === "owner";
+  const avatarUrl = barber.avatar_url ?? barber.profile?.avatar_url;
 
   // Build an array of 5 star fill states
   const stars = Array.from({ length: 5 }, (_, i) => {
@@ -35,9 +41,9 @@ export function BarberProfileHeader({ barber }: BarberProfileHeaderProps) {
           },
         ]}
       >
-        {barber.avatar_url ? (
+        {avatarUrl ? (
           <Image
-            source={{ uri: barber.avatar_url }}
+            source={{ uri: avatarUrl }}
             style={{ width: "100%", height: "100%" }}
             resizeMode="cover"
           />
@@ -67,20 +73,20 @@ export function BarberProfileHeader({ barber }: BarberProfileHeaderProps) {
         {barber.name}
       </Text>
 
-      {/* Owner badge */}
-      {barber.role === "owner" && (
-        <View className="bg-amber-50 px-2 py-0.5 rounded-md mt-1">
-          <Text
-            style={{
-              fontFamily: FontFamily.semiBold,
-              color: "#b45309",
-              fontSize: 11,
-            }}
-          >
-            Proprietar
-          </Text>
-        </View>
-      )}
+      {/* Role badge */}
+      <View
+        className={`px-2 py-0.5 rounded-md mt-1 ${isOwner ? "bg-amber-50" : "bg-slate-100"}`}
+      >
+        <Text
+          style={{
+            fontFamily: FontFamily.semiBold,
+            color: isOwner ? "#b45309" : "#475569",
+            fontSize: 11,
+          }}
+        >
+          {barberRoleLabel(effectiveRole)}
+        </Text>
+      </View>
 
       {/* Specialties */}
       {specialties.length > 0 && (

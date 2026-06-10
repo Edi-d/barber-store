@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Barber, BarberService } from "@/types/database";
 import {
-  fetchBarberAvailability,
+  fetchBarberScheduleWithFallback,
   fetchSalonReviews,
   getTodayScheduleText,
   getWeekSchedule,
@@ -28,18 +28,36 @@ export default function BarberProfileScreen() {
   const [reviewLimit, setReviewLimit] = useState(REVIEW_PAGE_SIZE);
 
   // ── Barber ──────────────────────────────────────────────────────────────────
+  // Embed the linked profile so the avatar can be backfilled when
+  // barbers.avatar_url is NULL (typical for the salon owner).
   const { data: barber, isLoading } = useQuery({
     queryKey: ["barber", id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("barbers")
-        .select("*")
+        .select("*, profile:profiles(avatar_url)")
         .eq("id", id)
         .single();
       if (error) throw error;
-      return data as Barber;
+      return data as Barber & { profile: { avatar_url: string | null } | null };
     },
     enabled: !!id,
+  });
+
+  // Authoritative role lives in salon_members.role (barbers.role is unreliable).
+  const { data: memberRole } = useQuery({
+    queryKey: ["barber-member-role", barber?.salon_id, barber?.profile_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("salon_members")
+        .select("role")
+        .eq("salon_id", barber!.salon_id!)
+        .eq("profile_id", barber!.profile_id!)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.role ?? null;
+    },
+    enabled: !!barber?.salon_id && !!barber?.profile_id,
   });
 
   // ── Services grouped by category ────────────────────────────────────────────
@@ -64,10 +82,12 @@ export default function BarberProfileScreen() {
   });
 
   // ── Availability ─────────────────────────────────────────────────────────────
+  // Falls back to the salon's published hours when the barber has no explicit
+  // availability rows, so the schedule stays consistent with the salon page.
   const { data: availability } = useQuery({
-    queryKey: ["barber-availability", id],
-    queryFn: () => fetchBarberAvailability(id!),
-    enabled: !!id,
+    queryKey: ["barber-availability", id, barber?.salon_id],
+    queryFn: () => fetchBarberScheduleWithFallback(id!, barber?.salon_id ?? null),
+    enabled: !!barber,
   });
 
   // ── Reviews ──────────────────────────────────────────────────────────────────
@@ -114,7 +134,7 @@ export default function BarberProfileScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 }}
       >
-        <BarberProfileHeader barber={barber} />
+        <BarberProfileHeader barber={barber} role={memberRole ?? barber.role} />
 
         <BarberProfileSchedule
           todaySchedule={todaySchedule}

@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#6B9BD2"
+      "backgroundColor": "#5C8AD5"
     },
     "ios": {
       "supportsTablet": true,
@@ -29,17 +29,15 @@
           "audio",
           "voip"
         ]
-      },
-      "config": {
-        "googleMapsApiKey": "AIzaSyDbT_UzI5kiXBNZuimGb5ms-1_VpRqCW7k"
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#6B9BD2"
+        "backgroundColor": "#5C8AD5"
       },
       "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.tapzi.app",
       "intentFilters": [
@@ -64,12 +62,7 @@
         "android.permission.CAMERA",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION"
-      ],
-      "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyDbT_UzI5kiXBNZuimGb5ms-1_VpRqCW7k"
-        }
-      }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -97,7 +90,8 @@
       "expo-web-browser",
       "expo-video",
       "expo-audio",
-      "expo-asset"
+      "expo-asset",
+      "@rnmapbox/maps"
     ],
     "experiments": {
       "typedRoutes": true

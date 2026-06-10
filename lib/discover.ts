@@ -60,9 +60,16 @@ function formatPriceRange(range: { min: number; max: number } | undefined, avgCe
 // A salon is "truly available now" if ANY barber:
 //   a) Has a schedule slot covering the current time
 //   b) AND has at least one free 30-min window in the next 60 minutes
+//
+// Fallback: many salons publish hours in `salon_hours` but never set per-barber
+// `barber_availability`. When no barber slot covers now, defer to the salon's
+// published hours so this stays consistent with the salon page (which is
+// salon_hours-authoritative). `salonHoursToday` is today's open window, or null
+// when the salon is closed today / has no published hours.
 function checkAvailableNow(
   availability: { barber_id: string; day_of_week: number; start_time: string; end_time: string; is_available: boolean }[],
-  barberAppointments: Map<string, BarberAppointment[]>
+  barberAppointments: Map<string, BarberAppointment[]>,
+  salonHoursToday: { start: string; end: string } | null
 ): boolean {
   const now = new Date();
   const dayOfWeek = now.getDay();
@@ -77,7 +84,14 @@ function checkAvailableNow(
       currentTime < a.end_time
   );
 
-  if (activeBarbers.length === 0) return false;
+  if (activeBarbers.length === 0) {
+    // No per-barber schedule covers now — fall back to the salon's own hours.
+    return (
+      salonHoursToday != null &&
+      currentTime >= salonHoursToday.start &&
+      currentTime < salonHoursToday.end
+    );
+  }
 
   const nowMs = now.getTime();
   const sixtyMinLater = nowMs + 60 * 60 * 1000;
@@ -119,7 +133,8 @@ export function enrichSalons(
   happyHours: SalonHappyHour[],
   availabilityMap: Map<string, { barber_id: string; day_of_week: number; start_time: string; end_time: string; is_available: boolean }[]>,
   barberAppointments: Map<string, BarberAppointment[]>,
-  priceRangeMap: Map<string, { min: number; max: number }> = new Map()
+  priceRangeMap: Map<string, { min: number; max: number }> = new Map(),
+  salonHoursTodayMap: Map<string, { start: string; end: string }> = new Map()
 ): SalonWithDistance[] {
   const now = Date.now();
   const activeHappyHours = new Map<string, SalonHappyHour>();
@@ -151,7 +166,7 @@ export function enrichSalons(
         has_happy_hour: !!hh,
         happy_hour_discount: hh?.discount_percent ?? null,
         happy_hour_ends_at: hh?.ends_at ?? null,
-        is_available_now: checkAvailableNow(availability, barberAppointments),
+        is_available_now: checkAvailableNow(availability, barberAppointments, salonHoursTodayMap.get(salon.id) ?? null),
         price_range_label: formatPriceRange(priceRangeMap.get(salon.id), salon.avg_price_cents),
       };
     });

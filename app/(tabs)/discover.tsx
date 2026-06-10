@@ -25,7 +25,7 @@ import { useLocationStore } from "@/stores/locationStore";
 import { Salon, AppointmentWithDetails, SalonHappyHour } from "@/types/database";
 import { CategoryPickerModal } from "@/components/discover/CategoryPickerModal";
 import { Ionicons } from "@expo/vector-icons";
-import MapView, { PROVIDER_GOOGLE, PROVIDER_DEFAULT } from "react-native-maps";
+import Mapbox, { MAPBOX_STYLE_URL } from "@/lib/mapbox";
 import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { enrichSalons, SalonWithDistance } from "@/lib/discover";
 import { CountdownTimer } from "@/components/shared/CountdownTimer";
@@ -80,7 +80,7 @@ export default function DiscoverScreen() {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
-  const mapRef = useRef<MapView>(null);
+  const cameraRef = useRef<Mapbox.Camera>(null);
   const bottomSheetRef = useRef<BottomSheet>(null);
 
   const { isOverlayVisible: isTutorialActive } = useTutorialStore();
@@ -177,6 +177,24 @@ export default function DiscoverScreen() {
       return data as { barber_id: string; day_of_week: number; start_time: string; end_time: string; is_available: boolean; barber: { salon_id: string | null } }[];
     },
     refetchInterval: 60000, // refresh every minute
+  });
+
+  // Fetch today's published salon hours (authoritative open/closed source).
+  // Used as a fallback for "available now" when a salon has no per-barber
+  // availability rows, keeping discover consistent with the salon page.
+  const { data: salonHoursToday } = useQuery({
+    queryKey: ["salon-hours-today"],
+    queryFn: async () => {
+      const dow = new Date().getDay();
+      const { data, error } = await supabase
+        .from("salon_hours")
+        .select("salon_id, open_time, close_time")
+        .eq("day_of_week", dow)
+        .eq("is_open", true);
+      if (error) throw error;
+      return data as { salon_id: string; open_time: string; close_time: string }[];
+    },
+    refetchInterval: 60000,
   });
 
   // Fetch today's appointments for all barbers (for real availability check)
@@ -362,12 +380,21 @@ export default function DiscoverScreen() {
     return map;
   }, [servicePricesData]);
 
+  // Build today's open-hours window map keyed by salon_id
+  const salonHoursTodayMap = useMemo(() => {
+    const map = new Map<string, { start: string; end: string }>();
+    for (const h of salonHoursToday ?? []) {
+      map.set(h.salon_id, { start: h.open_time, end: h.close_time });
+    }
+    return map;
+  }, [salonHoursToday]);
+
   // Enrich salons with computed fields
   const salons = useMemo(() => {
     if (!salonsList) return [];
     const favSet = new Set(favorites || []);
-    return enrichSalons(salonsList, latitude, longitude, favSet, happyHours || [], availabilityMap, barberAppointmentsMap, priceRangeMap);
-  }, [salonsList, latitude, longitude, favorites, happyHours, availabilityMap, barberAppointmentsMap, priceRangeMap]);
+    return enrichSalons(salonsList, latitude, longitude, favSet, happyHours || [], availabilityMap, barberAppointmentsMap, priceRangeMap, salonHoursTodayMap);
+  }, [salonsList, latitude, longitude, favorites, happyHours, availabilityMap, barberAppointmentsMap, priceRangeMap, salonHoursTodayMap]);
 
   // Sort and filter salons - search our DB only
   const sortedSalons = useMemo(() => {
@@ -518,16 +545,13 @@ export default function DiscoverScreen() {
     setSearchQuery(salon.name);
     setSelectedSalon(salon);
 
-    if (salon.latitude && salon.longitude && mapRef.current) {
-      mapRef.current.animateToRegion(
-        {
-          latitude: salon.latitude,
-          longitude: salon.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        },
-        800
-      );
+    if (salon.latitude && salon.longitude) {
+      cameraRef.current?.setCamera({
+        centerCoordinate: [salon.longitude, salon.latitude],
+        zoomLevel: 14.5,
+        animationDuration: 800,
+        animationMode: "flyTo",
+      });
     }
     setSheetIndex(1);
     bottomSheetRef.current?.snapToIndex(1);
@@ -536,12 +560,12 @@ export default function DiscoverScreen() {
   const handleMarkerPress = useCallback((salon: SalonWithDistance) => {
     setSelectedSalon(salon);
     if (salon.latitude != null && salon.longitude != null) {
-      mapRef.current?.animateToRegion({
-        latitude: salon.latitude,
-        longitude: salon.longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      }, 300);
+      cameraRef.current?.setCamera({
+        centerCoordinate: [salon.longitude, salon.latitude],
+        zoomLevel: 14.5,
+        animationDuration: 300,
+        animationMode: "flyTo",
+      });
     }
     setSheetIndex(1);
     bottomSheetRef.current?.snapToIndex(1);
@@ -555,16 +579,13 @@ export default function DiscoverScreen() {
   }, []);
 
   const goToMyLocation = useCallback(() => {
-    if (latitude && longitude && mapRef.current) {
-      mapRef.current.animateToRegion(
-        {
-          latitude,
-          longitude,
-          latitudeDelta: 0.02,
-          longitudeDelta: 0.02,
-        },
-        800
-      );
+    if (latitude && longitude) {
+      cameraRef.current?.setCamera({
+        centerCoordinate: [longitude, latitude],
+        zoomLevel: 13.5,
+        animationDuration: 800,
+        animationMode: "flyTo",
+      });
     }
   }, [latitude, longitude]);
 
@@ -612,25 +633,27 @@ export default function DiscoverScreen() {
       <StatusBar style="dark" />
       {/* Map — extends behind status bar */}
         <View style={{ flex: 1 }}>
-          <MapView
-            ref={mapRef}
+          <Mapbox.MapView
             style={{ flex: 1 }}
-            provider={Platform.OS === "android" ? PROVIDER_GOOGLE : PROVIDER_DEFAULT}
-            initialRegion={{
-              latitude: latitude ?? 44.4268,
-              longitude: longitude ?? 26.1025,
-              latitudeDelta: 0.03,
-              longitudeDelta: 0.03,
-            }}
-            showsUserLocation
-            showsMyLocationButton={false}
-            mapPadding={{
-              top: 70,
-              right: 0,
-              bottom: (selectedSalon != null || sheetIndex >= 1) ? SHEET_OPEN_BOTTOM : SHEET_CLOSED_BOTTOM,
-              left: 0,
-            }}
+            styleURL={MAPBOX_STYLE_URL}
+            scaleBarEnabled={false}
+            logoPosition={{ bottom: 8, left: 8 }}
+            attributionPosition={{ bottom: 8, left: 96 }}
           >
+            <Mapbox.Camera
+              ref={cameraRef}
+              defaultSettings={{
+                centerCoordinate: [longitude ?? 26.1025, latitude ?? 44.4268],
+                zoomLevel: 13,
+              }}
+              padding={{
+                paddingTop: 70,
+                paddingBottom: (selectedSalon != null || sheetIndex >= 1) ? SHEET_OPEN_BOTTOM : SHEET_CLOSED_BOTTOM,
+                paddingLeft: 0,
+                paddingRight: 0,
+              }}
+            />
+            <Mapbox.LocationPuck puckBearingEnabled visible />
             {sortedSalons
               .filter((salon) => salon.latitude != null && salon.longitude != null)
               .map((salon) => (
@@ -641,7 +664,7 @@ export default function DiscoverScreen() {
                 onPress={handleMarkerPress}
               />
             ))}
-          </MapView>
+          </Mapbox.MapView>
 
           {/* Search Bar Overlay */}
           <View

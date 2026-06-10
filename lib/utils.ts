@@ -19,6 +19,23 @@ export function formatDuration(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
+/**
+ * Romanian display label for a salon team member's role. The authoritative role
+ * lives in salon_members.role; barbers.role defaults to 'owner' and is stale.
+ */
+export function barberRoleLabel(role: string | null | undefined): string {
+  switch (role) {
+    case "owner":
+      return "Proprietar";
+    case "manager":
+      return "Manager";
+    case "receptionist":
+      return "Recepție";
+    default:
+      return "Frizer";
+  }
+}
+
 export function getInitials(name: string): string {
   return name
     .split(" ")

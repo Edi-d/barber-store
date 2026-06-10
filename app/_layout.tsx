@@ -27,6 +27,7 @@ import { PointsEarnedToast } from '@/components/loyalty/PointsEarnedToast';
 import { PointsLevelUpModal } from '@/components/loyalty/PointsLevelUpModal';
 import { useLoyaltyQueueStore } from '@/stores/loyaltyQueueStore';
 import '@/lib/livekit-setup';
+import '@/lib/mapbox';
 import { featureFlags } from 'react-native-screens';
 
 // Enable react-native-screens 4.21+ fix for the iOS Fabric crash where dismissed

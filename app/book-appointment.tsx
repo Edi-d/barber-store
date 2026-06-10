@@ -145,17 +145,40 @@ export default function BookAppointmentScreen() {
   const { data: barbers, isLoading: barbersLoading } = useQuery({
     queryKey: ["barbers", salonId || "all"],
     queryFn: async () => {
+      // Embed the linked profile so the avatar can be backfilled when
+      // barbers.avatar_url is NULL (typical for the salon owner).
       let query = supabase
         .from("barbers")
-        .select("*")
+        .select("*, profile:profiles(avatar_url)")
         .eq("active", true)
         .order("name");
       if (salonId) query = query.eq("salon_id", salonId);
       const { data, error } = await query;
       if (error) throw error;
-      return data as Barber[];
+      return data as (Barber & { profile: { avatar_url: string | null } | null })[];
     },
   });
+
+  // Authoritative roles live in salon_members.role (barbers.role defaults to
+  // 'owner' and is unreliable). Fetch the salon's roster keyed by profile_id.
+  const { data: memberRoles } = useQuery({
+    queryKey: ["salon-member-roles", salonId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("salon_members")
+        .select("profile_id, role")
+        .eq("salon_id", salonId!);
+      if (error) throw error;
+      return data as { profile_id: string; role: string }[];
+    },
+    enabled: !!salonId,
+  });
+
+  const roleByProfileId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const m of memberRoles ?? []) map.set(m.profile_id, m.role);
+    return map;
+  }, [memberRoles]);
 
   const { data: services, isLoading: servicesLoading } = useQuery({
     queryKey: ["barber-services", salonId || "all"],
@@ -611,6 +634,11 @@ export default function BookAppointmentScreen() {
                     <View ref={index === 0 ? barberSelectedRef : undefined} collapsable={false}>
                       <BarberCard
                         barber={barber}
+                        role={
+                          barber.profile_id
+                            ? roleByProfileId.get(barber.profile_id)
+                            : undefined
+                        }
                         isSelected={selectedBarber?.id === barber.id}
                         onSelect={() => {
                           setSelectedBarber(barber);

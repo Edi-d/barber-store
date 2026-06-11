@@ -4,7 +4,6 @@ import {
   ActivityIndicator,
   View,
   StyleSheet,
-  Platform,
 } from "react-native";
 import { forwardRef } from "react";
 import { LinearGradient } from "expo-linear-gradient";
@@ -83,12 +82,18 @@ export const Button = forwardRef<View, ButtonProps>(
       );
     }
 
-    // Other variants
+    // Other variants — Pressable is the outer shell (opacity only),
+    // an inner non-Pressable View carries ALL layout (height, padding, border,
+    // background, flex-centering). This avoids the NativeWind interop that
+    // collapses StyleSheet layout on Pressable in this project.
     const variantStyles = {
       secondary: {
         bg: Colors.inputBackground,
         bgPressed: Colors.inputBorder,
         textColor: Colors.text,
+        borderWidth: undefined as number | undefined,
+        borderColor: undefined as string | undefined,
+        extraShadow: undefined as object | undefined,
       },
       outline: {
         bg: "transparent",
@@ -96,16 +101,23 @@ export const Button = forwardRef<View, ButtonProps>(
         textColor: Colors.gradientStart,
         borderWidth: 2,
         borderColor: Colors.gradientStart,
+        extraShadow: undefined as object | undefined,
       },
       ghost: {
         bg: "transparent",
         bgPressed: Colors.inputBackground,
         textColor: Colors.text,
+        borderWidth: undefined as number | undefined,
+        borderColor: undefined as string | undefined,
+        extraShadow: undefined as object | undefined,
       },
       danger: {
         bg: Colors.error,
         bgPressed: Colors.errorPressed,
         textColor: Colors.white,
+        borderWidth: undefined as number | undefined,
+        borderColor: undefined as string | undefined,
+        extraShadow: { ...Shadows.glow, shadowColor: Colors.error },
       },
     };
 
@@ -117,39 +129,37 @@ export const Button = forwardRef<View, ButtonProps>(
         onPress={onPress}
         disabled={isDisabled}
         style={({ pressed }) => [
-          styles.base,
-          {
-            height,
-            paddingHorizontal,
-            backgroundColor: pressed ? v.bgPressed : v.bg,
-          },
-          v.borderWidth
-            ? { borderWidth: v.borderWidth, borderColor: v.borderColor }
-            : undefined,
-          variant === "danger" && {
-            ...Shadows.glow,
-            shadowColor: Colors.error,
-          },
+          styles.outerShell,
           isDisabled && styles.disabled,
+          pressed && styles.pressed,
           customStyle,
         ]}
       >
-        {loading ? (
-          <ActivityIndicator
-            color={v.textColor}
-            size="small"
-          />
-        ) : (
-          <View style={styles.content}>
-            {icon && <View style={styles.iconMargin}>{icon}</View>}
-            <Text
-              style={[
-                styles.textBase,
-                { color: v.textColor, fontSize },
-              ]}
-            >
-              {children}
-            </Text>
+        {({ pressed }) => (
+          <View
+            style={[
+              styles.innerLayout,
+              {
+                height,
+                paddingHorizontal,
+                backgroundColor: pressed ? v.bgPressed : v.bg,
+              },
+              v.borderWidth != null
+                ? { borderWidth: v.borderWidth, borderColor: v.borderColor }
+                : undefined,
+              v.extraShadow,
+            ]}
+          >
+            {loading ? (
+              <ActivityIndicator color={v.textColor} size="small" />
+            ) : (
+              <View style={styles.content}>
+                {icon && <View style={styles.iconMargin}>{icon}</View>}
+                <Text style={[styles.textBase, { color: v.textColor, fontSize }]}>
+                  {children}
+                </Text>
+              </View>
+            )}
           </View>
         )}
       </Pressable>
@@ -160,6 +170,7 @@ export const Button = forwardRef<View, ButtonProps>(
 Button.displayName = "Button";
 
 const styles = StyleSheet.create({
+  // Primary
   outer: {
     ...bubbleRadii,
     overflow: "hidden",
@@ -169,12 +180,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     ...bubbleRadii,
   },
-  base: {
+
+  // Non-primary outer shell — only carries opacity state + customStyle
+  outerShell: {
+    ...bubbleRadii,
+    overflow: "hidden",
+  },
+
+  // Non-primary inner layout View — carries all visual structure
+  innerLayout: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     ...bubbleRadii,
   },
+
   content: {
     flexDirection: "row",
     alignItems: "center",

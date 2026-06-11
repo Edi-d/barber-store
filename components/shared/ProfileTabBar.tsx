@@ -1,18 +1,19 @@
 import { useEffect } from 'react';
-import { View, Text, Pressable, StyleSheet, Dimensions } from 'react-native';
+import { View, Pressable, StyleSheet, Dimensions } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography } from '@/constants/theme';
+import { Colors } from '@/constants/theme';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 export type ProfileTab = 'posts' | 'salon' | 'about';
 
 interface TabDef {
   key: ProfileTab;
-  label: string;
   iconActive: string;
   iconInactive: string;
+  label: string; // kept for a11y
 }
 
 interface ProfileTabBarProps {
@@ -21,37 +22,46 @@ interface ProfileTabBarProps {
   showSalonTab?: boolean;
 }
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const SPRING_CONFIG = { damping: 18, stiffness: 200, mass: 0.8 };
+// ─── Tab definitions ──────────────────────────────────────────────────────────
 
 const ALL_TABS: TabDef[] = [
-  { key: 'posts', label: 'Postări', iconActive: 'grid', iconInactive: 'grid-outline' },
-  { key: 'salon', label: 'Salon', iconActive: 'storefront', iconInactive: 'storefront-outline' },
-  { key: 'about', label: 'Despre', iconActive: 'information-circle', iconInactive: 'information-circle-outline' },
+  { key: 'posts',  iconActive: 'grid',               iconInactive: 'grid-outline',               label: 'Postări' },
+  { key: 'salon',  iconActive: 'storefront',          iconInactive: 'storefront-outline',          label: 'Salon'   },
+  { key: 'about',  iconActive: 'information-circle',  iconInactive: 'information-circle-outline',  label: 'Despre'  },
 ];
 
 const TWO_TABS: TabDef[] = [
-  { key: 'posts', label: 'Postări', iconActive: 'grid', iconInactive: 'grid-outline' },
-  { key: 'about', label: 'Despre', iconActive: 'information-circle', iconInactive: 'information-circle-outline' },
+  { key: 'posts',  iconActive: 'grid',               iconInactive: 'grid-outline',               label: 'Postări' },
+  { key: 'about',  iconActive: 'information-circle',  iconInactive: 'information-circle-outline',  label: 'Despre'  },
 ];
 
-export default function ProfileTabBar({ activeTab, onTabChange, showSalonTab = false }: ProfileTabBarProps) {
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const SPRING_CONFIG = { damping: 20, stiffness: 220, mass: 0.7 };
+const INDICATOR_FRAC = 0.36; // indicator is 36% of tab width — slim IG feel
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export default function ProfileTabBar({
+  activeTab,
+  onTabChange,
+  showSalonTab = false,
+}: ProfileTabBarProps) {
   const tabs = showSalonTab ? ALL_TABS : TWO_TABS;
   const TAB_WIDTH = SCREEN_WIDTH / tabs.length;
-  const INDICATOR_WIDTH = TAB_WIDTH * 0.5;
+  const INDICATOR_WIDTH = TAB_WIDTH * INDICATOR_FRAC;
 
-  const activeIndex = tabs.findIndex((t) => t.key === activeTab);
-  const safeIndex = activeIndex === -1 ? 0 : activeIndex;
+  const safeIndex = Math.max(tabs.findIndex((t) => t.key === activeTab), 0);
 
   const indicatorX = useSharedValue(
     TAB_WIDTH * safeIndex + (TAB_WIDTH - INDICATOR_WIDTH) / 2,
   );
 
   useEffect(() => {
-    const idx = tabs.findIndex((t) => t.key === activeTab);
-    const resolvedIdx = idx === -1 ? 0 : idx;
+    const idx = Math.max(tabs.findIndex((t) => t.key === activeTab), 0);
     indicatorX.value = withSpring(
-      TAB_WIDTH * resolvedIdx + (TAB_WIDTH - INDICATOR_WIDTH) / 2,
+      TAB_WIDTH * idx + (TAB_WIDTH - INDICATOR_WIDTH) / 2,
       SPRING_CONFIG,
     );
   }, [activeTab, showSalonTab]);
@@ -75,63 +85,50 @@ export default function ProfileTabBar({ activeTab, onTabChange, showSalonTab = f
           <Pressable
             key={tab.key}
             onPress={() => handlePress(tab.key)}
-            className="flex-1 flex-row items-center justify-center gap-x-1.5 py-3"
+            className="flex-1 items-center justify-center py-3"
             accessibilityRole="tab"
             accessibilityState={{ selected: isActive }}
             accessibilityLabel={tab.label}
           >
             <Ionicons
               name={(isActive ? tab.iconActive : tab.iconInactive) as any}
-              size={18}
-              color={isActive ? Colors.gradientStart : Colors.textTertiary}
+              size={22}
+              color={isActive ? Colors.text : Colors.textTertiary}
             />
-            <Text style={[styles.label, isActive && styles.labelActive]}>
-              {tab.label}
-            </Text>
           </Pressable>
         );
       })}
 
-      <Animated.View style={[styles.indicatorWrapper, indicatorStyle]} pointerEvents="none">
-        <LinearGradient
-          colors={[Colors.gradientStart, Colors.gradientEnd]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.indicator}
-        />
+      {/* Slim underline indicator — IG style, 1.5 px, Colors.text */}
+      <Animated.View
+        style={[styles.indicatorWrapper, indicatorStyle]}
+        pointerEvents="none"
+      >
+        <View style={styles.indicator} />
       </Animated.View>
     </View>
   );
 }
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     width: '100%',
     backgroundColor: Colors.white,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.separator,
-  },
-  label: {
-    fontFamily: 'EuclidCircularA-SemiBold',
-    fontSize: 13,
-    lineHeight: 18,
-    color: Colors.textTertiary,
-  },
-  labelActive: {
-    color: Colors.gradientStart,
   },
   indicatorWrapper: {
     position: 'absolute',
     bottom: 0,
     left: 0,
-    height: 3,
+    height: 1.5,
   },
   indicator: {
     flex: 1,
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 12,
-    borderBottomRightRadius: 0,
-    borderBottomLeftRadius: 0,
+    backgroundColor: Colors.text,
+    borderRadius: 1,
   },
 });

@@ -352,6 +352,7 @@ export default function UserProfileScreen() {
               router.push(`/salon/${barberInfo.salon.id}` as any);
             }
           }}
+          onShare={handleShare}
         />
 
         <ProfileTabBar
@@ -487,14 +488,14 @@ function SalonTabContent({ salon, ratingAvg, reviewsCount, services }: SalonTabC
 const st = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.white,
   },
   loadingWrap: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.white,
   },
 
   // NavBar
@@ -504,14 +505,12 @@ const st = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     backgroundColor: Colors.white,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.separator,
     gap: 4,
   },
   navIconBtn: {
-    backgroundColor: Colors.background,
-    ...Bubble.radiiSm,
-    ...Shadows.sm,
+    // flat IG-style — no background/shadow on icon hits
   },
   navTitle: {
     flex: 1,

@@ -2,7 +2,8 @@ import { View, Text, Pressable, Image, Dimensions, StyleSheet } from 'react-nati
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography } from '@/constants/theme';
-import { LinearGradient } from 'expo-linear-gradient';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Post {
   id: string;
@@ -19,10 +20,15 @@ interface ProfilePostGridProps {
   onPostPress: (postId: string) => void;
 }
 
-const GAP = 2;
+// ─── Layout constants ─────────────────────────────────────────────────────────
+// Full-bleed: no horizontal page padding. 3 columns, 1px gaps.
+
+const GAP = 1;
 const COLUMNS = 3;
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const CELL_SIZE = (SCREEN_WIDTH - GAP * (COLUMNS - 1)) / COLUMNS;
+const CELL_SIZE = Math.floor((SCREEN_WIDTH - GAP * (COLUMNS - 1)) / COLUMNS);
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ProfilePostGrid({ posts, onPostPress }: ProfilePostGridProps) {
   if (posts.length === 0) {
@@ -37,12 +43,14 @@ export default function ProfilePostGrid({ posts, onPostPress }: ProfilePostGridP
   return (
     <View style={styles.grid}>
       {posts.map((post, index) => {
-        const rowDelay = Math.floor(index / COLUMNS) * 80;
+        const rowDelay = Math.floor(index / COLUMNS) * 60;
+        const imageUri = post.thumb_url ?? post.media_url;
+        const isVideo = post.type === 'video';
 
         return (
           <Animated.View
             key={post.id}
-            entering={FadeIn.delay(rowDelay).duration(300)}
+            entering={FadeIn.delay(rowDelay).duration(260)}
             style={styles.cell}
           >
             <Pressable
@@ -50,53 +58,40 @@ export default function ProfilePostGrid({ posts, onPostPress }: ProfilePostGridP
               style={styles.pressable}
               android_ripple={{ color: 'rgba(0,0,0,0.1)' }}
             >
-              {post.type === 'video' ? (
-                <View style={styles.videoTile}>
-                  {post.thumb_url ? (
-                    <Image
-                      source={{ uri: post.thumb_url }}
-                      style={styles.image}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <LinearGradient
-                      colors={['#1f2937', '#0f172a']}
-                      style={StyleSheet.absoluteFill}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                    />
-                  )}
-                  <View style={styles.playIconOverlay} pointerEvents="none">
-                    <Ionicons name="play" size={28} color="rgba(255,255,255,0.9)" />
-                  </View>
-                </View>
-              ) : post.thumb_url || post.media_url ? (
+              {/* Thumbnail or placeholder */}
+              {imageUri ? (
                 <Image
-                  source={{ uri: post.thumb_url ?? post.media_url ?? '' }}
+                  source={{ uri: imageUri }}
                   style={styles.image}
                   resizeMode="cover"
                 />
               ) : (
-                <LinearGradient
-                  colors={[Colors.gradientStart, Colors.gradientEnd]}
-                  style={styles.gradientFallback}
-                >
-                  <Text style={styles.captionText} numberOfLines={4}>
-                    {post.caption ?? ''}
-                  </Text>
-                </LinearGradient>
+                /* Graceful placeholder: light bg + camera icon */
+                <View style={styles.placeholder}>
+                  <Ionicons
+                    name={isVideo ? 'videocam-outline' : 'image-outline'}
+                    size={24}
+                    color={Colors.textTertiary}
+                  />
+                </View>
               )}
 
-              <View style={styles.overlay}>
-                <View style={styles.stat}>
-                  <Ionicons name="heart" size={11} color="#fff" />
-                  <Text style={styles.statText}>{post.likes_count}</Text>
+              {/* Video indicator — top-right, IG Reels style */}
+              {isVideo && (
+                <View style={styles.videoIcon} pointerEvents="none">
+                  <Ionicons name="play" size={13} color="#fff" />
                 </View>
-                <View style={styles.stat}>
-                  <Ionicons name="chatbubble" size={11} color="#fff" />
-                  <Text style={styles.statText}>{post.comments_count}</Text>
+              )}
+
+              {/* Subtle stat overlay — bottom-left, only likes */}
+              {(post.likes_count > 0 || post.comments_count > 0) && (
+                <View style={styles.overlay} pointerEvents="none">
+                  <View style={styles.stat}>
+                    <Ionicons name="heart" size={10} color="#fff" />
+                    <Text style={styles.statText}>{post.likes_count}</Text>
+                  </View>
                 </View>
-              </View>
+              )}
             </Pressable>
           </Animated.View>
         );
@@ -105,11 +100,15 @@ export default function ProfilePostGrid({ posts, onPostPress }: ProfilePostGridP
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
+  // Full-bleed grid, no outer padding
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: GAP,
+    backgroundColor: Colors.white,
   },
   cell: {
     width: CELL_SIZE,
@@ -117,35 +116,45 @@ const styles = StyleSheet.create({
   },
   pressable: {
     flex: 1,
+    overflow: 'hidden',
   },
   image: {
     width: '100%',
     height: '100%',
   },
-  gradientFallback: {
+  placeholder: {
     flex: 1,
-    padding: 8,
+    backgroundColor: Colors.inputBackground,
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  captionText: {
-    ...Typography.small,
-    color: '#fff',
-    lineHeight: 15,
+
+  // Video badge — top-right corner (IG Reels style)
+  videoIcon: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+
+  // Likes overlay — bottom-left, very subtle
   overlay: {
     position: 'absolute',
-    bottom: 5,
-    left: 5,
-    flexDirection: 'row',
-    gap: 6,
+    bottom: 4,
+    left: 4,
   },
   stat: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.38)',
     borderRadius: 4,
-    paddingHorizontal: 5,
+    paddingHorizontal: 4,
     paddingVertical: 2,
   },
   statText: {
@@ -154,28 +163,17 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 13,
   },
+
+  // Empty state
   empty: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 64,
+    paddingVertical: 72,
     gap: 12,
+    backgroundColor: Colors.white,
   },
   emptyText: {
     ...Typography.caption,
     color: Colors.textTertiary,
-  },
-  videoTile: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#0f172a',
-  },
-  playIconOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

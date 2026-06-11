@@ -1,11 +1,12 @@
 import { View, Text, Pressable, Image, StyleSheet, ActivityIndicator } from 'react-native';
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Bubble, Shadows, Typography } from '@/constants/theme';
-import { Button } from '@/components/ui/Button';
 
-interface ProfileHeaderProps {
+// ─── Props ────────────────────────────────────────────────────────────────────
+
+export interface ProfileHeaderProps {
   profile: {
     id: string;
     display_name: string | null;
@@ -30,7 +31,10 @@ interface ProfileHeaderProps {
   onFollow: () => void;
   onEditProfile: () => void;
   onSalonPress: () => void;
+  onShare?: () => void;
 }
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatCount(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -38,20 +42,58 @@ function formatCount(n: number): string {
   return String(n);
 }
 
-interface StatColumnProps {
+// ─── Stat column (number + label, no dividers) ────────────────────────────────
+
+interface StatItemProps {
   value: number;
   label: string;
-  delay: number;
 }
 
-function StatColumn({ value, label, delay }: StatColumnProps) {
+function StatItem({ value, label }: StatItemProps) {
   return (
-    <Animated.View entering={FadeInDown.delay(delay).duration(300)} style={s.statCol}>
+    <View style={s.statItem}>
       <Text style={s.statValue}>{formatCount(value)}</Text>
       <Text style={s.statLabel}>{label}</Text>
-    </Animated.View>
+    </View>
   );
 }
+
+// ─── Action button (IG-style flat pill) ───────────────────────────────────────
+// Layout is entirely via className (NativeWind) to avoid the Pressable override issue.
+
+interface ActionBtnProps {
+  label: string;
+  isPrimary?: boolean;
+  isLoading?: boolean;
+  onPress: () => void;
+  icon?: React.ReactNode;
+}
+
+function ActionBtn({ label, isPrimary = false, isLoading = false, onPress, icon }: ActionBtnProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={isLoading}
+      className="flex-1 h-9 items-center justify-center rounded-[10px] flex-row gap-x-1.5"
+      style={isPrimary ? s.actionBtnPrimary : s.actionBtnSecondary}
+    >
+      {isLoading ? (
+        <ActivityIndicator size="small" color={isPrimary ? Colors.white : Colors.text} />
+      ) : (
+        <>
+          {icon}
+          <Text style={isPrimary ? s.actionBtnTextPrimary : s.actionBtnTextSecondary}>
+            {label}
+          </Text>
+        </>
+      )}
+    </Pressable>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+const AVATAR_SIZE = 86;
 
 export function ProfileHeader({
   profile,
@@ -65,6 +107,7 @@ export function ProfileHeader({
   onFollow,
   onEditProfile,
   onSalonPress,
+  onShare,
 }: ProfileHeaderProps) {
   const handleFollow = () => {
     if (isFollowLoading) return;
@@ -72,129 +115,161 @@ export function ProfileHeader({
     onFollow();
   };
 
+  const handleShare = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onShare?.();
+  };
+
   const displayName = profile.display_name ?? profile.username;
 
   return (
-    <Animated.View entering={FadeInDown.duration(350)} style={s.container}>
-      {/* Avatar */}
-      <Animated.View entering={FadeIn.delay(80).duration(300)} style={s.avatarWrapper}>
-        {profile.avatar_url ? (
-          <Image source={{ uri: profile.avatar_url }} style={s.avatar} resizeMode="cover" />
-        ) : (
-          <View style={[s.avatar, s.avatarFallback]}>
-            <Ionicons name="person" size={36} color={Colors.primary} />
-          </View>
-        )}
-        {barberInfo ? (
-          <View style={s.barberIndicator}>
-            <Ionicons name="cut" size={10} color="#fff" />
-          </View>
-        ) : null}
-      </Animated.View>
+    <Animated.View entering={FadeIn.duration(280)} style={s.container}>
 
-      {/* Name + verified badge */}
-      <Animated.View entering={FadeInDown.delay(120).duration(300)} style={s.nameRow}>
-        <Text style={s.displayName} numberOfLines={1}>{displayName}</Text>
-        {profile.verified && (
-          <View style={s.verifiedBadge}>
-            <Ionicons name="checkmark-circle" size={20} color="#1D9BF0" />
-          </View>
-        )}
-      </Animated.View>
-
-      {/* Username */}
-      <Animated.View entering={FadeInDown.delay(160).duration(300)}>
-        <Text style={s.username}>@{profile.username}</Text>
-      </Animated.View>
-
-      {/* Bio */}
-      {profile.bio ? (
-        <Animated.View entering={FadeInDown.delay(200).duration(300)}>
-          <Text style={s.bio} numberOfLines={3}>{profile.bio}</Text>
-        </Animated.View>
-      ) : null}
-
-      {/* Barber badge */}
-      {barberInfo ? (
-        <Animated.View entering={FadeInDown.delay(230).duration(300)}>
-          <Pressable
-            onPress={onSalonPress}
-            className="flex-row items-center gap-x-1.5 px-3 py-1.5 rounded-full mt-2"
-            style={s.barberBadge}
-          >
-            <Ionicons name="cut" size={14} color={Colors.primary} />
-            <Text style={s.barberSalonName} numberOfLines={1}>{barberInfo.salonName}</Text>
-            <View style={s.barberRating}>
-              <Ionicons name="star" size={12} color="#F59E0B" />
-              <Text style={s.barberRatingText}>{barberInfo.ratingAvg.toFixed(1)}</Text>
+      {/* ── Row 1: Avatar LEFT + Stats RIGHT ─────────────────────────────── */}
+      <View style={s.topRow}>
+        {/* Avatar */}
+        <View style={s.avatarWrapper}>
+          {profile.avatar_url ? (
+            <Image
+              source={{ uri: profile.avatar_url }}
+              style={s.avatar}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[s.avatar, s.avatarFallback]}>
+              <Ionicons name="person" size={38} color={Colors.primary} />
             </View>
-            <Ionicons name="chevron-forward" size={13} color={Colors.textTertiary} />
-          </Pressable>
-        </Animated.View>
-      ) : null}
+          )}
+          {barberInfo ? (
+            <View style={s.barberBadge}>
+              <Ionicons name="cut" size={10} color="#fff" />
+            </View>
+          ) : null}
+        </View>
 
-      {/* Stats row */}
-      <View style={s.statsRow}>
-        <StatColumn value={postsCount} label="Postări" delay={260} />
-        <View style={s.statDivider} />
-        <StatColumn value={followersCount} label="Urmăritori" delay={310} />
-        <View style={s.statDivider} />
-        <StatColumn value={followingCount} label="Urmăresc" delay={360} />
+        {/* Stats */}
+        <View style={s.statsRow}>
+          <StatItem value={postsCount} label="Postări" />
+          <StatItem value={followersCount} label="Urmăritori" />
+          <StatItem value={followingCount} label="Urmăresc" />
+        </View>
       </View>
 
-      {/* Action button */}
-      <Animated.View entering={FadeInDown.delay(400).duration(300)} style={s.actionRow}>
+      {/* ── Row 2: Name + verified, username, bio ────────────────────────── */}
+      <View style={s.infoBlock}>
+        {/* Display name + verified */}
+        <View style={s.nameRow}>
+          <Text style={s.displayName} numberOfLines={1}>{displayName}</Text>
+          {profile.verified && (
+            <Ionicons name="checkmark-circle" size={17} color="#1D9BF0" style={s.verifiedIcon} />
+          )}
+        </View>
+
+        {/* Username */}
+        <Text style={s.username}>@{profile.username}</Text>
+
+        {/* Bio */}
+        {profile.bio ? (
+          <Text style={s.bio} numberOfLines={4}>{profile.bio}</Text>
+        ) : null}
+      </View>
+
+      {/* ── Row 3: Barber / salon chip ────────────────────────────────────── */}
+      {barberInfo ? (
+        <Pressable
+          onPress={onSalonPress}
+          className="flex-row items-center gap-x-1.5 py-1.5"
+          style={s.salonChip}
+        >
+          <Ionicons name="cut" size={13} color={Colors.primary} />
+          <Text style={s.salonName} numberOfLines={1}>{barberInfo.salonName}</Text>
+          <View style={s.salonRating}>
+            <Ionicons name="star" size={11} color="#F59E0B" />
+            <Text style={s.salonRatingText}>{barberInfo.ratingAvg.toFixed(1)}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={13} color={Colors.textTertiary} />
+        </Pressable>
+      ) : null}
+
+      {/* ── Row 4: Action buttons (IG-style side-by-side) ────────────────── */}
+      <View style={s.actionsRow}>
         {isOwnProfile ? (
-          <Button
-            variant="secondary"
-            size="md"
-            onPress={onEditProfile}
-            style={s.actionBtn}
-            icon={<Ionicons name="create-outline" size={16} color={Colors.text} />}
-          >
-            Editează profilul
-          </Button>
+          <>
+            <ActionBtn
+              label="Editează profilul"
+              onPress={onEditProfile}
+              icon={<Ionicons name="create-outline" size={15} color={Colors.text} />}
+            />
+            <ActionBtn
+              label="Distribuie profilul"
+              onPress={handleShare}
+              icon={<Ionicons name="share-outline" size={15} color={Colors.text} />}
+            />
+          </>
         ) : isFollowing ? (
-          <Button
-            variant="outline"
-            size="md"
-            onPress={handleFollow}
-            loading={isFollowLoading}
-            style={s.actionBtn}
-            icon={<Ionicons name="checkmark" size={16} color={Colors.gradientStart} />}
-          >
-            Urmărești
-          </Button>
+          <>
+            <ActionBtn
+              label="Urmărești"
+              isLoading={isFollowLoading}
+              onPress={handleFollow}
+              icon={
+                isFollowLoading ? undefined : (
+                  <Ionicons name="checkmark" size={15} color={Colors.text} />
+                )
+              }
+            />
+            <ActionBtn
+              label="Distribuie"
+              onPress={handleShare}
+              icon={<Ionicons name="share-outline" size={15} color={Colors.text} />}
+            />
+          </>
         ) : (
-          <Button
-            variant="primary"
-            size="md"
-            onPress={handleFollow}
-            loading={isFollowLoading}
-            style={s.actionBtn}
-            icon={<Ionicons name="person-add" size={16} color="#fff" />}
-          >
-            Urmărește
-          </Button>
+          <>
+            <ActionBtn
+              label="Urmărește"
+              isPrimary
+              isLoading={isFollowLoading}
+              onPress={handleFollow}
+              icon={
+                isFollowLoading ? undefined : (
+                  <Ionicons name="person-add-outline" size={15} color={Colors.white} />
+                )
+              }
+            />
+            <ActionBtn
+              label="Distribuie"
+              onPress={handleShare}
+              icon={<Ionicons name="share-outline" size={15} color={Colors.text} />}
+            />
+          </>
         )}
-      </Animated.View>
+      </View>
     </Animated.View>
   );
 }
 
-const AVATAR_SIZE = 80;
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
   container: {
-    alignItems: 'center',
-    paddingTop: 24,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
     backgroundColor: Colors.white,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
   },
-  avatarWrapper: {
+
+  // Top row
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 12,
+  },
+
+  // Avatar
+  avatarWrapper: {
     position: 'relative',
+    marginRight: 20,
     ...Shadows.md,
   },
   avatar: {
@@ -207,10 +282,10 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  barberIndicator: {
+  barberBadge: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
+    bottom: 1,
+    right: 1,
     width: 22,
     height: 22,
     borderRadius: 11,
@@ -220,85 +295,105 @@ const s = StyleSheet.create({
     borderWidth: 2.5,
     borderColor: Colors.white,
   },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 2,
-  },
-  displayName: {
-    fontFamily: 'EuclidCircularA-Bold',
-    fontSize: 22,
-    lineHeight: 28,
-    color: Colors.text,
-  },
-  verifiedBadge: {
-    marginTop: 1,
-  },
-  username: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    marginBottom: 8,
-  },
-  bio: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 10,
-    lineHeight: 20,
-    maxWidth: 280,
-  },
-  barberBadge: {
-    backgroundColor: Colors.primaryMuted,
-    marginBottom: 16,
-    ...Shadows.sm,
-  },
-  barberSalonName: {
-    ...Typography.smallSemiBold,
-    color: Colors.primary,
-    maxWidth: 160,
-  },
-  barberRating: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  barberRatingText: {
-    ...Typography.small,
-    color: Colors.textSecondary,
-  },
+
+  // Stats
   statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    marginBottom: 16,
-    paddingHorizontal: 8,
-  },
-  statCol: {
     flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  statItem: {
     alignItems: 'center',
     gap: 2,
   },
   statValue: {
     fontFamily: 'EuclidCircularA-Bold',
-    fontSize: 18,
-    lineHeight: 22,
+    fontSize: 17,
+    lineHeight: 21,
     color: Colors.text,
   },
   statLabel: {
     ...Typography.small,
     color: Colors.textTertiary,
   },
-  statDivider: {
-    width: 1,
-    height: 28,
-    backgroundColor: Colors.separator,
-    marginHorizontal: 8,
+
+  // Info block (name / username / bio)
+  infoBlock: {
+    marginBottom: 10,
+    gap: 1,
   },
-  actionRow: {
-    width: '100%',
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 5,
+    marginBottom: 1,
   },
-  actionBtn: {
-    width: '100%',
+  displayName: {
+    fontFamily: 'EuclidCircularA-Bold',
+    fontSize: 15,
+    lineHeight: 20,
+    color: Colors.text,
+  },
+  verifiedIcon: {
+    marginTop: 1,
+  },
+  username: {
+    ...Typography.small,
+    color: Colors.textSecondary,
+    marginBottom: 4,
+  },
+  bio: {
+    ...Typography.caption,
+    color: Colors.text,
+    lineHeight: 19,
+  },
+
+  // Salon chip
+  salonChip: {
+    marginBottom: 12,
+  },
+  salonName: {
+    ...Typography.smallSemiBold,
+    color: Colors.primary,
+    flex: 1,
+    flexShrink: 1,
+  },
+  salonRating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  salonRatingText: {
+    ...Typography.small,
+    color: Colors.textSecondary,
+  },
+
+  // Actions row
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+
+  // Action button inner shells (colors/borders only — layout via className)
+  actionBtnPrimary: {
+    backgroundColor: Colors.gradientStart,
+  },
+  actionBtnSecondary: {
+    backgroundColor: Colors.inputBackground,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.inputBorder,
+  },
+  actionBtnTextPrimary: {
+    fontFamily: 'EuclidCircularA-SemiBold',
+    fontSize: 13,
+    lineHeight: 17,
+    color: Colors.white,
+  },
+  actionBtnTextSecondary: {
+    fontFamily: 'EuclidCircularA-SemiBold',
+    fontSize: 13,
+    lineHeight: 17,
+    color: Colors.text,
   },
 });

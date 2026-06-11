@@ -92,15 +92,17 @@ export async function fetchSalonSchedule(salonId: string): Promise<BarberAvailab
   if (error) throw error;
   if (!avail) return [];
 
-  // Aggregate per day: earliest start, latest end
+  // Aggregate per day: earliest start, latest end.
+  // Use timeToMinutes for comparisons — Postgres TIME values arrive as
+  // "HH:MM:SS" and lexicographic comparison of mixed formats is unreliable.
   const byDay = new Map<number, { start: string; end: string }>();
   for (const slot of avail) {
     const existing = byDay.get(slot.day_of_week);
     if (!existing) {
       byDay.set(slot.day_of_week, { start: slot.start_time, end: slot.end_time });
     } else {
-      if (slot.start_time < existing.start) existing.start = slot.start_time;
-      if (slot.end_time > existing.end) existing.end = slot.end_time;
+      if (timeToMinutes(slot.start_time) < timeToMinutes(existing.start)) existing.start = slot.start_time;
+      if (timeToMinutes(slot.end_time) > timeToMinutes(existing.end)) existing.end = slot.end_time;
     }
   }
 
@@ -256,9 +258,18 @@ export const SERVICE_CATEGORY_ORDER = ["Tuns", "Barbă", "Colorare", "Pachete", 
 // Romanian day names
 const DAY_NAMES = ["Duminică", "Luni", "Marți", "Miercuri", "Joi", "Vineri", "Sâmbătă"];
 
-// Strip seconds from PostgreSQL TIME format ("HH:MM:SS" -> "HH:MM")
+// Strip seconds from PostgreSQL TIME format ("HH:MM:SS" -> "HH:MM").
+// Used for display only — do NOT use for comparisons (see timeToMinutes).
 function stripSeconds(time: string): string {
   return time.slice(0, 5);
+}
+
+// Convert a Postgres TIME value to whole minutes since midnight.
+// Handles both "HH:MM" and "HH:MM:SS" so lexicographic comparison bugs
+// (e.g. "09:00" < "09:00:00") cannot occur.
+function timeToMinutes(time: string): number {
+  const parts = time.split(":");
+  return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
 }
 
 // Get today's schedule text
@@ -268,7 +279,10 @@ export function getTodayScheduleText(availability: BarberAvailability[]): {
 } {
   const now = new Date();
   const dayOfWeek = now.getDay();
-  const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
+  // Use minutes-since-midnight for all comparisons — Postgres TIME columns
+  // arrive as "HH:MM:SS", so plain string comparison against "HH:MM" is
+  // unreliable (e.g. "09:00" >= "09:00:00" is false).
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
   const todaySlot = availability.find(
     (a) => a.day_of_week === dayOfWeek && a.is_available
@@ -278,7 +292,10 @@ export function getTodayScheduleText(availability: BarberAvailability[]): {
     return { isOpen: false, text: "Închis astăzi" };
   }
 
-  const isOpen = currentTime >= todaySlot.start_time && currentTime < todaySlot.end_time;
+  const startMinutes = timeToMinutes(todaySlot.start_time);
+  const endMinutes = timeToMinutes(todaySlot.end_time);
+
+  const isOpen = currentMinutes >= startMinutes && currentMinutes < endMinutes;
 
   if (isOpen) {
     return {
@@ -287,7 +304,7 @@ export function getTodayScheduleText(availability: BarberAvailability[]): {
     };
   }
 
-  if (currentTime < todaySlot.start_time) {
+  if (currentMinutes < startMinutes) {
     return {
       isOpen: false,
       text: `Închis · Deschide la ${stripSeconds(todaySlot.start_time)}`,

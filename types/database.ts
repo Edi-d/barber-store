@@ -805,3 +805,27 @@ export interface XpVoucherTier {
   is_active: boolean;
   sort_order: number;
 }
+
+// ── RPC result types (migration 144) ──
+
+/**
+ * One busy range returned by get_barber_busy_intervals.
+ * Both fields are ISO-8601 timestamptz strings.
+ */
+export interface BusyInterval {
+  busy_start: string;
+  busy_end: string;
+}
+
+/**
+ * The single row returned inside the data array by book_appointment RPC.
+ * Price is server-computed; status is always 'pending'.
+ */
+export interface BookAppointmentResult {
+  id: string;
+  scheduled_at: string;
+  duration_min: number;
+  total_cents: number;
+  currency: string;
+  status: AppointmentStatus;
+}

@@ -23,6 +23,7 @@ import * as Haptics from "expo-haptics";
 import { Button } from "@/components/ui/Button";
 import { Bubble, Colors, Typography, Shadows } from "@/constants/theme";
 import { useTutorialContext } from "@/components/tutorial/TutorialProvider";
+import type { BookAppointmentResult as RpcBookResult } from "@/types/database";
 
 // ── Animated components ──────────────────────────────────────────────────────
 import { BookingStepIndicator } from "@/components/shared/BookingStepIndicator";
@@ -48,9 +49,10 @@ const squircleSm = { ...Bubble.radiiSm };
 export default function BookAppointmentScreen() {
   const { session } = useAuthStore();
   const queryClient = useQueryClient();
-  const { salonId: rawSalonId, serviceId, barberId } = useLocalSearchParams<{
+  const { salonId: rawSalonId, serviceId, serviceIds: rawServiceIds, barberId } = useLocalSearchParams<{
     salonId?: string;
     serviceId?: string;
+    serviceIds?: string;
     barberId?: string;
   }>();
   const salonId = rawSalonId && rawSalonId.length > 0 ? rawSalonId : undefined;
@@ -73,6 +75,9 @@ export default function BookAppointmentScreen() {
 
   // Tracks whether the user has manually visited step 2 at least once
   const step2VisitedRef = useRef(false);
+
+  // Re-entrancy guard for handleSubmit — set synchronously to prevent double-tap
+  const submittingRef = useRef(false);
 
   // Step 1
   const stepIndicatorRef = useRef<View>(null);
@@ -142,7 +147,7 @@ export default function BookAppointmentScreen() {
   );
 
   // ── Queries ──────────────────────────────────────────────────────────────
-  const { data: barbers, isLoading: barbersLoading } = useQuery({
+  const { data: barbers, isLoading: barbersLoading, error: barbersError, refetch: refetchBarbers } = useQuery({
     queryKey: ["barbers", salonId || "all"],
     queryFn: async () => {
       // Embed the linked profile so the avatar can be backfilled when
@@ -180,22 +185,49 @@ export default function BookAppointmentScreen() {
     return map;
   }, [memberRoles]);
 
-  const { data: services, isLoading: servicesLoading } = useQuery({
-    queryKey: ["barber-services", salonId || "all"],
+  // Effective salon ID: prefer the barber's own salon_id once a barber is selected
+  const effectiveSalonId = selectedBarber?.salon_id ?? salonId;
+
+  // Barber-service assignments: which services this specific barber is assigned to.
+  // RLS: viewable by everyone (migration 011). Zero rows = all salon services are allowed.
+  const { data: barberAssignments } = useQuery({
+    queryKey: ["barber-assignments", selectedBarber?.id ?? null],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("barber_service_assignments")
+        .select("service_id")
+        .eq("barber_id", selectedBarber!.id);
+      if (error) throw error;
+      return data as { service_id: string }[];
+    },
+    enabled: !!selectedBarber,
+  });
+
+  const { data: services, isLoading: servicesLoading, error: servicesError, refetch: refetchServices } = useQuery({
+    queryKey: ["barber-services", selectedBarber?.salon_id ?? salonId ?? "all"],
     queryFn: async () => {
       let query = supabase
         .from("barber_services")
         .select("*")
         .eq("active", true)
         .order("price_cents");
-      if (salonId) query = query.eq("salon_id", salonId);
+      // Filter by the barber's salon when known
+      if (effectiveSalonId) query = query.eq("salon_id", effectiveSalonId);
       const { data, error } = await query;
       if (error) throw error;
       return data as BarberService[];
     },
   });
 
-  const { data: timeSlots, isLoading: slotsLoading } = useQuery({
+  // Services visible in step 2: if the barber has explicit assignments, restrict to those
+  const visibleServices = useMemo<BarberService[]>(() => {
+    if (!services) return [];
+    if (!barberAssignments || barberAssignments.length === 0) return services;
+    const allowed = new Set(barberAssignments.map((a) => a.service_id));
+    return services.filter((s) => allowed.has(s.id));
+  }, [services, barberAssignments]);
+
+  const { data: timeSlots, isLoading: slotsLoading, isError: slotsError, refetch: refetchSlots } = useQuery({
     queryKey: [
       "time-slots",
       selectedBarber?.id,
@@ -212,6 +244,7 @@ export default function BookAppointmentScreen() {
       );
     },
     enabled: !!selectedBarber && !!selectedDate && totalDurationMin > 0,
+    staleTime: 30_000, // Override global 5-min staleTime — slots go stale quickly
   });
 
   // Find first available date (checks schedule + appointments)
@@ -234,21 +267,32 @@ export default function BookAppointmentScreen() {
 
   // ── Auto-apply route params ────────────────────────────────────────────
   useEffect(() => {
-    if (paramsApplied || !barbers || (serviceId && !services)) return;
+    // Clobber guard: if the user already interacted, params are no longer relevant
+    if (selectedBarber || selectedServices.length > 0) {
+      setParamsApplied(true);
+      return;
+    }
+
+    if (paramsApplied || !barbers || ((serviceId || rawServiceIds) && !services)) return;
+
+    // Resolve service(s) from params: support both serviceId and serviceIds (comma-separated)
+    const resolveParamServices = (): BarberService[] => {
+      if (!services) return [];
+      const ids = new Set<string>();
+      if (serviceId) ids.add(serviceId);
+      if (rawServiceIds) rawServiceIds.split(",").forEach((id) => ids.add(id.trim()));
+      return services.filter((s) => ids.has(s.id));
+    };
 
     // If barberId is provided, pre-select that barber and skip to step 2
     if (barberId) {
       const barber = barbers.find((b) => b.id === barberId);
       if (barber) {
         setSelectedBarber(barber);
-        if (serviceId && services) {
-          const service = services.find((s) => s.id === serviceId);
-          if (service) {
-            setSelectedServices([service]);
-            setStep(3); // Skip to date/time
-          } else {
-            setStep(2); // Go to services
-          }
+        const resolved = resolveParamServices();
+        if (resolved.length > 0) {
+          setSelectedServices(resolved);
+          setStep(3); // Skip to date/time
         } else {
           setStep(2); // Go to services
         }
@@ -259,14 +303,10 @@ export default function BookAppointmentScreen() {
 
     if (salonId && barbers.length === 1) {
       setSelectedBarber(barbers[0]);
-      if (serviceId && services) {
-        const service = services.find((s) => s.id === serviceId);
-        if (service) {
-          setSelectedServices([service]);
-          setStep(3);
-        } else {
-          setStep(2);
-        }
+      const resolved = resolveParamServices();
+      if (resolved.length > 0) {
+        setSelectedServices(resolved);
+        setStep(3);
       } else {
         setStep(2);
       }
@@ -275,10 +315,8 @@ export default function BookAppointmentScreen() {
     }
 
     if (salonId && barbers.length > 1) {
-      if (serviceId && services) {
-        const service = services.find((s) => s.id === serviceId);
-        if (service) setSelectedServices([service]);
-      }
+      const resolved = resolveParamServices();
+      if (resolved.length > 0) setSelectedServices(resolved);
       setStep(1);
       setParamsApplied(true);
       return;
@@ -287,7 +325,7 @@ export default function BookAppointmentScreen() {
     if (!salonId) {
       setParamsApplied(true);
     }
-  }, [barberId, salonId, serviceId, barbers, services, paramsApplied]);
+  }, [barberId, salonId, serviceId, rawServiceIds, barbers, services, paramsApplied, selectedBarber, selectedServices.length]);
 
   // ── Navigation ─────────────────────────────────────────────────────────
   const goNext = useCallback(() => {
@@ -351,104 +389,122 @@ export default function BookAppointmentScreen() {
     )
       return;
 
+    // Re-entrancy guard: synchronously block double-tap before any await
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setIsSubmitting(true);
+
     try {
       const [hours, minutes] = selectedTime.split(":").map(Number);
       const scheduledAt = new Date(selectedDate);
       scheduledAt.setHours(hours, minutes, 0, 0);
 
-      // Race condition guard — overlap check, not just exact-timestamp match.
-      // Fetch all pending/confirmed appointments for this barber on the same day
-      // and check whether any of them overlaps the new slot window.
-      const newSlotStart = scheduledAt.getTime();
-      const newSlotEnd = newSlotStart + totalDurationMin * 60_000;
-
-      const dayStart = new Date(scheduledAt);
-      dayStart.setHours(0, 0, 0, 0);
-      const dayEnd = new Date(scheduledAt);
-      dayEnd.setHours(23, 59, 59, 999);
-
-      const { data: dayAppointments, error: checkError } = await supabase
-        .from("appointments")
-        .select("id, scheduled_at, duration_min")
-        .eq("barber_id", selectedBarber.id)
-        .in("status", ["pending", "confirmed"])
-        .gte("scheduled_at", dayStart.toISOString())
-        .lte("scheduled_at", dayEnd.toISOString());
-
-      if (checkError) throw checkError;
-
-      const hasOverlap = (dayAppointments ?? []).some((apt) => {
-        const aptStart = new Date(apt.scheduled_at).getTime();
-        const aptEnd = aptStart + apt.duration_min * 60_000;
-        // Two intervals overlap when: A starts before B ends AND A ends after B starts
-        return newSlotStart < aptEnd && newSlotEnd > aptStart;
+      const { data: rpcData, error: rpcError } = await supabase.rpc("book_appointment", {
+        p_barber_id: selectedBarber.id,
+        p_service_ids: selectedServices.map((s) => s.id),
+        p_scheduled_at: scheduledAt.toISOString(),
+        p_notes: notes.trim() || null,
       });
 
-      if (hasOverlap) {
-        Alert.alert(
-          "Interval indisponibil",
-          "Acest interval nu mai este disponibil. Te rugăm să alegi alt interval.",
-          [{ text: "OK" }]
-        );
-        setIsSubmitting(false);
+      if (rpcError) {
+        const code = rpcError.code ?? "";
+        const msg = rpcError.message ?? "";
+
+        // 23P01 — any exclusion constraint violation → slot conflict class
+        if (code === "23P01") {
+          queryClient.invalidateQueries({ queryKey: ["time-slots"] });
+          queryClient.invalidateQueries({ queryKey: ["first-available-date"] });
+          setSelectedTime(null);
+          setStep(3);
+          Alert.alert(
+            "Interval indisponibil",
+            "Acest interval tocmai a fost ocupat sau frizerul este în pauză. Alege alt interval.",
+            [{ text: "OK" }]
+          );
+          return;
+        }
+
+        // 42501 — not authenticated
+        if (code === "42501") {
+          Alert.alert("Sesiune expirată", "Te rugăm să te autentifici din nou.", [{ text: "OK" }]);
+          return;
+        }
+
+        // 22023 — various semantic errors
+        if (code === "22023") {
+          if (msg.includes("outside_working_hours")) {
+            queryClient.invalidateQueries({ queryKey: ["time-slots"] });
+            queryClient.invalidateQueries({ queryKey: ["first-available-date"] });
+            setSelectedTime(null);
+            setStep(3);
+            Alert.alert(
+              "În afara programului",
+              "Intervalul ales este în afara orelor de lucru ale frizerului. Alege alt interval.",
+              [{ text: "OK" }]
+            );
+            return;
+          }
+          if (msg.includes("past_slot")) {
+            queryClient.invalidateQueries({ queryKey: ["time-slots"] });
+            queryClient.invalidateQueries({ queryKey: ["first-available-date"] });
+            setSelectedTime(null);
+            setStep(3);
+            Alert.alert(
+              "Interval trecut",
+              "Intervalul ales a trecut deja. Alege un interval viitor.",
+              [{ text: "OK" }]
+            );
+            return;
+          }
+          if (msg.includes("service_not_assigned") || msg.includes("invalid_services")) {
+            setSelectedServices([]);
+            setStep(2);
+            Alert.alert(
+              "Servicii indisponibile",
+              "Unul sau mai multe servicii alese nu sunt disponibile la acest frizer. Alege din nou.",
+              [{ text: "OK" }]
+            );
+            return;
+          }
+          if (msg.includes("not_authenticated")) {
+            Alert.alert("Sesiune expirată", "Te rugăm să te autentifici din nou.", [{ text: "OK" }]);
+            return;
+          }
+        }
+
+        // Default fallback
+        Alert.alert("Eroare", "Nu am putut crea programarea. Încearcă din nou.", [{ text: "OK" }]);
         return;
       }
 
-      const { data: inserted, error } = await supabase
-        .from("appointments")
-        .insert({
-          user_id: session.user.id,
-          barber_id: selectedBarber.id,
-          service_id: selectedServices[0].id,
-          scheduled_at: scheduledAt.toISOString(),
-          duration_min: totalDurationMin,
-          status: "pending",
-          notes: notes.trim() || null,
-          total_cents: totalPriceCents,
-          currency: primaryCurrency,
-        })
-        .select("id")
-        .single();
-
-      if (error) throw error;
-
-      // Insert junction rows for every selected service (migration 047)
-      const serviceRows = selectedServices.map((s, index) => ({
-        appointment_id: inserted.id,
-        service_id: s.id,
-        duration_min: s.duration_min,
-        price_cents: s.price_cents,
-        sort_order: index,
-      }));
-
-      const { error: servicesError } = await supabase
-        .from("appointment_services")
-        .insert(serviceRows);
-
-      if (servicesError) throw servicesError;
+      // Success — use server-returned row
+      const result = (rpcData as RpcBookResult[])[0];
 
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       queryClient.invalidateQueries({ queryKey: ["appointments-upcoming"] });
       queryClient.invalidateQueries({ queryKey: ["next-appointment"] });
       queryClient.invalidateQueries({ queryKey: ["today-appointments-all"] });
+      queryClient.invalidateQueries({ queryKey: ["time-slots"] });
+      queryClient.invalidateQueries({ queryKey: ["first-available-date"] });
 
       setBookingResult({
-        id: inserted.id,
+        id: result.id,
         barberName: selectedBarber.name,
         serviceNames: selectedServices.map((s) => s.name),
         date: scheduledAt,
         time: selectedTime,
-        totalPriceCents,
-        currency: primaryCurrency,
-        totalDurationMin,
+        totalPriceCents: result.total_cents,
+        currency: result.currency,
+        totalDurationMin: result.duration_min,
       });
     } catch (err) {
       Alert.alert(
         "Eroare",
-        "Nu am putut crea programarea. Încearcă din nou."
+        "Nu am putut crea programarea. Încearcă din nou.",
+        [{ text: "OK" }]
       );
     } finally {
+      submittingRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -537,6 +593,10 @@ export default function BookAppointmentScreen() {
             setNotes("");
             setCalendarEventAdded(false);
             setIsAddingCalendar(false);
+            // Reset flow control refs so a fresh manual booking starts clean
+            step2VisitedRef.current = false;
+            // Mark params consumed so deep-link doesn't re-fire on a new booking
+            setParamsApplied(true);
           }}
           onGoHome={() => {
             router.replace("/(tabs)/discover" as any);
@@ -581,13 +641,13 @@ export default function BookAppointmentScreen() {
           onStepPress={(target) => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
             if (target < step) {
-              if (step === 3 && target === 2) {
-                setSelectedTime(null);
-                setSelectedDate(null);
-              } else if (step === 4 && target === 2) {
+              // Jumping backward from step 3 or 4 always clears date/time
+              if (step >= 3 && target <= 2) {
                 setSelectedTime(null);
                 setSelectedDate(null);
               }
+              // Jumping to step 1 also clears services if barber will change
+              // (barber change logic in BarberCard onSelect handles service clear)
               setStep(target);
             }
           }}
@@ -623,6 +683,13 @@ export default function BookAppointmentScreen() {
                 color={Colors.primary}
                 style={{ marginVertical: 32 }}
               />
+            ) : barbersError ? (
+              <View style={styles.inlineError}>
+                <Text style={styles.inlineErrorText}>Nu am putut încărca datele.</Text>
+                <Pressable onPress={() => refetchBarbers()} style={styles.inlineRetry}>
+                  <Text style={styles.inlineRetryText}>Reîncearcă</Text>
+                </Pressable>
+              </View>
             ) : (
               <View style={{ gap: 12 }}>
                 {barbers?.map((barber, index) => (
@@ -641,6 +708,13 @@ export default function BookAppointmentScreen() {
                         }
                         isSelected={selectedBarber?.id === barber.id}
                         onSelect={() => {
+                          if (selectedBarber?.id !== barber.id) {
+                            // Barber changed — clear dependent state to avoid
+                            // cross-salon service / stale date-time contamination
+                            setSelectedServices([]);
+                            setSelectedDate(null);
+                            setSelectedTime(null);
+                          }
                           setSelectedBarber(barber);
                           goNext();
                         }}
@@ -676,7 +750,14 @@ export default function BookAppointmentScreen() {
                 color={Colors.primary}
                 style={{ marginVertical: 32 }}
               />
-            ) : services?.length === 0 ? (
+            ) : servicesError ? (
+              <View style={styles.inlineError}>
+                <Text style={styles.inlineErrorText}>Nu am putut încărca datele.</Text>
+                <Pressable onPress={() => refetchServices()} style={styles.inlineRetry}>
+                  <Text style={styles.inlineRetryText}>Reîncearcă</Text>
+                </Pressable>
+              </View>
+            ) : visibleServices.length === 0 ? (
               <View style={styles.emptyState}>
                 <View style={styles.emptyStateIcon}>
                   <Ionicons name="cut-outline" size={28} color="#64748b" />
@@ -690,7 +771,7 @@ export default function BookAppointmentScreen() {
               </View>
             ) : (
               <View style={{ gap: 12 }}>
-                {services?.map((service, index) => (
+                {visibleServices.map((service, index) => (
                   <View
                     key={service.id}
                     ref={index === 0 ? serviceCardRef : undefined}
@@ -753,7 +834,7 @@ export default function BookAppointmentScreen() {
                   setSelectedDate(date);
                   setSelectedTime(null);
                 }}
-                disabledDays={firstAvailableData?.offDays ?? [0]}
+                disabledDays={firstAvailableData?.offDays}
               />
             </View>
 
@@ -769,6 +850,8 @@ export default function BookAppointmentScreen() {
                 hasSelectedDate={!!selectedDate}
                 morningSectionRef={timeMorningRef}
                 afternoonSectionRef={timeAfternoonRef}
+                isError={slotsError}
+                onRetry={refetchSlots}
               />
             </View>
           </View>
@@ -886,6 +969,28 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     color: Colors.textSecondary,
     marginBottom: 16,
+  },
+
+  // Inline error state (step 1 barbers, step 2 services)
+  inlineError: {
+    alignItems: "center",
+    paddingVertical: 32,
+    gap: 12,
+  },
+  inlineErrorText: {
+    ...Typography.captionSemiBold,
+    color: Colors.text,
+    textAlign: "center",
+  },
+  inlineRetry: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: Colors.primaryMuted,
+  },
+  inlineRetryText: {
+    ...Typography.captionSemiBold,
+    color: Colors.primary,
   },
 
   // Empty state

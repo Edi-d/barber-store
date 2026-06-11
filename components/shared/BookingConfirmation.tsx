@@ -259,6 +259,7 @@ export function BookingConfirmation({
             multiline
             numberOfLines={3}
             autoCapitalize="sentences"
+            maxLength={500}
           />
         </View>
       </Animated.View>

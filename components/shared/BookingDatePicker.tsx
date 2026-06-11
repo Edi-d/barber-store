@@ -21,7 +21,12 @@ import { getNext14Days, formatCalendarDay } from '@/lib/booking';
 interface BookingDatePickerProps {
   selectedDate: Date | null;
   onSelectDate: (date: Date) => void;
-  /** Day-of-week numbers to disable (0 = Sunday). Defaults to [0]. */
+  /**
+   * Day-of-week numbers to disable (0 = Sunday…6 = Saturday).
+   * Pass undefined (or omit) while the schedule is still loading —
+   * no days will be disabled until the value arrives.
+   * Pass an explicit array (possibly empty) once the schedule is known.
+   */
   disabledDays?: number[];
 }
 
@@ -215,7 +220,7 @@ function DateCard({ date, index, isSelected, isToday, isDisabled, onPress }: Dat
 export function BookingDatePicker({
   selectedDate,
   onSelectDate,
-  disabledDays = [0],
+  disabledDays,
 }: BookingDatePickerProps) {
   const scrollRef = useRef<ScrollView>(null);
   const days = getNext14Days();
@@ -255,7 +260,7 @@ export function BookingDatePicker({
             selectedDate !== null &&
             selectedDate.toDateString() === day.toDateString();
           const isToday = day.toDateString() === today.toDateString();
-          const isDisabled = disabledDays.includes(day.getDay());
+          const isDisabled = disabledDays != null && disabledDays.includes(day.getDay());
 
           return (
             <DateCard

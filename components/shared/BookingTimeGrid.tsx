@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform, Pressable } from 'react-native';
 import Animated, {
   FadeInUp,
   useSharedValue,
@@ -11,7 +11,6 @@ import Animated, {
   interpolateColor,
   Easing,
 } from 'react-native-reanimated';
-import { Pressable } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Bubble, Shadows, Typography } from '@/constants/theme';
@@ -29,6 +28,10 @@ export interface BookingTimeGridProps {
   hasSelectedDate: boolean;
   morningSectionRef?: React.RefObject<View>;
   afternoonSectionRef?: React.RefObject<View>;
+  /** When truthy, renders an inline error banner with a retry button instead of the grid. */
+  isError?: boolean;
+  /** Called when the user taps "Reîncearcă" in the error state. */
+  onRetry?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -339,6 +342,8 @@ export function BookingTimeGrid({
   hasSelectedDate,
   morningSectionRef,
   afternoonSectionRef,
+  isError = false,
+  onRetry,
 }: BookingTimeGridProps) {
   const morningSlots = useMemo(
     () => (timeSlots ?? []).filter((s) => parseInt(s.time.split(':')[0], 10) < 12),
@@ -349,6 +354,21 @@ export function BookingTimeGrid({
     () => (timeSlots ?? []).filter((s) => parseInt(s.time.split(':')[0], 10) >= 12),
     [timeSlots],
   );
+
+  // --- Error state ---
+  if (isError) {
+    return (
+      <View style={styles.errorContainer}>
+        <Ionicons name="alert-circle-outline" size={28} color={Colors.primary} style={{ marginBottom: 8 }} />
+        <Text style={styles.errorText}>Nu am putut încărca datele.</Text>
+        {onRetry && (
+          <Pressable onPress={onRetry} style={styles.retryButton}>
+            <Text style={styles.retryText}>Reîncearcă</Text>
+          </Pressable>
+        )}
+      </View>
+    );
+  }
 
   // --- Guard: no date selected ---
   if (!hasSelectedDate) {
@@ -504,6 +524,29 @@ const styles = StyleSheet.create({
     ...Typography.captionSemiBold,
     color: '#94a3b8',
     textDecorationLine: 'line-through',
+  },
+
+  // Error state
+  errorContainer: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    paddingHorizontal: 24,
+  },
+  errorText: {
+    ...Typography.captionSemiBold,
+    color: Colors.text,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  retryButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: Colors.primaryMuted,
+  },
+  retryText: {
+    ...Typography.captionSemiBold,
+    color: Colors.primary,
   },
 
   // Empty state

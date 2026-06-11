@@ -73,9 +73,12 @@ export function getTimeRemaining(scheduledAt: string): TimeRemaining {
   const clamped = Math.min(Math.max(totalMinutes, 0), FULL_BAR_MINUTES);
   const progress = clamped / FULL_BAR_MINUTES;
 
+  // Calendar-day relationship between now and the appointment target.
+  const calendarRel = getCalendarDayRelation(now, target);
+
   const label = buildLabel(totalMinutes, hours, minutes);
-  const pillLabel = buildPillLabel(totalMinutes, hours, minutes);
-  const state = buildState(totalMinutes);
+  const pillLabel = buildPillLabel(totalMinutes, hours, minutes, calendarRel);
+  const state = buildState(totalMinutes, calendarRel);
 
   return {
     totalMinutes,
@@ -110,20 +113,56 @@ function buildLabel(totalMinutes: number, hours: number, minutes: number): strin
   return `${totalMinutes}m`;
 }
 
+// ---------------------------------------------------------------------------
+// Calendar-day relation helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns the calendar-day relationship between `now` and `target`.
+ *
+ * "same"     — target falls on the same calendar day as now
+ * "tomorrow" — target falls on the next calendar day after now
+ * "later"    — target is two or more calendar days away
+ *
+ * This is equivalent to the logic used by formatAppointmentTimeContext's
+ * isSameDay / tomorrow check, keeping both functions consistent.
+ */
+type CalendarDayRelation = "same" | "tomorrow" | "later";
+
+function getCalendarDayRelation(now: Date, target: Date): CalendarDayRelation {
+  if (isSameDay(now, target)) return "same";
+  const tomorrowDate = new Date(now);
+  tomorrowDate.setDate(now.getDate() + 1);
+  if (isSameDay(tomorrowDate, target)) return "tomorrow";
+  return "later";
+}
+
 /**
  * Builds the short pill label — a live-status indicator in Romanian.
  * Designed to fit inside a small pill (~10 chars).
  *
+ * The label tiers based on minutes-remaining for short distances, but for
+ * same-day vs next-day the calendar boundary is used, not a fixed 720-minute
+ * threshold. This prevents an appointment at 22:00 viewed at 08:00 (14h away
+ * but same calendar day) from showing "Mâine" when the time-context line
+ * correctly says "Astăzi".
+ *
  * Ranges:
- *   > 1440 min  →  "Programat"     (confirmed/scheduled)
- *   720–1440    →  "Mâine"         (tomorrow indicator)
- *   120–720     →  "în Xh"         (e.g. "în 8h")
- *   60–120      →  "în 1h Xm"      (e.g. "în 1h 30m")
- *   15–60       →  "în Xm"         (e.g. "în 45m")
- *   2–15        →  "Curând"        (get ready – 6 chars, fits pill)
- *   <= 2        →  "Acum!"         (it's now)
+ *   calendarRel = "later" (2+ days)  →  "Programat"
+ *   calendarRel = "tomorrow"         →  "Mâine"
+ *   calendarRel = "same" (today):
+ *     120+ min  →  "în Xh"           (e.g. "în 8h")
+ *     60–120    →  "în 1h Xm"        (e.g. "în 1h 30m")
+ *     15–60     →  "în Xm"           (e.g. "în 45m")
+ *     2–15      →  "Curând"
+ *     <= 2      →  "Acum!"
  */
-function buildPillLabel(totalMinutes: number, hours: number, minutes: number): string {
+function buildPillLabel(
+  totalMinutes: number,
+  hours: number,
+  minutes: number,
+  calendarRel: CalendarDayRelation
+): string {
   if (totalMinutes <= 2) return "Acum!";
 
   if (totalMinutes <= 15) return "Curând";
@@ -136,21 +175,33 @@ function buildPillLabel(totalMinutes: number, hours: number, minutes: number): s
     return rem > 0 ? `în 1h ${rem}m` : "în 1h";
   }
 
-  if (totalMinutes <= 720) {
-    return `în ${hours}h`;
-  }
-
-  if (totalMinutes <= 1440) return "Mâine";
-
+  // Beyond 2 hours: use calendar-day relation rather than a fixed minute
+  // threshold so same-day evening appointments are not mislabelled "Mâine".
+  if (calendarRel === "same") return `în ${hours}h`;
+  if (calendarRel === "tomorrow") return "Mâine";
   return "Programat";
 }
 
-function buildState(totalMinutes: number): TimeRemaining["state"] {
+/**
+ * Semantic state of the appointment relative to now.
+ * Drives color, icon, and animation decisions in the UI.
+ *
+ * For the "tomorrow" / "scheduled" boundary the calendar day is used rather
+ * than a fixed 720-minute window, matching formatAppointmentTimeContext.
+ */
+function buildState(
+  totalMinutes: number,
+  calendarRel: CalendarDayRelation
+): TimeRemaining["state"] {
   if (totalMinutes <= 2) return "now";
   if (totalMinutes <= 15) return "urgent";
   if (totalMinutes <= 60) return "soon";
-  if (totalMinutes <= 720) return "today";
-  if (totalMinutes <= 1440) return "tomorrow";
+
+  // Within the same calendar day but more than 60 min away → "today".
+  // This correctly gives today-evening appointments the active-blue styling
+  // instead of the muted tomorrow/scheduled styling.
+  if (calendarRel === "same") return "today";
+  if (calendarRel === "tomorrow") return "tomorrow";
   return "scheduled";
 }
 

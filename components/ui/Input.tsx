@@ -19,6 +19,7 @@ interface InputProps {
   disabled?: boolean;
   multiline?: boolean;
   numberOfLines?: number;
+  maxLength?: number;
 }
 
 export const Input = forwardRef<TextInput, InputProps>(
@@ -38,6 +39,7 @@ export const Input = forwardRef<TextInput, InputProps>(
       disabled = false,
       multiline = false,
       numberOfLines = 1,
+      maxLength,
     },
     ref
   ) => {
@@ -83,6 +85,7 @@ export const Input = forwardRef<TextInput, InputProps>(
             editable={!disabled}
             multiline={multiline}
             numberOfLines={numberOfLines}
+            maxLength={maxLength}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             style={{

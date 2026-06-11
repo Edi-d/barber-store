@@ -264,35 +264,67 @@ export default function AppointmentsScreen() {
             text: "Da, anulează",
             style: "destructive",
             onPress: async () => {
-              const { error } = await supabase
+              const { data: updated, error } = await supabase
                 .from("appointments")
                 .update({ status: "cancelled" })
-                .eq("id", item.id);
+                .eq("id", item.id)
+                .in("status", ["pending", "confirmed"])
+                .select("id");
 
               if (error) {
                 Alert.alert(
                   "Eroare",
                   "Nu am putut anula programarea. Încearcă din nou."
                 );
-              } else {
-                queryClient.invalidateQueries({ queryKey: ["appointments"] });
+                return;
               }
+
+              if (!updated || updated.length === 0) {
+                Alert.alert(
+                  "Programarea nu a mai putut fi anulată",
+                  "Statusul programării s-a schimbat între timp. Reîmprospătăm lista."
+                );
+                refetch();
+                return;
+              }
+
+              // Cancel frees a slot — invalidate every cache that may show
+              // availability or the next upcoming appointment.
+              queryClient.invalidateQueries({ queryKey: ["appointments"] });
+              queryClient.invalidateQueries({ queryKey: ["appointments-upcoming"] });
+              queryClient.invalidateQueries({ queryKey: ["next-appointment"] });
+              queryClient.invalidateQueries({ queryKey: ["today-appointments-all"] });
+              queryClient.invalidateQueries({ queryKey: ["time-slots"] });
+              queryClient.invalidateQueries({ queryKey: ["first-available-date"] });
             },
           },
         ]
       );
     },
-    [queryClient]
+    [queryClient, refetch]
   );
 
   const handleReschedule = useCallback((item: AppointmentWithDetails) => {
     const params: Record<string, string> = {};
+
     if (item.barber?.salon_id) {
       params.salonId = item.barber.salon_id;
     }
-    if (item.service_id) {
-      params.serviceId = item.service_id;
+
+    if (item.barber_id) {
+      params.barberId = item.barber_id;
     }
+
+    // Prefer junction-table service ids; fall back to legacy single service_id.
+    const serviceIds =
+      item.services && item.services.length > 0
+        ? item.services.map((s) => s.service_id).join(",")
+        : item.service_id ?? "";
+
+    if (serviceIds) {
+      params.serviceIds = serviceIds;
+    }
+
     router.push({ pathname: "/book-appointment", params } as any);
   }, []);
 

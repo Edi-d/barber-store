@@ -74,6 +74,7 @@ function ActionBtn({ label, isPrimary = false, isLoading = false, onPress, icon 
     <Pressable
       onPress={onPress}
       disabled={isLoading}
+      accessibilityRole="button"
       className="flex-1 h-9 items-center justify-center flex-row gap-x-1.5"
       style={isPrimary ? s.actionBtnPrimary : s.actionBtnSecondary}
     >
@@ -174,20 +175,37 @@ export function ProfileHeader({
         ) : null}
       </View>
 
-      {/* ── Row 3: Barber / salon chip ────────────────────────────────────── */}
+      {/* ── Row 3: Barber / salon card row ───────────────────────────────── */}
       {barberInfo ? (
         <Pressable
           onPress={onSalonPress}
-          className="self-start flex-row items-center"
-          style={s.salonChip}
+          accessibilityRole="button"
+          accessibilityLabel={`Vezi salonul ${barberInfo.salonName}`}
+          className="flex-row items-center w-full min-h-[44px]"
+          style={({ pressed }) => [s.salonCard, pressed && s.salonCardPressed]}
         >
-          <Ionicons name="cut" size={13} color={Colors.primary} />
-          <Text style={s.salonName} numberOfLines={1}>{barberInfo.salonName}</Text>
-          <View style={s.salonRating}>
-            <Ionicons name="star" size={11} color="#F59E0B" />
-            <Text style={s.salonRatingText}>{barberInfo.ratingAvg.toFixed(1)}</Text>
+          {/* Left: scissors squircle */}
+          <View style={s.salonIconBox}>
+            <Ionicons name="cut" size={14} color={Colors.primary} />
           </View>
-          <Ionicons name="chevron-forward" size={13} color={Colors.textTertiary} />
+
+          {/* Middle: salon name */}
+          <Text style={s.salonName} numberOfLines={1}>{barberInfo.salonName}</Text>
+
+          {/* Right cluster */}
+          <View style={s.salonRight}>
+            {barberInfo.reviewsCount > 0 ? (
+              <View style={s.salonRating}>
+                <Ionicons name="star" size={11} color="#F59E0B" />
+                <Text style={s.salonRatingText}>{barberInfo.ratingAvg.toFixed(1)}</Text>
+              </View>
+            ) : (
+              <View style={s.salonNewPill}>
+                <Text style={s.salonNewPillText}>Nou</Text>
+              </View>
+            )}
+            <Ionicons name="chevron-forward" size={14} color={Colors.textTertiary} />
+          </View>
         </Pressable>
       ) : null}
 
@@ -311,6 +329,7 @@ const s = StyleSheet.create({
     fontSize: 17,
     lineHeight: 21,
     color: Colors.text,
+    fontVariant: ['tabular-nums'],
   },
   statLabel: {
     ...Typography.small,
@@ -349,20 +368,39 @@ const s = StyleSheet.create({
     lineHeight: 19,
   },
 
-  // Salon chip — content-hugging squircle button
-  salonChip: {
+  // Salon card row — full-width, IG link-row weight
+  salonCard: {
     marginBottom: 12,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 6,
-    backgroundColor: Colors.primaryMuted,
+    backgroundColor: Colors.white,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.separator,
     ...Bubble.radiiSm,
     ...Bubble.accent,
   },
+  salonCardPressed: {
+    backgroundColor: Colors.background,
+  },
+  salonIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    backgroundColor: Colors.primaryMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   salonName: {
-    ...Typography.smallSemiBold,
-    color: Colors.primary,
+    ...Typography.captionSemiBold,
+    color: Colors.text,
     flexShrink: 1,
+    marginLeft: 10,
+  },
+  salonRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginLeft: 'auto',
+    paddingLeft: 8,
   },
   salonRating: {
     flexDirection: 'row',
@@ -372,6 +410,19 @@ const s = StyleSheet.create({
   salonRatingText: {
     ...Typography.small,
     color: Colors.textSecondary,
+    fontVariant: ['tabular-nums'],
+  },
+  salonNewPill: {
+    backgroundColor: Colors.primaryMuted,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  salonNewPillText: {
+    fontFamily: 'EuclidCircularA-SemiBold',
+    fontSize: 10,
+    lineHeight: 14,
+    color: Colors.primary,
   },
 
   // Actions row

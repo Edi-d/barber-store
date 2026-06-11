@@ -74,7 +74,7 @@ function ActionBtn({ label, isPrimary = false, isLoading = false, onPress, icon 
     <Pressable
       onPress={onPress}
       disabled={isLoading}
-      className="flex-1 h-9 items-center justify-center rounded-[10px] flex-row gap-x-1.5"
+      className="flex-1 h-9 items-center justify-center flex-row gap-x-1.5"
       style={isPrimary ? s.actionBtnPrimary : s.actionBtnSecondary}
     >
       {isLoading ? (
@@ -178,7 +178,7 @@ export function ProfileHeader({
       {barberInfo ? (
         <Pressable
           onPress={onSalonPress}
-          className="flex-row items-center gap-x-1.5 py-1.5"
+          className="self-start flex-row items-center"
           style={s.salonChip}
         >
           <Ionicons name="cut" size={13} color={Colors.primary} />
@@ -349,14 +349,19 @@ const s = StyleSheet.create({
     lineHeight: 19,
   },
 
-  // Salon chip
+  // Salon chip — content-hugging squircle button
   salonChip: {
     marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 6,
+    backgroundColor: Colors.primaryMuted,
+    ...Bubble.radiiSm,
+    ...Bubble.accent,
   },
   salonName: {
     ...Typography.smallSemiBold,
     color: Colors.primary,
-    flex: 1,
     flexShrink: 1,
   },
   salonRating: {
@@ -375,14 +380,17 @@ const s = StyleSheet.create({
     gap: 8,
   },
 
-  // Action button inner shells (colors/borders only — layout via className)
+  // Action button inner shells (squircle shape + colors/borders — layout via className)
   actionBtnPrimary: {
     backgroundColor: Colors.gradientStart,
+    ...Bubble.radiiSm,
   },
   actionBtnSecondary: {
     backgroundColor: Colors.inputBackground,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.inputBorder,
+    ...Bubble.radiiSm,
+    ...Bubble.accent,
   },
   actionBtnTextPrimary: {
     fontFamily: 'EuclidCircularA-SemiBold',

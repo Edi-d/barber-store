@@ -213,7 +213,7 @@ export function CommentsModal({ visible, item, onClose }: Props) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       setPickerCommentId(comment.id);
       setPickerPosition(position);
-      // Bug 6: if already visible, briefly hide so the spring re-runs from zero
+      // If already visible, briefly hide so the spring re-runs from zero
       if (pickerVisible) {
         setPickerVisible(false);
         setTimeout(() => setPickerVisible(true), 0);
@@ -372,8 +372,9 @@ export function CommentsModal({ visible, item, onClose }: Props) {
         );
       }
 
-      // Update comments_count in feed
-      queryClient.setQueryData<InfiniteData<ContentWithAuthor[]>>(['feed'], (old) => {
+      // Feed cache key is ['feed', filter, sort, token] — exact ['feed'] never exists.
+      // Use setQueriesData with exact:false (prefix match) to hit all live feed cache entries.
+      queryClient.setQueriesData<InfiniteData<ContentWithAuthor[]>>({ queryKey: ['feed'], exact: false }, (old) => {
         if (!old) return old;
         return {
           ...old,
@@ -471,8 +472,8 @@ export function CommentsModal({ visible, item, onClose }: Props) {
         },
       );
 
-      // Decrement comments_count in feed cache
-      queryClient.setQueryData<InfiniteData<ContentWithAuthor[]>>(['feed'], (old) => {
+      // Same prefix-match approach as the increment above — exact ['feed'] is never populated.
+      queryClient.setQueriesData<InfiniteData<ContentWithAuthor[]>>({ queryKey: ['feed'], exact: false }, (old) => {
         if (!old) return old;
         return {
           ...old,

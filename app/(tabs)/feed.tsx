@@ -397,7 +397,43 @@ export default function FeedScreen() {
     enabled: !!session,
   });
 
-  // Fetch feed content with cursor-based infinite scroll
+  // ─── Effective sort — chips take precedence over the sort sheet ──────────
+  // 'popular' chip → likes-ordered; 'recent' chip → newest; else use sheet sort.
+  // Treat 'trending' the same as 'most_liked' (likes + recency weighted).
+  const effectiveSort = useMemo((): 'most_liked' | 'newest' => {
+    if (activeFilter === 'popular') return 'most_liked';
+    if (activeFilter === 'recent') return 'newest';
+    if (activeSort === 'newest') return 'newest';
+    // 'most_liked' and 'trending' both go likes-ordered
+    return 'most_liked';
+  }, [activeFilter, activeSort]);
+
+  // ─── Stable membership token for the 'following' filter ─────────────────
+  // Using size was lossy: unfollow A + follow B keeps size the same.
+  // Sort the IDs so the token is order-independent.
+  const followingToken = useMemo(() => {
+    if (activeFilter !== 'following') return '';
+    return [...(followingIds ?? [])].sort().join('|');
+  }, [activeFilter, followingIds]);
+
+  // Single source of truth for the query key — reused in the query,
+  // likeMutation.onMutate, and likeMutation.onError.
+  const feedQueryKey = useMemo(
+    () => ["feed", activeFilter, effectiveSort, followingToken] as const,
+    [activeFilter, effectiveSort, followingToken],
+  );
+
+  // pageParam type: number (offset) for likes-ordered, { createdAt, id } for newest
+  type OffsetParam = number;
+  type KeysetParam = { createdAt: string; id: string };
+  type PageParam = OffsetParam | KeysetParam | undefined;
+
+  // Fetch feed content — pagination strategy depends on effectiveSort:
+  //   'most_liked' → OFFSET pagination. likes_count shifts between pages, so any
+  //                  cursor strategy is also unstable. Duplicates are mitigated by
+  //                  the in-memory dedupe in feedItems; occasional skipped rows are
+  //                  an accepted trade-off.
+  //   'newest'     → composite keyset (created_at, id) to handle timestamp ties
   const {
     data: feedData,
     isLoading,
@@ -407,8 +443,8 @@ export default function FeedScreen() {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ["feed", activeFilter, activeSort, activeFilter === 'following' ? followingIds?.size ?? 0 : 0],
-    queryFn: async ({ pageParam }) => {
+    queryKey: feedQueryKey,
+    queryFn: async ({ pageParam }: { pageParam: PageParam }) => {
       // Base query
       let query = supabase
         .from("content")
@@ -426,24 +462,27 @@ export default function FeedScreen() {
         query = query.eq('type', 'video');
       }
 
-      // Sort modifiers
-      if (activeSort === 'most_liked' || activeFilter === 'popular') {
+      if (effectiveSort === 'most_liked') {
+        // Likes-ordered: OFFSET pagination (see strategy comment above)
+        const offset = typeof pageParam === 'number' ? pageParam : 0;
         query = query
           .order('likes_count', { ascending: false })
-          .order('created_at', { ascending: false });
-      } else if (activeSort === 'newest' || activeFilter === 'recent') {
-        query = query.order('created_at', { ascending: false });
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
+          .range(offset, offset + PAGE_SIZE - 1);
       } else {
-        // trending: weight likes + recency
+        // Newest: composite keyset (created_at, id) to survive timestamp ties
         query = query
-          .order('likes_count', { ascending: false })
-          .order('created_at', { ascending: false });
-      }
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
+          .limit(PAGE_SIZE);
 
-      query = query.limit(PAGE_SIZE);
-
-      if (pageParam) {
-        query = query.lt("created_at", pageParam);
+        if (pageParam && typeof pageParam === 'object' && 'createdAt' in pageParam) {
+          // PostgREST or-filter with QUOTED values (timestamps contain + and :)
+          query = query.or(
+            `created_at.lt."${pageParam.createdAt}",and(created_at.eq."${pageParam.createdAt}",id.lt."${pageParam.id}")`
+          );
+        }
       }
 
       const { data, error } = await query;
@@ -469,16 +508,43 @@ export default function FeedScreen() {
         is_liked: userLikedIds.has(item.id),
       })) as ContentWithAuthor[];
     },
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => {
+    initialPageParam: undefined as PageParam,
+    getNextPageParam: (lastPage, allPages): PageParam => {
       if (lastPage.length < PAGE_SIZE) return undefined;
-      return lastPage[lastPage.length - 1].created_at;
+
+      if (effectiveSort === 'most_liked') {
+        // Next page offset = total rows fetched across all pages
+        return allPages.reduce((sum, page) => sum + page.length, 0);
+      } else {
+        // Keyset cursor from the last item in the page
+        const last = lastPage[lastPage.length - 1];
+        return { createdAt: last.created_at, id: last.id };
+      }
     },
     staleTime: 2 * 60 * 1000, // 2 minutes — prevents refetch on tab switch
     placeholderData: (previousData) => previousData,
+    // Don't fire while followingIds is still loading: the empty followingToken
+    // would cause a fetch with no IDs, then a second fetch once IDs arrive,
+    // churning the cache unnecessarily.
+    enabled: activeFilter !== 'following' || followingIds !== undefined,
   });
 
-  const feedItems = feedData?.pages.flatMap((page) => page) ?? [];
+  // Flatten pages and dedupe by id — defense against duplicate rows that
+  // would collide in FlatList keyExtractor and cause React to silently drop cells.
+  const feedItems = useMemo(() => {
+    const pages = feedData?.pages ?? [];
+    const seen = new Set<string>();
+    const result: ContentWithAuthor[] = [];
+    for (const page of pages) {
+      for (const item of page) {
+        if (!seen.has(item.id)) {
+          seen.add(item.id);
+          result.push(item);
+        }
+      }
+    }
+    return result;
+  }, [feedData]);
 
   // Auto-activate the first video when feed data loads. Without this,
   // activeVideoIdState stays null until onViewableItemsChanged fires —
@@ -575,8 +641,9 @@ export default function FeedScreen() {
       }
     },
     onMutate: async ({ contentId, isLiked }) => {
-      const feedQueryKey = ["feed", activeFilter, activeSort, activeFilter === 'following' ? followingIds?.size ?? 0 : 0] as const;
-      await queryClient.cancelQueries({ queryKey: ["feed"], exact: false });
+      // Scope cancel to the exact feed query key — avoids aborting
+      // any in-flight banner refetch triggered by showNewPosts().
+      await queryClient.cancelQueries({ queryKey: feedQueryKey, exact: true });
       const previousFeed = queryClient.getQueryData<InfiniteData<ContentWithAuthor[]>>(feedQueryKey);
 
       queryClient.setQueryData<InfiniteData<ContentWithAuthor[]>>(feedQueryKey, (old) => {
@@ -601,12 +668,17 @@ export default function FeedScreen() {
     },
     onError: (_err, _variables, context) => {
       if (context?.previousFeed) {
-        const feedQueryKey = ["feed", activeFilter, activeSort, activeFilter === 'following' ? followingIds?.size ?? 0 : 0] as const;
         queryClient.setQueryData(feedQueryKey, context.previousFeed);
       }
     },
     onSettled: (_data, _error, variables) => {
       pendingLikeIds.current.delete(variables.contentId);
+
+      // If a banner-triggered invalidation was aborted by the cancel above,
+      // recover it now so new posts are not permanently lost.
+      if (queryClient.getQueryState(feedQueryKey)?.isInvalidated) {
+        queryClient.invalidateQueries({ queryKey: feedQueryKey });
+      }
     },
   });
 
@@ -848,7 +920,7 @@ export default function FeedScreen() {
         showsVerticalScrollIndicator={false}
         maxToRenderPerBatch={5}
         windowSize={7}
-        removeClippedSubviews={true}
+        removeClippedSubviews={false}
         viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs.current}
         ListFooterComponent={
           isFetchingNextPage ? (

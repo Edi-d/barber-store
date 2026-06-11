@@ -67,8 +67,15 @@ export function FeedCard({ item, onLikeToggle, onLikeAdd, onComment, onShare, is
   const [optionsSheetVisible, setOptionsSheetVisible] = useState(false);
   const [liked, setLiked] = useState(item.is_liked || false);
   const [displayLikes, setDisplayLikes] = useState(item.likes_count);
+  // Track image load failures so we can swap to a placeholder.
+  const [mediaError, setMediaError] = useState(false);
   const likedRef = useRef(item.is_liked || false);
   const originalLikesCount = useRef(item.likes_count);
+
+  // Reset media error state when FlatList recycles this card instance for a
+  // different post — otherwise a prior onError keeps showing the placeholder
+  // for a subsequent post that has a valid image URL.
+  useEffect(() => { setMediaError(false); }, [item.id]);
 
   // Sync local state when realtime updates change the parent data
   useEffect(() => {
@@ -231,9 +238,11 @@ export function FeedCard({ item, onLikeToggle, onLikeAdd, onComment, onShare, is
     color: likeProgress.value > 0.5 ? Brand.primary : Colors.textSecondary,
   }));
 
-  const authorName = item.author.display_name || item.author.username;
-  const authorRole = item.author.role === 'creator' ? 'Creator' : item.author.role === 'admin' ? 'Admin' : 'Membru';
-  const isVerified = item.author.role === 'creator' || item.author.role === 'admin';
+  // author can be null (deleted/RLS-hidden profile) despite the type saying otherwise.
+  // Guard every field with optional chaining and provide sensible fallbacks.
+  const authorName = item.author?.display_name || item.author?.username || 'Utilizator';
+  const authorRole = item.author?.role === 'creator' ? 'Creator' : item.author?.role === 'admin' ? 'Admin' : 'Membru';
+  const isVerified = item.author?.role === 'creator' || item.author?.role === 'admin';
 
   return (
     <View style={[styles.cardShadow, Shadows.sm]}>
@@ -251,12 +260,13 @@ export function FeedCard({ item, onLikeToggle, onLikeAdd, onComment, onShare, is
               }
             }}
           >
-            {item.author.avatar_url ? (
+            {item.author?.avatar_url ? (
               <Image source={{ uri: item.author.avatar_url }} style={styles.authorAvatar} />
             ) : (
               <View style={[styles.authorAvatar, { backgroundColor: Brand.primary }]}>
                 <Text style={styles.authorInitial}>
-                  {(authorName ?? '?')[0].toUpperCase()}
+                  {/* empty string is not nullish, so ?? won't catch it; use || + trim */}
+                  {(authorName || '?').trim().charAt(0).toUpperCase() || '?'}
                 </Text>
               </View>
             )}
@@ -336,11 +346,26 @@ export function FeedCard({ item, onLikeToggle, onLikeAdd, onComment, onShare, is
                   onMuteToggle={onMuteToggle ?? (() => {})}
                 />
               ) : (
-                <Image
-                  source={{ uri: item.thumb_url || item.media_url || '' }}
-                  style={styles.postImage}
-                  resizeMode="cover"
-                />
+                // Never render Image with an empty URI; show placeholder instead.
+                // onError swaps to the same placeholder if the URL fails at runtime.
+                (() => {
+                  const imageUri = item.thumb_url || item.media_url || '';
+                  if (!imageUri || mediaError) {
+                    return (
+                      <View style={[styles.postImage, styles.mediaPlaceholder]}>
+                        <Feather name="image" size={32} color={Colors.textTertiary} style={{ opacity: 0.5 }} />
+                      </View>
+                    );
+                  }
+                  return (
+                    <Image
+                      source={{ uri: imageUri }}
+                      style={styles.postImage}
+                      resizeMode="cover"
+                      onError={() => setMediaError(true)}
+                    />
+                  );
+                })()
               )}
               {/* Heart overlay animation */}
               <Animated.View style={[styles.heartOverlay, heartOverlayStyle]} pointerEvents="none">
@@ -576,6 +601,12 @@ const styles = StyleSheet.create({
   postImage: {
     width: '100%',
     height: '100%',
+  },
+  /* Placeholder shown when media URI is empty or fails to load */
+  mediaPlaceholder: {
+    backgroundColor: Colors.glassLight,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   heartOverlay: {
     ...StyleSheet.absoluteFillObject,

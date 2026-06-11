@@ -32,9 +32,11 @@ export function useRealtimeComments(): void {
           if (!payload.new || !('content_id' in payload.new)) return;
           const contentId = (payload.new as { content_id: string }).content_id;
 
-          // Increment comments_count in feed cache
-          queryClient.setQueryData<InfiniteData<ContentWithAuthor[]>>(
-            ['feed'],
+          // Exact ['feed'] key never exists — the live cache key is
+          // ['feed', filter, sort, token]. Use setQueriesData with
+          // exact:false for prefix matching.
+          queryClient.setQueriesData<InfiniteData<ContentWithAuthor[]>>(
+            { queryKey: ['feed'], exact: false },
             (old) => {
               if (!old) return old;
               return {

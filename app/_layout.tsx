@@ -3,8 +3,8 @@ import { useEffect, useCallback } from "react";
 import { setAudioModeAsync } from 'expo-audio';
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { Platform, View, Image, ActivityIndicator, StyleSheet, Linking } from "react-native";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AppState, Platform, View, Image, ActivityIndicator, StyleSheet, Linking } from "react-native";
+import { QueryClient, QueryClientProvider, focusManager } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Defs, RadialGradient, Stop, Circle } from "react-native-svg";
@@ -278,6 +278,17 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  // Wire TanStack Query's focusManager to AppState so refetchOnWindowFocus
+  // actually fires when the user returns to the app on React Native.
+  // (refetchOnWindowFocus is a no-op in RN without this.)
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    const sub = AppState.addEventListener('change', (status) => {
+      focusManager.setFocused(status === 'active');
+    });
+    return () => sub.remove();
+  }, []);
+
   useEffect(() => {
     setAudioModeAsync({
       playsInSilentMode: true,

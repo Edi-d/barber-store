@@ -81,6 +81,7 @@ export default function DiscoverScreen() {
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
   const cameraRef = useRef<Mapbox.Camera>(null);
+  const mapRef = useRef<Mapbox.MapView>(null);
   const bottomSheetRef = useRef<BottomSheet>(null);
 
   const { isOverlayVisible: isTutorialActive } = useTutorialStore();
@@ -539,6 +540,35 @@ export default function DiscoverScreen() {
     setSearchQuery(text);
   };
 
+  // Single source-of-truth camera helper — always passes explicit padding so
+  // the target coordinate lands in the visible strip above the bottom sheet.
+  const focusCamera = useCallback(
+    (
+      coordinate: [number, number],
+      opts?: {
+        zoomLevel?: number;
+        sheetOpen?: boolean;
+        animationMode?: "flyTo" | "easeTo";
+        animationDuration?: number;
+      }
+    ) => {
+      cameraRef.current?.setCamera({
+        centerCoordinate: coordinate,
+        zoomLevel: opts?.zoomLevel,
+        animationDuration: opts?.animationDuration ?? 700,
+        animationMode: opts?.animationMode ?? "easeTo",
+        padding: {
+          paddingTop: 70,
+          paddingBottom:
+            (opts?.sheetOpen ?? true) ? SHEET_OPEN_BOTTOM : SHEET_CLOSED_BOTTOM,
+          paddingLeft: 0,
+          paddingRight: 0,
+        },
+      });
+    },
+    [SHEET_OPEN_BOTTOM, SHEET_CLOSED_BOTTOM]
+  );
+
   // Animate to salon on map when selected from search results
   const handleSalonSearchSelect = (salon: SalonWithDistance) => {
     Keyboard.dismiss();
@@ -546,30 +576,38 @@ export default function DiscoverScreen() {
     setSelectedSalon(salon);
 
     if (salon.latitude && salon.longitude) {
-      cameraRef.current?.setCamera({
-        centerCoordinate: [salon.longitude, salon.latitude],
+      focusCamera([salon.longitude, salon.latitude], {
         zoomLevel: 14.5,
-        animationDuration: 800,
+        sheetOpen: true,
         animationMode: "flyTo",
+        animationDuration: 850,
       });
     }
     setSheetIndex(1);
     bottomSheetRef.current?.snapToIndex(1);
   };
 
-  const handleMarkerPress = useCallback((salon: SalonWithDistance) => {
+  const handleMarkerPress = useCallback(async (salon: SalonWithDistance) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedSalon(salon);
-    if (salon.latitude != null && salon.longitude != null) {
-      cameraRef.current?.setCamera({
-        centerCoordinate: [salon.longitude, salon.latitude],
-        zoomLevel: 14.5,
-        animationDuration: 300,
-        animationMode: "flyTo",
-      });
-    }
     setSheetIndex(1);
     bottomSheetRef.current?.snapToIndex(1);
-  }, []);
+
+    if (salon.latitude != null && salon.longitude != null) {
+      let currentZoom: number | undefined;
+      try {
+        currentZoom = await mapRef.current?.getZoom();
+      } catch {
+        currentZoom = undefined;
+      }
+      focusCamera([salon.longitude, salon.latitude], {
+        zoomLevel: Math.max(currentZoom ?? 14.5, 14.5),
+        sheetOpen: true,
+        animationMode: "easeTo",
+        animationDuration: 650,
+      });
+    }
+  }, [focusCamera]);
 
   const handleSheetChange = useCallback((idx: number) => {
     setSheetIndex(idx);
@@ -578,16 +616,29 @@ export default function DiscoverScreen() {
     }
   }, []);
 
-  const goToMyLocation = useCallback(() => {
-    if (latitude && longitude) {
-      cameraRef.current?.setCamera({
-        centerCoordinate: [longitude, latitude],
-        zoomLevel: 13.5,
-        animationDuration: 800,
-        animationMode: "flyTo",
-      });
+  const goToMyLocation = useCallback(async () => {
+    let lat = latitude;
+    let lng = longitude;
+
+    if (lat == null || lng == null) {
+      await requestLocation();
+      const fresh = useLocationStore.getState();
+      lat = fresh.latitude;
+      lng = fresh.longitude;
     }
-  }, [latitude, longitude]);
+
+    if (lat == null || lng == null) {
+      // Permission denied or fetch failed — locationStore surfaces the error
+      return;
+    }
+
+    focusCamera([lng, lat], {
+      zoomLevel: 13.5,
+      sheetOpen: sheetIndex >= 1,
+      animationMode: "flyTo",
+      animationDuration: 900,
+    });
+  }, [latitude, longitude, requestLocation, sheetIndex, focusCamera]);
 
   const urgencyDebounceRef = useRef(false);
   const handleUrgencyPress = () => {
@@ -634,6 +685,7 @@ export default function DiscoverScreen() {
       {/* Map — extends behind status bar */}
         <View style={{ flex: 1 }}>
           <Mapbox.MapView
+            ref={mapRef}
             style={{ flex: 1 }}
             styleURL={MAPBOX_STYLE_URL}
             scaleBarEnabled={false}
@@ -645,12 +697,12 @@ export default function DiscoverScreen() {
               defaultSettings={{
                 centerCoordinate: [longitude ?? 26.1025, latitude ?? 44.4268],
                 zoomLevel: 13,
-              }}
-              padding={{
-                paddingTop: 70,
-                paddingBottom: (selectedSalon != null || sheetIndex >= 1) ? SHEET_OPEN_BOTTOM : SHEET_CLOSED_BOTTOM,
-                paddingLeft: 0,
-                paddingRight: 0,
+                padding: {
+                  paddingTop: 70,
+                  paddingBottom: SHEET_CLOSED_BOTTOM,
+                  paddingLeft: 0,
+                  paddingRight: 0,
+                },
               }}
             />
             <Mapbox.LocationPuck puckBearingEnabled visible />

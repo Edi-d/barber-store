@@ -36,6 +36,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/authStore";
 import { useLiveViewers } from "@/hooks/useLiveViewers";
 import { useLiveChat, type ChatMessage } from "@/hooks/useLiveChat";
+import { useLiveReactions } from "@/hooks/useLiveReactions";
 import { useLiveConnection } from "@/hooks/useLiveConnection";
 import { useTutorialContext } from "@/components/tutorial/TutorialProvider";
 import QualityPicker from '@/components/live/QualityPicker';
@@ -340,11 +341,27 @@ export default function LiveViewerScreen() {
   );
 
   // LiveKit connection state machine
-  const { state: connState, hostTrack, connect, disconnect, error: connError, videoQuality, setVideoQuality } =
+  const { state: connState, hostTrack, connect, disconnect, forceEnd, error: connError, videoQuality, setVideoQuality } =
     useLiveConnection();
 
-  // Floating hearts
+  // Floating hearts. spawnHeart drives the animation for both our own taps
+  // and reactions received from other viewers / the host app.
   const [hearts, setHearts] = useState<{ id: number; x: number }[]>([]);
+  const heartIdRef = useRef(0);
+
+  const spawnHeart = useCallback(() => {
+    const heartId = heartIdRef.current++;
+    const x = Math.random() * 30 - 15; // random horizontal offset -15..+15
+    setHearts((prev) => [...prev.slice(-15), { id: heartId, x }]);
+    setTimeout(() => {
+      setHearts((prev) => prev.filter((h) => h.id !== heartId));
+    }, 2000);
+  }, []);
+
+  // Broadcast reactions. Incoming reactions (from other viewers or the host)
+  // spawn a heart; our own taps are animated locally in handleHeart and not
+  // echoed back to us by Supabase broadcast.
+  const { sendReaction } = useLiveReactions(id ?? "", spawnHeart);
 
   // ── Fetch live metadata ───────────────────────────────────────────────
 
@@ -391,6 +408,39 @@ export default function LiveViewerScreen() {
     if (!live || !live.room_name || connState !== "idle") return;
     connect(live.id, live.room_name);
   }, [live, connState, connect]);
+
+  // ── Detect the host ending the stream ─────────────────────────────────
+  // The host leaving the LiveKit room only clears the video track — it does
+  // not tell us the stream is over (it could be a transient host reconnect).
+  // The authoritative signal is the `lives` row flipping to status='ended'
+  // (written by the host on end, or by the staleness cron). Subscribe to that
+  // row and call forceEnd() so the "Streamul s-a incheiat" overlay shows.
+  // Requires `lives` in the supabase_realtime publication (migration 145).
+
+  useEffect(() => {
+    if (!id) return;
+
+    const channel = supabase
+      .channel(`live-status:${id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "lives", filter: `id=eq.${id}` },
+        (payload) => {
+          const next = payload.new as { status?: string };
+          if (next?.status === "ended") forceEnd();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "lives", filter: `id=eq.${id}` },
+        () => forceEnd()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id, forceEnd]);
 
   // ── Auto-scroll chat ──────────────────────────────────────────────────
 
@@ -459,13 +509,11 @@ export default function LiveViewerScreen() {
 
   const handleHeart = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const heartId = Date.now();
-    const x = Math.random() * 30 - 15; // random horizontal offset -15..+15
-    setHearts((prev) => [...prev.slice(-15), { id: heartId, x }]);
-    setTimeout(() => {
-      setHearts((prev) => prev.filter((h) => h.id !== heartId));
-    }, 2000);
-  }, []);
+    spawnHeart();
+    if (userId) {
+      sendReaction({ id: `${userId}-${Date.now()}`, emoji: "❤️", userId });
+    }
+  }, [spawnHeart, sendReaction, userId]);
 
   // ── Retry ─────────────────────────────────────────────────────────────
 

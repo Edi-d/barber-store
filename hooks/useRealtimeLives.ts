@@ -5,6 +5,16 @@ import { Live, LiveWithHost } from '@/types/database';
 
 const CHANNEL_NAME = 'realtime-lives';
 
+// Self-healing poll interval. Realtime (postgres_changes on `lives`) is the
+// primary path for add/remove, but it only works if `lives` is in the
+// supabase_realtime publication (see migration 145) AND the stream ends
+// cleanly. A broadcaster whose app crashes never sets status='ended' — the
+// row is only expired by the backend cron after its heartbeat goes stale.
+// Re-running the filtered fetch on an interval re-applies the status +
+// heartbeat filters, so ended/stale streams drop from the feed within one
+// cycle regardless of whether a realtime event was delivered.
+const POLL_INTERVAL_MS = 30 * 1000;
+
 /**
  * Subscribes to the lives table via Supabase Realtime.
  * Performs an initial fetch of all active streams (status = 'live' | 'starting'),
@@ -48,7 +58,7 @@ export function useRealtimeLives(): { lives: LiveWithHost[]; loading: boolean } 
 
       if (error) {
         if (__DEV__) {
-          console.warn('[useRealtimeLives] Initial fetch error:', error.message);
+          console.warn('[useRealtimeLives] fetch error:', error.message);
         }
       } else {
         setLives((data as LiveWithHost[]) ?? []);
@@ -58,6 +68,10 @@ export function useRealtimeLives(): { lives: LiveWithHost[]; loading: boolean } 
     }
 
     fetchActiveLives();
+
+    // Self-healing poll — re-applies the status/heartbeat filters so ended or
+    // stale streams drop even if a realtime UPDATE was never delivered.
+    const pollId = setInterval(fetchActiveLives, POLL_INTERVAL_MS);
 
     // ── Helper: fetch a single live row with host join ─────────────────────────
     async function fetchLiveWithHost(id: string): Promise<LiveWithHost | null> {
@@ -163,6 +177,7 @@ export function useRealtimeLives(): { lives: LiveWithHost[]; loading: boolean } 
 
     return () => {
       cancelled = true;
+      clearInterval(pollId);
       removeChannel(CHANNEL_NAME);
     };
   }, []);

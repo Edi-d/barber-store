@@ -486,7 +486,7 @@ All except `live-chat` and `live-viewers` go through the registry in `lib/realti
 | `live-chat:{liveId}` | **broadcast** | event `message` | Ephemeral chat; never persisted to DB; 150-message ring buffer |
 | `live-viewers:{liveId}` | **presence** | `config: {presence: {key: userId}}` | Track viewer count; `track({user_id, display_name, avatar_url, joined_at})` |
 
-**Important:** `lives` table is NOT in the `supabase_realtime` publication in any repo migration — it must have been enabled manually on the hosted DB. A fresh environment must run `ALTER PUBLICATION supabase_realtime ADD TABLE lives;` or live section realtime dies silently.
+**Important:** `lives` is added to the `supabase_realtime` publication by mig 145 (`REPLICA IDENTITY FULL`). Before that migration it had to be enabled manually on the hosted DB, and live-section realtime died silently where that manual step was missing — ended streams lingered in the feed because the `status='ended'` UPDATE event was never delivered. `useRealtimeLives` now also polls every 30s as a self-healing fallback.
 
 **Replica identity note:** `likes` PK is `(user_id, content_id)` so DELETE payloads carry `content_id`. `comment_reactions` has a surrogate `id` PK and no `REPLICA IDENTITY FULL` in any migration — DELETE payloads may carry only `{id}`, but `useCommentReactions` reads `old.comment_id/reaction/user_id`. Either REPLICA IDENTITY FULL was set manually, or reaction-removal decrements silently no-op. Verify on the hosted DB.
 
@@ -791,9 +791,9 @@ Located at `supabase/functions/` (two deployed):
 | `barber_breaks` | mig 123 | RLS applies (owner-only via `is_salon_member`) |
 | `comments` | mig 143 | INSERT-only consumption; mig 143 explicitly did not set REPLICA IDENTITY |
 | `notification_log` | mig 104 | Push pipeline |
+| `lives` | mig 145 | `REPLICA IDENTITY FULL`; required for `useRealtimeLives` to drop ended/stale cards. `useRealtimeLives` also polls every 30s as a fallback. |
 
 **Tables that must be added manually to new environments (not in any migration):**
-- `lives` — required for `useRealtimeLives`
 - `platform_xp_transactions` — required for XP toasts and balance auto-refresh
 
 ### All channel name patterns
@@ -900,7 +900,7 @@ Routing gates on `profiles.onboarding_completed = true`. Any app sharing the sam
 
 6. **`barbers.role` unreliable.** Always read roles from `salon_members.role` keyed on `profile_id`. `barbers.role` defaults to `'owner'` and is not maintained.
 
-7. **`lives` not in realtime publication by any migration.** Must be added manually to the hosted DB. A new environment silently receives no live updates without this step.
+7. **`lives` realtime publication.** Added by mig 145 (`REPLICA IDENTITY FULL`). Before that it was missing from every migration, so any DB without the manual `ALTER PUBLICATION supabase_realtime ADD TABLE lives;` received no live updates — ended streams lingered in the feed. `useRealtimeLives` also polls every 30s as a fallback.
 
 8. **`platform_xp_transactions` not in realtime publication by any migration.** Same situation — must be added manually. Without it, XP toasts and balance auto-refresh never fire.
 

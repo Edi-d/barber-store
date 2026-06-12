@@ -1,106 +1,89 @@
 {
-  "expo": {
-    "name": "Tapzi Barber Shop",
-    "slug": "tapzi",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "automatic",
-    "scheme": "tapzi",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#5C8AD5"
-    },
-    "ios": {
-      "supportsTablet": true,
-      "buildNumber": "23",
-      "bundleIdentifier": "com.tapzi.app",
-      "associatedDomains": [
-        "applinks:tapzi.ro"
-      ],
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "Avem nevoie de locația ta pentru a-ți arăta saloanele din apropiere.",
-        "NSCameraUsageDescription": "Permite Tapzi să acceseze camera pentru streaming live și fotografii",
-        "NSMicrophoneUsageDescription": "Permite Tapzi să acceseze microfonul pentru streaming live",
-        "UIBackgroundModes": [
-          "audio",
-          "voip"
-        ]
-      }
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#5C8AD5"
-      },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "softwareKeyboardLayoutMode": "resize",
-      "package": "com.tapzi.app",
-      "intentFilters": [
-        {
-          "action": "VIEW",
-          "autoVerify": true,
-          "data": [
-            {
-              "scheme": "https",
-              "host": "tapzi.ro",
-              "pathPrefix": "/"
-            }
-          ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
-        }
-      ],
-      "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.CAMERA",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION"
-      ]
-    },
-    "web": {
-      "favicon": "./assets/favicon.png",
-      "bundler": "metro"
-    },
-    "plugins": [
-      "expo-router",
-      "expo-secure-store",
-      "expo-font",
-      "expo-image-picker",
-      [
-        "expo-location",
-        {
-          "locationWhenInUsePermission": "Avem nevoie de locația ta pentru a-ți arăta saloanele din apropiere."
-        }
-      ],
-      "@livekit/react-native-expo-plugin",
-      "@config-plugins/react-native-webrtc",
-      [
-        "expo-calendar",
-        {
-          "calendarPermission": "Permite Tapzi să adauge programările tale în calendar."
-        }
-      ],
-      "expo-web-browser",
-      "expo-video",
-      "expo-audio",
-      "expo-asset",
-      "@rnmapbox/maps"
-    ],
-    "experiments": {
-      "typedRoutes": true
-    },
-    "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "736a549c-35cd-4d81-8644-72075004b1d0"
-      }
-    }
-  }
+	"expo": {
+		"name": "Tapzi Barber Shop",
+		"slug": "tapzi",
+		"version": "1.0.0",
+		"orientation": "portrait",
+		"icon": "./assets/icon.png",
+		"userInterfaceStyle": "automatic",
+		"scheme": "tapzi",
+		"newArchEnabled": true,
+		"splash": {
+			"image": "./assets/splash-icon.png",
+			"resizeMode": "contain",
+			"backgroundColor": "#5C8AD5"
+		},
+		"ios": {
+			"supportsTablet": true,
+			"buildNumber": "23",
+			"bundleIdentifier": "com.tapzi.app",
+			"associatedDomains": ["applinks:tapzi.ro"],
+			"infoPlist": {
+				"ITSAppUsesNonExemptEncryption": false,
+				"NSLocationWhenInUseUsageDescription": "Avem nevoie de locația ta pentru a-ți arăta saloanele din apropiere.",
+				"NSCameraUsageDescription": "Permite Tapzi să acceseze camera pentru streaming live și fotografii",
+				"NSMicrophoneUsageDescription": "Permite Tapzi să acceseze microfonul pentru streaming live",
+				"UIBackgroundModes": ["audio", "voip"]
+			}
+		},
+		"android": {
+			"adaptiveIcon": {
+				"backgroundColor": "#5C8AD5",
+				"foregroundImage": "./assets/images/android-icon-foreground.png",
+				"backgroundImage": "./assets/images/android-icon-background.png",
+				"monochromeImage": "./assets/images/android-icon-monochrome.png"
+			},
+			"edgeToEdgeEnabled": true,
+			"predictiveBackGestureEnabled": false,
+			"softwareKeyboardLayoutMode": "resize",
+			"package": "com.tapzi.app",
+			"intentFilters": [
+				{
+					"action": "VIEW",
+					"autoVerify": true,
+					"data": [
+						{ "scheme": "https", "host": "tapzi.ro", "pathPrefix": "/" }
+					],
+					"category": ["BROWSABLE", "DEFAULT"]
+				}
+			],
+			"permissions": [
+				"android.permission.RECORD_AUDIO",
+				"android.permission.CAMERA",
+				"android.permission.ACCESS_FINE_LOCATION",
+				"android.permission.ACCESS_COARSE_LOCATION"
+			]
+		},
+		"web": { "favicon": "./assets/favicon.png", "bundler": "metro" },
+		"plugins": [
+			"expo-router",
+			"expo-secure-store",
+			"expo-font",
+			"expo-image-picker",
+			[
+				"expo-location",
+				{
+					"locationWhenInUsePermission": "Avem nevoie de locația ta pentru a-ți arăta saloanele din apropiere."
+				}
+			],
+			"@livekit/react-native-expo-plugin",
+			"@config-plugins/react-native-webrtc",
+			[
+				"expo-calendar",
+				{
+					"calendarPermission": "Permite Tapzi să adauge programările tale în calendar."
+				}
+			],
+			"expo-web-browser",
+			"expo-video",
+			"expo-audio",
+			"expo-asset",
+			"@rnmapbox/maps"
+		],
+		"experiments": { "typedRoutes": true },
+		"extra": {
+			"router": {},
+			"eas": { "projectId": "736a549c-35cd-4d81-8644-72075004b1d0" }
+		}
+	}
 }

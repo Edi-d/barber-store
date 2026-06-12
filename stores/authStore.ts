@@ -58,8 +58,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   initialize: async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session: cachedSession } } = await supabase.auth.getSession();
+      let session = cachedSession;
       console.log("[AUTH] Session:", session ? `User ${session.user.id}` : "null");
+
+      // Validate the cached session against the auth server. If the underlying
+      // user was deleted while signed in (e.g. the account was removed from the
+      // shared backend), getSession() still returns a locally-valid JWT but
+      // getUser() gets a definitive 401/403 — drop the orphaned session so we
+      // land on welcome instead of the "Completează profilul" screen (which then
+      // hangs on the Profil tab, since profile stays null forever). A legitimate
+      // user always has a profile row (handle_new_user trigger), so a live
+      // session with no profile only ever means a deleted/orphaned account.
+      // Transient/offline failures carry no 401/403 status, so they must NOT log
+      // the user out — we keep the cached session and proceed.
+      if (session) {
+        const { error: userError } = await supabase.auth.getUser();
+        const status = (userError as { status?: number } | null)?.status;
+        if (userError && (status === 401 || status === 403)) {
+          console.warn("[AUTH] Auth user no longer exists - clearing orphaned session.");
+          cleanupAllChannels();
+          await supabase.auth.signOut({ scope: "local" });
+          session = null;
+        }
+      }
+
       set({ session });
 
       if (session) {

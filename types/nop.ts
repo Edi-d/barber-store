@@ -273,6 +273,29 @@ export type NopStoriesResponse = {
   stories: NopStory[];
 };
 
+// ─── Checkout: shipping methods ──────────────────────────
+/**
+ * One courier / shipping option from GetShippingMethodInfos. This endpoint is
+ * cart-independent — it lists every configured method with its logo and flat fee.
+ * shipping_price is a float in major units (lei); 0 = free (e.g. in-store pickup).
+ */
+export type NopShippingMethodInfo = {
+  id: number;
+  shipping_method_system_name: string | null;
+  display_name: string | null;
+  /** Courier logo, sized by the request's pictureSize param. */
+  picture_url: string | null;
+  shipping_price: number;
+  is_pickup_point: boolean;
+  show_on_product_page: boolean;
+  display_order: number;
+};
+
+export type NopGetShippingMethodInfosResponse = {
+  shipping_method_infos: NopShippingMethodInfo[];
+  custom_properties: unknown;
+};
+
 // ─── Slug → entity resolution ────────────────────────────
 export type NopUrlRecord = {
   /** The resolved entity's id (manufacturer_id / category id / product id). */

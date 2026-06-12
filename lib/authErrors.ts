@@ -20,6 +20,10 @@ const ERROR_MAP: Record<string, string> = {
     "Adresa de email este invalidă",
   "Signup requires a valid password": "Parola introdusă nu este validă",
   "Anonymous sign-ins are disabled": "Autentificarea anonimă nu este permisă",
+  // Raised by authStore.signIn when a barber/salon (professional) account tries
+  // to log into this client app — they belong to the Tapzi Barber app.
+  PROFESSIONAL_ACCOUNT:
+    "Acest cont este un cont profesional. Conectează-te din aplicația Tapzi Barber.",
 };
 
 /**

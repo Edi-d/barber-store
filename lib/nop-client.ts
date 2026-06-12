@@ -26,6 +26,7 @@ import type {
   NopGetFilterOptionsResponse,
   NopGetFilteredProductsResponse,
   NopGetProductDetailsResponse,
+  NopGetShippingMethodInfosResponse,
   NopGuestTokenResponse,
   NopHomepageContentResponse,
   NopStoriesResponse,
@@ -288,6 +289,20 @@ export function getHomepageContent(
 /** Merchant stories / promo reel (guide §7b). */
 export function getStories(): Promise<NopStoriesResponse> {
   return nop<NopStoriesResponse>({ path: '/api/Story/GetStories' });
+}
+
+/**
+ * Available courier / shipping options with logos + flat prices. Cart-independent
+ * (unlike /api/Checkout/PaymentMethod, which needs a populated nop cart), so it
+ * works with just the guest token. pictureSize is the courier-logo edge in px.
+ */
+export function getShippingMethodInfos(
+  pictureSize = 200,
+): Promise<NopGetShippingMethodInfosResponse> {
+  return nop<NopGetShippingMethodInfosResponse>({
+    path: '/api/ShippingMethodInfo/GetShippingMethodInfos',
+    query: { pictureSize },
+  });
 }
 
 /** Resolve a CMS slug to its entity (guide §8). slug must NOT have a leading '/'. */

@@ -22,6 +22,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Linking,
   Platform,
@@ -53,6 +54,7 @@ import {
 } from '@/lib/marketplace-orders';
 import { useMarketplaceCartStore } from '@/hooks/use-marketplace-cart-store';
 import { useMarketplaceQuote } from '@/hooks/use-marketplace-quote';
+import { useShippingMethods } from '@/hooks/use-shipping-methods';
 import { useDefaultSalonBilling } from '@/hooks/use-salon-billing-details';
 import { useAuth } from '@/providers/auth-provider';
 import { useSalon } from '@/providers/salon-provider';
@@ -135,6 +137,7 @@ export default function MarketplaceCheckoutScreen() {
   }));
   const [submitting, setSubmitting] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<ClientPaymentMethod>('cod');
+  const [selectedShippingMethodId, setSelectedShippingMethodId] = useState<number | null>(null);
   const [saveAddr, setSaveAddr] = useState(true);
   const [prefilledFromSaved, setPrefilledFromSaved] = useState(false);
 
@@ -196,9 +199,34 @@ export default function MarketplaceCheckoutScreen() {
   );
   const { quote } = useMarketplaceQuote(quoteInputs, buyerMode);
 
+  // ── Shipping methods (client only) — from nopCommerce, logo + flat fee ─
+  const { data: shippingMethods = [], isLoading: shippingLoading } = useShippingMethods({
+    pictureSize: 160,
+    enabled: buyerMode === 'client',
+  });
+
+  // Default-select the first method (sorted by display_order) once loaded.
+  useEffect(() => {
+    if (selectedShippingMethodId == null && shippingMethods.length > 0) {
+      setSelectedShippingMethodId(shippingMethods[0].id);
+    }
+  }, [shippingMethods, selectedShippingMethodId]);
+
+  const selectedShippingMethod = useMemo(
+    () => shippingMethods.find((m) => m.id === selectedShippingMethodId) ?? null,
+    [shippingMethods, selectedShippingMethodId],
+  );
+
   const subtotalCents = quote?.subtotal_cents ?? cart.totalCents();
   const tierSavingsCents = quote?.tier_savings_cents ?? 0;
-  const shippingCents = buyerMode === 'salon' ? 0 : (quote?.shipping_cents ?? 0);
+  // The chosen courier's fee drives the total; fall back to the quote until a
+  // method is selected. Salon orders ship free.
+  const shippingCents =
+    buyerMode === 'salon'
+      ? 0
+      : selectedShippingMethod
+        ? Math.round(selectedShippingMethod.shipping_price * 100)
+        : (quote?.shipping_cents ?? 0);
   const totalCents = Math.max(0, subtotalCents + shippingCents);
 
   // ── Validation ────────────────────────────────────────
@@ -254,6 +282,11 @@ export default function MarketplaceCheckoutScreen() {
           items: cart.items,
           paymentMethod,
           shipping,
+          shippingMethod:
+            selectedShippingMethod?.shipping_method_system_name ??
+            selectedShippingMethod?.display_name ??
+            null,
+          shippingCents,
           voucherCode: voucher_code ?? null,
         });
 
@@ -394,6 +427,8 @@ export default function MarketplaceCheckoutScreen() {
     marketplaceIdempotencyKey,
     setMarketplaceIdempotencyKey,
     paymentMethod,
+    selectedShippingMethod,
+    shippingCents,
     saveAddr,
     user?.id,
   ]);
@@ -694,6 +729,82 @@ export default function MarketplaceCheckoutScreen() {
                   Salveaza aceasta adresa pentru data viitoare
                 </Text>
               </Pressable>
+            </Animated.View>
+          )}
+
+          {/* ── Shipping method (client only) — nop couriers ── */}
+          {buyerMode === 'client' && (
+            <Animated.View
+              entering={slideIn(75)}
+              className="border p-4 gap-3"
+              style={[Bubble.radii, { backgroundColor: 'rgba(255,255,255,0.55)', borderColor: 'rgba(255,255,255,0.8)' }]}
+            >
+              <Text style={{ fontFamily: FontFamily.semiBold, fontSize: 16, lineHeight: 22, color: colors.text }}>
+                Metoda de livrare
+              </Text>
+
+              {shippingLoading && shippingMethods.length === 0 ? (
+                <View className="flex-row items-center gap-2 py-2">
+                  <ActivityIndicator size="small" color={Brand.primary} />
+                  <Text style={{ fontFamily: FontFamily.regular, fontSize: 13, color: colors.textSecondary }}>
+                    Se incarca metodele de livrare…
+                  </Text>
+                </View>
+              ) : shippingMethods.length === 0 ? (
+                <Text style={{ fontFamily: FontFamily.regular, fontSize: 13, color: colors.textSecondary }}>
+                  Momentan nu sunt metode de livrare disponibile.
+                </Text>
+              ) : (
+                shippingMethods.map((m) => {
+                  const active = selectedShippingMethodId === m.id;
+                  const priceCents = Math.round(m.shipping_price * 100);
+                  return (
+                    <Pressable
+                      key={m.id}
+                      onPress={() => setSelectedShippingMethodId(m.id)}
+                      className="flex-row items-center gap-3 p-3 border"
+                      style={[
+                        Bubble.radiiSm,
+                        {
+                          borderColor: active ? Brand.primary : colors.inputBorder,
+                          backgroundColor: active ? Brand.primaryMuted : 'transparent',
+                        },
+                      ]}
+                    >
+                      {m.picture_url ? (
+                        <Image
+                          source={{ uri: m.picture_url }}
+                          style={{ width: 36, height: 36, borderRadius: 8 }}
+                          resizeMode="contain"
+                        />
+                      ) : (
+                        <Feather name="truck" size={18} color={active ? Brand.primary : colors.textSecondary} />
+                      )}
+                      <View className="flex-1">
+                        <Text numberOfLines={1} style={{ fontFamily: FontFamily.semiBold, fontSize: 14, color: colors.text }}>
+                          {m.display_name ?? 'Livrare'}
+                        </Text>
+                        <Text style={{ fontFamily: FontFamily.regular, fontSize: 12, color: priceCents === 0 ? colors.success : colors.textSecondary }}>
+                          {priceCents === 0 ? 'Gratuit' : formatPrice(priceCents)}
+                        </Text>
+                      </View>
+                      <View
+                        style={{
+                          width: 20,
+                          height: 20,
+                          borderRadius: 10,
+                          borderWidth: 2,
+                          borderColor: active ? Brand.primary : colors.inputBorder,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {active && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: Brand.primary }} />}
+                      </View>
+                    </Pressable>
+                  );
+                })
+              )}
             </Animated.View>
           )}
 

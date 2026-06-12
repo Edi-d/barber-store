@@ -6,6 +6,7 @@ export default function MarketplaceLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="categories" />
       <Stack.Screen name="category/[slug]" />
+      <Stack.Screen name="brands" />
       <Stack.Screen name="brand/[slug]" />
       <Stack.Screen name="product/[id]" />
       <Stack.Screen name="cart" />

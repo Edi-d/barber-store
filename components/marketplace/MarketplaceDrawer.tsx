@@ -66,21 +66,49 @@ import { useBuyerType } from '@/hooks/use-buyer-type';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+// Use the *screen* height (full physical display) rather than the window
+// height. The drawer renders inside a statusBarTranslucent full-screen Modal,
+// so it must cover the area behind both the status bar and the navigation bar.
+// window.height excludes the nav bar on Android and would leave a gap at the
+// bottom of the panel.
+const SCREEN_HEIGHT = Dimensions.get('screen').height;
 const SMOOTH = Easing.bezier(0.25, 0.1, 0.25, 1);
 const DRAWER_WIDTH = Math.min(SCREEN_WIDTH * 0.86, 360);
 
-// Maps top-level category slugs to Feather icons. Mirrors the home-screen
-// category tile rail so the drawer feels like a vertical companion.
-const CATEGORY_ICON: Record<string, keyof typeof Feather.glyphMap> = {
-  aparatura: 'zap',
-  foarfeci: 'scissors',
-  'piepteni-si-perii': 'wind',
-  'ingrijirea-parului': 'droplet',
-  'ingrijirea-corpului': 'heart',
-  'barba-si-mustata': 'user',
-  'produse-igiena': 'shield',
-};
+// Resolve a representative Feather icon for a category by matching keywords in
+// its slug + Romanian title. Keyword-based (not slug-keyed) so it survives the
+// nopCommerce se_name slugs, which don't match fixed keys. Order matters where
+// substrings overlap (e.g. "aparatura" before "par"); first hit wins.
+function normalizeForMatch(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');
+}
+
+function categoryIcon(slug: string, title: string): keyof typeof Feather.glyphMap {
+  const hay = normalizeForMatch(`${slug} ${title}`);
+  const has = (...keys: string[]) => keys.some((k) => hay.includes(k));
+
+  if (has('aparat', 'masini', 'trimmer', 'clipper')) return 'zap';
+  if (has('foarfec', 'scissor')) return 'scissors';
+  if (has('piepten', 'perii', 'comb', 'brush')) return 'wind';
+  if (has('barbierit', 'barbier', 'shav', 'ras')) return 'edit-3';
+  if (has('barba', 'mustat', 'beard')) return 'user';
+  if (has('parul', 'parului', 'hair')) return 'droplet';
+  if (has('facial', 'tratament', 'face')) return 'smile';
+  if (has('corp', 'body')) return 'heart';
+  if (has('cosmetic', 'makeup', 'machiaj')) return 'star';
+  if (has('accesor', 'frizerie')) return 'grid';
+  if (has('consumabil')) return 'layers';
+  if (has('dezinfect', 'igien', 'hygien', 'steril')) return 'shield';
+  if (has('curaten', 'clean')) return 'trash-2';
+  if (has('mobilier', 'scaun', 'furniture')) return 'home';
+  if (has('cadou', 'gift')) return 'gift';
+  if (has('pachet', 'promo', 'oferta')) return 'tag';
+  return 'package';
+}
 
 type TabKey = 'categorii' | 'meniu';
 
@@ -161,6 +189,7 @@ export function MarketplaceDrawer({
   };
   const allMeniuItems: MenuItem[] = [
     { icon: 'shopping-bag', label: 'Comenzi',          path: '/marketplace/orders' },
+    { icon: 'award',        label: 'Branduri',          path: '/marketplace/brands' },
     { icon: 'heart',        label: 'Favorite',          path: '/marketplace/favorites' },
     { icon: 'repeat',       label: 'Lista mea',         path: '/marketplace/recurring-list' },
     { icon: 'zap',          label: 'Comanda rapida',    path: '/marketplace/quick-order',    ownerOnly: true },
@@ -271,7 +300,7 @@ export function MarketplaceDrawer({
                 topCategories.map((cat) => {
                   const kids = childrenByParent.get(cat.id) ?? [];
                   const isExpanded = expandedSlug === cat.slug;
-                  const iconName = CATEGORY_ICON[cat.slug] ?? 'package';
+                  const iconName = categoryIcon(cat.slug, cat.title_ro);
                   return (
                     <View key={cat.id}>
                       <Pressable

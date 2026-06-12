@@ -37,9 +37,13 @@ export async function placeMarketplaceClientOrder(params: {
   items: MarketplaceCartItem[];
   paymentMethod: ClientPaymentMethod;
   shipping: ShippingInput;
+  /** nop shipping_method_system_name (or display_name) of the chosen courier. */
+  shippingMethod?: string | null;
+  /** Fee of the chosen courier, in cents — becomes the order's shipping line. */
+  shippingCents?: number;
   voucherCode?: string | null;
 }): Promise<PlaceOrderResult> {
-  const { items, paymentMethod, shipping, voucherCode } = params;
+  const { items, paymentMethod, shipping, shippingMethod, shippingCents, voucherCode } = params;
 
   const rpcItems = items.map((i) => ({
     nop_product_id: i.product_id,
@@ -54,6 +58,10 @@ export async function placeMarketplaceClientOrder(params: {
     p_payment_method: paymentMethod === 'card' ? 'stripe' : 'cod',
     p_shipping: shipping,
     p_voucher_code: voucherCode ?? null,
+    // Selected nop courier + its fee (requires migration 146). The server clamps
+    // to >= 0 and folds the fee into shipping_cents / total_cents.
+    p_shipping_cents: Math.max(0, Math.round(shippingCents ?? 0)),
+    p_shipping_method: shippingMethod ?? null,
   });
 
   if (error) throw new Error(error.message);

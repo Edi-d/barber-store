@@ -25,16 +25,66 @@ const WebStorageAdapter = {
   },
 };
 
-// Native storage adapter using SecureStore
+// Native storage adapter using SecureStore.
+//
+// SecureStore caps each stored value at ~2048 bytes. A Supabase session blob
+// (access JWT + refresh token + the full user object) routinely exceeds that,
+// so a single-value write silently fails to persist — which surfaces later as
+// the user being logged out the next time the token refreshes. To avoid that we
+// transparently split large values across numbered chunk keys (`${key}.0`, `.1`,
+// …) and reassemble them on read. Small values are stored as a single value as
+// before. A sentinel key (`${key}.__chunks`) records the chunk count so reads
+// know whether a value is chunked.
+const CHUNK_SIZE = 2000; // chars; stays under the 2048-byte cap for ASCII session data
+const chunkCountKey = (key: string) => `${key}.__chunks`;
+
+// Remove every representation of `key` (plain value + any chunks) so a new write
+// never leaves stale leftovers behind (e.g. when a value shrinks).
+async function clearNative(key: string): Promise<void> {
+  const countRaw = await SecureStore.getItemAsync(chunkCountKey(key));
+  if (countRaw != null) {
+    const count = parseInt(countRaw, 10);
+    for (let i = 0; i < count; i++) {
+      await SecureStore.deleteItemAsync(`${key}.${i}`);
+    }
+    await SecureStore.deleteItemAsync(chunkCountKey(key));
+  }
+  await SecureStore.deleteItemAsync(key);
+}
+
 const NativeStorageAdapter = {
-  getItem: (key: string) => {
-    return SecureStore.getItemAsync(key);
+  getItem: async (key: string) => {
+    const countRaw = await SecureStore.getItemAsync(chunkCountKey(key));
+    if (countRaw == null) {
+      // Not chunked — read the plain value (also covers pre-migration sessions).
+      return SecureStore.getItemAsync(key);
+    }
+    const count = parseInt(countRaw, 10);
+    const parts: string[] = [];
+    for (let i = 0; i < count; i++) {
+      const part = await SecureStore.getItemAsync(`${key}.${i}`);
+      if (part == null) return null; // partial/corrupt write — force a clean re-auth
+      parts.push(part);
+    }
+    return parts.join("");
   },
-  setItem: (key: string, value: string) => {
-    return SecureStore.setItemAsync(key, value);
+  setItem: async (key: string, value: string) => {
+    await clearNative(key);
+    if (value.length <= CHUNK_SIZE) {
+      await SecureStore.setItemAsync(key, value);
+      return;
+    }
+    const count = Math.ceil(value.length / CHUNK_SIZE);
+    for (let i = 0; i < count; i++) {
+      await SecureStore.setItemAsync(
+        `${key}.${i}`,
+        value.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE),
+      );
+    }
+    await SecureStore.setItemAsync(chunkCountKey(key), String(count));
   },
   removeItem: (key: string) => {
-    return SecureStore.deleteItemAsync(key);
+    return clearNative(key);
   },
 };
 

@@ -2,7 +2,32 @@ import { create } from "zustand";
 import { supabase } from "@/lib/supabase";
 import { cleanupAllChannels } from "@/lib/realtime";
 import { Profile } from "@/types/database";
-import { Session } from "@supabase/supabase-js";
+import { Session, User } from "@supabase/supabase-js";
+
+/**
+ * This is the CLIENT app. Barber/salon (professional) accounts belong to the
+ * separate Tapzi Barber app and share the same Supabase backend, so a valid
+ * pro credential would otherwise authenticate straight into the customer UI.
+ * An account is treated as professional if EITHER:
+ *   - it was created by the pro app (user_metadata.signup_flow === 'salon_owner'), or
+ *   - it has any salon domain link: owns a salon, is a salon team member, or
+ *     has a barber record.
+ * Returns true for pro accounts (which signIn then rejects).
+ */
+async function isProfessionalAccount(user: User): Promise<boolean> {
+  // 1) Origin signal from the pro app's signup — cheap, no round-trip.
+  const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+  if (meta.signup_flow === "salon_owner") return true;
+
+  // 2) Authoritative domain membership for established pros.
+  const uid = user.id;
+  const [owner, member, barber] = await Promise.all([
+    supabase.from("salons").select("id").eq("owner_id", uid).limit(1).maybeSingle(),
+    supabase.from("salon_members").select("id").eq("profile_id", uid).limit(1).maybeSingle(),
+    supabase.from("barbers").select("id").eq("profile_id", uid).limit(1).maybeSingle(),
+  ]);
+  return Boolean(owner.data || member.data || barber.data);
+}
 
 interface AuthState {
   session: Session | null;
@@ -45,11 +70,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ isInitialized: true });
       console.log("[AUTH] Initialized - session:", !!session, "profile:", !!get().profile);
 
-      // Listen for auth changes
-      supabase.auth.onAuthStateChange(async (event, session) => {
+      // Listen for auth changes.
+      //
+      // IMPORTANT: this callback must NOT await other supabase calls. The auth
+      // client emits events while holding its internal lock; fetchProfile() runs
+      // a supabase query that needs the same lock to read the access token, so
+      // awaiting it here deadlocks the client (frozen UI, e.g. after
+      // updateUser/password change). Keep the callback synchronous and defer the
+      // profile fetch to a separate tick so the lock is released first.
+      supabase.auth.onAuthStateChange((event, session) => {
         set({ session });
         if (session) {
-          await get().fetchProfile();
+          setTimeout(() => {
+            void get().fetchProfile();
+          }, 0);
         } else {
           set({ profile: null });
         }
@@ -65,11 +99,33 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signIn: async (email: string, password: string) => {
     set({ isSubmitting: true });
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       if (error) throw error;
+
+      // Gate professional accounts out of the client app. Detection runs against
+      // the freshly-authenticated session (the membership queries need it), then
+      // we tear the session back down so no pro session lingers if it's blocked.
+      if (data.user && (await isProfessionalAccount(data.user))) {
+        cleanupAllChannels();
+        await supabase.auth.signOut();
+        set({ session: null, profile: null });
+        return { error: new Error("PROFESSIONAL_ACCOUNT") };
+      }
+
+      // Load the profile BEFORE returning so the caller can navigate without
+      // racing the deferred onAuthStateChange fetch. Otherwise the index guard
+      // briefly sees a session with profile === null right after login and
+      // wrongly bounces existing users to "Completează profilul" (it self-corrects
+      // only on the next launch, once initialize() pre-loads the profile).
+      // fetchProfile reads get().session, so seed it from the fresh sign-in first.
+      if (data.session) {
+        set({ session: data.session });
+        await get().fetchProfile();
+      }
+
       return { error: null };
     } catch (error) {
       return { error: error as Error };

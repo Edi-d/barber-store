@@ -16,7 +16,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/authStore";
 import { Barber, BarberService } from "@/types/database";
 import { formatPrice } from "@/lib/utils";
-import { generateTimeSlots, getNext14Days, formatCalendarDay, findFirstAvailableDate } from "@/lib/booking";
+import { generateTimeSlots, getNext14Days, formatCalendarDay, findFirstAvailableDate, findSoonestAvailableBarber } from "@/lib/booking";
 import { addBookingToCalendar, openAppSettings, CalendarError } from "@/lib/calendar";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -28,6 +28,7 @@ import type { BookAppointmentResult as RpcBookResult } from "@/types/database";
 // ── Animated components ──────────────────────────────────────────────────────
 import { BookingStepIndicator } from "@/components/shared/BookingStepIndicator";
 import { BarberCard } from "@/components/shared/BarberCard";
+import { AnyBarberCard } from "@/components/shared/AnyBarberCard";
 import { ServiceCard } from "@/components/shared/ServiceCard";
 import { BookingDatePicker } from "@/components/shared/BookingDatePicker";
 import { BookingTimeGrid } from "@/components/shared/BookingTimeGrid";
@@ -67,6 +68,7 @@ export default function BookAppointmentScreen() {
   const [isAddingCalendar, setIsAddingCalendar] = useState(false);
   const [calendarEventAdded, setCalendarEventAdded] = useState(false);
   const [paramsApplied, setParamsApplied] = useState(false);
+  const [isResolvingAnyBarber, setIsResolvingAnyBarber] = useState(false);
   const [bookingResult, setBookingResult] =
     useState<BookingSuccessResult | null>(null);
 
@@ -377,6 +379,51 @@ export default function BookAppointmentScreen() {
     setSelectedTime(null);
     setSelectedDate(null);
   }, []);
+
+  // ── "Anyone available": auto-pick the soonest-bookable barber ──────────
+  const handleSelectAnyBarber = useCallback(async () => {
+    if (!barbers || barbers.length === 0 || isResolvingAnyBarber) return;
+
+    setIsResolvingAnyBarber(true);
+    try {
+      // No service chosen yet at step 1 → rank on a default 30-min slot.
+      const best = await findSoonestAvailableBarber(
+        barbers.map((b) => ({ id: b.id, salon_id: b.salon_id })),
+        totalDurationMin || 30
+      );
+
+      if (!best) {
+        Alert.alert(
+          "Niciun frizer disponibil",
+          "Niciun frizer nu are intervale libere în următoarele 14 zile. Încearcă mai târziu.",
+          [{ text: "OK" }]
+        );
+        return;
+      }
+
+      const barber = barbers.find((b) => b.id === best.barberId);
+      if (!barber) return;
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+
+      // Same dependent-state reset as a manual barber switch.
+      if (selectedBarber?.id !== barber.id) {
+        setSelectedServices([]);
+        setSelectedDate(null);
+        setSelectedTime(null);
+      }
+      setSelectedBarber(barber);
+      goNext();
+    } catch (err) {
+      Alert.alert(
+        "Eroare",
+        "Nu am putut găsi un frizer disponibil. Încearcă din nou.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setIsResolvingAnyBarber(false);
+    }
+  }, [barbers, isResolvingAnyBarber, totalDurationMin, selectedBarber, goNext]);
 
   // ── Submit ─────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
@@ -692,6 +739,12 @@ export default function BookAppointmentScreen() {
               </View>
             ) : (
               <View style={{ gap: 12 }}>
+                {(barbers?.length ?? 0) > 1 && (
+                  <AnyBarberCard
+                    onSelect={handleSelectAnyBarber}
+                    isResolving={isResolvingAnyBarber}
+                  />
+                )}
                 {barbers?.map((barber, index) => (
                   <View
                     key={barber.id}

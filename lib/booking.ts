@@ -330,3 +330,96 @@ export async function findFirstAvailableDate(
 
   return { date: null, offDays };
 }
+
+/**
+ * Find the first concrete free slot (date + "HH:MM" time) for a single barber
+ * within the next 14 days.  Same schedule/busy semantics as
+ * findFirstAvailableDate, but also returns the earliest free start time of that
+ * day so callers can rank barbers against each other on an absolute timeline.
+ *
+ * Returns { date: null, time: null } when the barber has no free slot in the
+ * window.  Throws on any RPC/network error.
+ */
+export async function findFirstAvailableSlot(
+  barberId: string,
+  serviceDurationMin: number,
+  salonId?: string | null
+): Promise<{ date: Date | null; time: string | null }> {
+  const days = getNext14Days();
+  const now = new Date();
+
+  const scheduleMap = await resolveSchedule(barberId, salonId);
+  if (scheduleMap.size === 0) return { date: null, time: null };
+
+  const windowStart = new Date(days[0]);
+  windowStart.setHours(0, 0, 0, 0);
+  const windowEnd = new Date(days[days.length - 1]);
+  windowEnd.setHours(23, 59, 59, 999);
+
+  const busyIntervals = await fetchBusyIntervals(barberId, windowStart, windowEnd);
+
+  for (const day of days) {
+    const dayHours = scheduleMap.get(day.getDay());
+    if (!dayHours) continue;
+
+    const slots = computeSlotsForDay(day, dayHours, busyIntervals, serviceDurationMin, now);
+    const firstFree = slots.find((s) => s.available);
+    if (firstFree) return { date: day, time: firstFree.time };
+  }
+
+  return { date: null, time: null };
+}
+
+/**
+ * "Anyone available" resolver.  Given a roster of barbers, finds the one who
+ * can be booked the soonest (earliest absolute date+time) for a service of the
+ * given duration, looking across the next 14 days.
+ *
+ * Each barber's availability is computed in parallel.  A barber whose lookup
+ * throws is treated as having no availability rather than failing the whole
+ * resolution — so one bad row never blocks the feature.
+ *
+ * Returns null when no barber has a free slot in the window.
+ */
+export async function findSoonestAvailableBarber(
+  barbers: { id: string; salon_id?: string | null }[],
+  serviceDurationMin: number
+): Promise<{ barberId: string; date: Date; time: string } | null> {
+  const settled = await Promise.allSettled(
+    barbers.map((b) =>
+      findFirstAvailableSlot(b.id, serviceDurationMin, b.salon_id ?? null).then(
+        (slot) => ({ barberId: b.id, slot })
+      )
+    )
+  );
+
+  let best: { barberId: string; date: Date; time: string } | null = null;
+  let bestMs = Infinity;
+  let sawSuccess = false;
+  let firstError: unknown = null;
+
+  for (const s of settled) {
+    if (s.status === "rejected") {
+      if (firstError === null) firstError = s.reason;
+      continue;
+    }
+    sawSuccess = true;
+    const { barberId, slot } = s.value;
+    if (!slot.date || !slot.time) continue;
+    const [h, m] = parseTime(slot.time);
+    const dt = new Date(slot.date);
+    dt.setHours(h, m, 0, 0);
+    const ms = dt.getTime();
+    if (ms < bestMs) {
+      bestMs = ms;
+      best = { barberId, date: slot.date, time: slot.time };
+    }
+  }
+
+  // If not a single barber's availability could be computed, the result is an
+  // error condition (e.g. the busy-intervals RPC failed) — surface it rather
+  // than reporting a misleading "nobody is available".
+  if (!sawSuccess && firstError !== null) throw firstError;
+
+  return best;
+}

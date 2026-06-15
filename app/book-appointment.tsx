@@ -923,6 +923,11 @@ export default function BookAppointmentScreen() {
               onSubmit={handleSubmit}
               isSubmitting={isSubmitting}
               formatPrice={formatPrice}
+              role={
+                selectedBarber.profile_id
+                  ? roleByProfileId.get(selectedBarber.profile_id)
+                  : undefined
+              }
               summaryCardRef={summaryCardRef}
               notesInputRef={notesInputRef}
               confirmBtnRef={confirmBtnRef}

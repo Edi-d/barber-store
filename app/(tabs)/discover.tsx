@@ -11,6 +11,7 @@ import {
   Modal,
   Platform,
   Alert,
+  Linking,
   useWindowDimensions,
 } from "react-native";
 import { useTutorialContext } from "@/components/tutorial/TutorialProvider";
@@ -59,7 +60,7 @@ export default function DiscoverScreen() {
   const insets = useSafeAreaInsets();
   const { session, profile } = useAuthStore();
   const queryClient = useQueryClient();
-  const { latitude, longitude, requestLocation, isLoading: locationLoading } = useLocationStore();
+  const { latitude, longitude, hasPermission, requestLocation, isLoading: locationLoading } = useLocationStore();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSalon, setSelectedSalon] = useState<SalonWithDistance | null>(null);
@@ -628,7 +629,20 @@ export default function DiscoverScreen() {
     }
 
     if (lat == null || lng == null) {
-      // Permission denied or fetch failed — locationStore surfaces the error
+      // Permission denied or fetch failed — guide the user to settings.
+      const denied = useLocationStore.getState().hasPermission === false;
+      Alert.alert(
+        "Locație indisponibilă",
+        denied
+          ? "Activează permisiunea de locație din setări pentru a-ți vedea poziția pe hartă."
+          : "Nu am putut obține locația ta. Încearcă din nou.",
+        denied
+          ? [
+              { text: "Anulează", style: "cancel" },
+              { text: "Deschide setările", onPress: () => Linking.openSettings() },
+            ]
+          : [{ text: "OK" }]
+      );
       return;
     }
 
@@ -705,7 +719,14 @@ export default function DiscoverScreen() {
                 },
               }}
             />
-            <Mapbox.LocationPuck puckBearingEnabled visible />
+            {hasPermission ? (
+              <Mapbox.LocationPuck
+                puckBearing="heading"
+                puckBearingEnabled
+                pulsing="default"
+                visible
+              />
+            ) : null}
             {sortedSalons
               .filter((salon) => salon.latitude != null && salon.longitude != null)
               .map((salon) => (

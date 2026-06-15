@@ -6,6 +6,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Barber, BarberService } from '@/types/database';
+import { barberRoleLabel } from '@/lib/utils';
 import { Colors, Shadows, Typography } from '@/constants/theme';
 import { Input } from '@/components/ui';
 import { Button } from '@/components/ui/Button';
@@ -24,6 +25,11 @@ interface BookingConfirmationProps {
   onSubmit: () => void;
   isSubmitting: boolean;
   formatPrice: (cents: number, currency: string) => string;
+  /**
+   * Authoritative role from salon_members.role. Falls back to barber.role
+   * (unreliable — defaults to 'owner') when not provided.
+   */
+  role?: string;
   summaryCardRef?: React.RefObject<View>;
   notesInputRef?: React.RefObject<View>;
   confirmBtnRef?: React.RefObject<View>;
@@ -51,7 +57,8 @@ function formatDateRomanian(date: Date): { line1: string; line2?: string } {
 // ---------------------------------------------------------------------------
 
 /** Barber row — staggers in with FadeInRight at delay 0. */
-function BarberRow({ barber }: { barber: Barber }) {
+function BarberRow({ barber, role }: { barber: Barber; role?: string }) {
+  const roleLabel = barberRoleLabel(role ?? barber.role);
   return (
     <Animated.View entering={FadeInRight.delay(100).duration(250)} style={styles.row}>
       <View style={styles.avatarWrap}>
@@ -67,11 +74,7 @@ function BarberRow({ barber }: { barber: Barber }) {
       <View style={styles.rowInfo}>
         <Text style={styles.rowLabel}>Frizer</Text>
         <Text style={styles.rowTitle}>{barber.name}</Text>
-        {barber.role ? (
-          <Text style={styles.rowSub}>
-            {barber.role === 'owner' ? 'Proprietar' : 'Frizer'}
-          </Text>
-        ) : null}
+        <Text style={styles.rowSub}>{roleLabel}</Text>
       </View>
 
       <View style={styles.checkCircle}>
@@ -197,6 +200,7 @@ export function BookingConfirmation({
   onSubmit,
   isSubmitting,
   formatPrice,
+  role,
   summaryCardRef,
   notesInputRef,
   confirmBtnRef,
@@ -216,7 +220,7 @@ export function BookingConfirmation({
       {/* ------------------------------------------------------------------ */}
       <View ref={summaryCardRef} collapsable={false} style={[styles.card, Shadows.md]}>
         {/* Barber row */}
-        <BarberRow barber={barber} />
+        <BarberRow barber={barber} role={role} />
 
         <View style={styles.divider} />
 

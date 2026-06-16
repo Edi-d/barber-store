@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import {
   View,
   Text,
+  TextInput,
   Pressable,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -16,33 +17,85 @@ import { useAuthStore } from "@/stores/authStore";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthBackground } from "@/components/auth/AuthBackground";
 import { GlassCard } from "@/components/auth/GlassCard";
-import { Colors, Typography, Bubble, Spacing } from "@/constants/theme";
-import { supabase } from "@/lib/supabase";
+import { SwipeButton, SwipeButtonRef } from "@/components/auth/SwipeButton";
+import { Colors, Typography, Spacing } from "@/constants/theme";
+import { mapAuthError } from "@/lib/authErrors";
+
+const OTP_LENGTH = 6;
 
 export default function ConfirmEmailScreen() {
   const { email } = useLocalSearchParams<{ email: string }>();
   const session = useAuthStore((s) => s.session);
+  const { verifySignUpOtp, resendSignUpOtp } = useAuthStore();
 
+  const [cells, setCells] = useState<string[]>(Array(OTP_LENGTH).fill(""));
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [swipeLoading, setSwipeLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
 
-  // Advance to onboarding once the deep-link callback sets the session
+  const swipeRef = useRef<SwipeButtonRef>(null);
+  const inputRefs = useRef<Array<TextInput | null>>(Array(OTP_LENGTH).fill(null));
+
+  const code = cells.join("");
+  const isComplete = code.length === OTP_LENGTH;
+
+  // Redirect if email param is missing
+  useEffect(() => {
+    if (!email) {
+      router.replace("/(auth)/signup");
+    }
+  }, [email]);
+
+  // Advance to onboarding once a session exists (set by verifyOtp here, or by a
+  // deep-link callback if the user tapped the email link instead of typing it).
   useEffect(() => {
     if (session) {
       router.replace("/(auth)/onboarding");
     }
   }, [session]);
 
+  const handleCellChange = (text: string, index: number) => {
+    const digit = text.replace(/[^0-9]/g, "").slice(-1);
+    const next = [...cells];
+    next[index] = digit;
+    setCells(next);
+
+    if (digit && index < OTP_LENGTH - 1) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleCellKeyPress = (key: string, index: number) => {
+    if (key === "Backspace" && cells[index] === "" && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleSubmit = useCallback(async () => {
+    if (!isComplete || !email) return;
+    setError(null);
+    setSwipeLoading(true);
+    const { error: verifyError } = await verifySignUpOtp(email, code);
+    if (verifyError) {
+      setError(mapAuthError(verifyError.message));
+      setSwipeLoading(false);
+      swipeRef.current?.reset();
+    } else {
+      router.replace("/(auth)/onboarding");
+    }
+  }, [email, code, isComplete, verifySignUpOtp]);
+
   const handleResend = async () => {
-    if (!email || resendLoading) return;
+    if (!email || resendLoading || resendSuccess) return;
     setResendLoading(true);
     setResendSuccess(false);
-    try {
-      await supabase.auth.resend({ type: "signup", email });
+    const { error: resendError } = await resendSignUpOtp(email);
+    setResendLoading(false);
+    if (!resendError) {
       setResendSuccess(true);
       setTimeout(() => setResendSuccess(false), 3000);
-    } finally {
-      setResendLoading(false);
     }
   };
 
@@ -70,25 +123,19 @@ export default function ConfirmEmailScreen() {
 
             {/* Glass Card */}
             <GlassCard style={styles.card}>
-              {/* Mail icon */}
+              {/* Mail icon badge */}
               <View style={styles.iconContainer}>
-                <Ionicons
-                  name="mail"
-                  size={48}
-                  color={Colors.gradientStart}
-                />
+                <Ionicons name="mail" size={48} color={Colors.gradientStart} />
               </View>
 
               {/* Title */}
-              <Text style={[Typography.h1, styles.title]}>
-                Verifică emailul
-              </Text>
+              <Text style={[Typography.h1, styles.title]}>Verifică emailul</Text>
 
               {/* Body */}
               <Text style={[Typography.caption, styles.body]}>
-                Ți-am trimis un email de confirmare la{" "}
-                <Text style={styles.emailHighlight}>{email}</Text>. Apasă
-                link-ul din email pentru a continua.
+                Am trimis un cod de 6 cifre la{" "}
+                <Text style={styles.emailHighlight}>{email}</Text>. Introdu-l mai
+                jos pentru a-ți confirma contul.
               </Text>
 
               {/* Spam note */}
@@ -102,6 +149,59 @@ export default function ConfirmEmailScreen() {
                 <Text style={[Typography.caption, styles.noteText]}>
                   Verifică și folderul Spam dacă nu vezi emailul.
                 </Text>
+              </View>
+
+              {/* Error banner */}
+              {error && (
+                <View style={styles.errorContainer}>
+                  <Ionicons
+                    name="alert-circle"
+                    size={16}
+                    color={Colors.error}
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
+              )}
+
+              {/* 6-cell OTP input */}
+              <View style={styles.otpRow}>
+                {cells.map((cell, index) => (
+                  <TextInput
+                    key={index}
+                    ref={(ref) => {
+                      inputRefs.current[index] = ref;
+                    }}
+                    value={cell}
+                    onChangeText={(text) => handleCellChange(text, index)}
+                    onKeyPress={({ nativeEvent }) =>
+                      handleCellKeyPress(nativeEvent.key, index)
+                    }
+                    onFocus={() => setFocusedIndex(index)}
+                    onBlur={() => setFocusedIndex(null)}
+                    keyboardType="number-pad"
+                    maxLength={1}
+                    textContentType="oneTimeCode"
+                    autoComplete={index === 0 ? "sms-otp" : "off"}
+                    selectTextOnFocus
+                    style={[
+                      styles.otpCell,
+                      focusedIndex === index && styles.otpCellFocused,
+                    ]}
+                  />
+                ))}
+              </View>
+
+              {/* Swipe button */}
+              <View style={styles.swipeContainer}>
+                <SwipeButton
+                  ref={swipeRef}
+                  onSwipeComplete={handleSubmit}
+                  loading={swipeLoading}
+                  label="Glisează pentru a confirma"
+                  successLabel="Cont confirmat!"
+                  icon="checkmark"
+                />
               </View>
 
               {/* Resend button */}
@@ -145,8 +245,8 @@ export default function ConfirmEmailScreen() {
                   {resendLoading
                     ? "Se trimite..."
                     : resendSuccess
-                    ? "Email retrimis"
-                    : "Retrimite emailul"}
+                    ? "Cod retrimis"
+                    : "Retrimite codul"}
                 </Text>
               </Pressable>
 
@@ -156,9 +256,7 @@ export default function ConfirmEmailScreen() {
                 onPress={() => router.replace("/(auth)/login")}
                 hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }}
               >
-                <Text
-                  style={[Typography.captionSemiBold, styles.backLinkText]}
-                >
+                <Text style={[Typography.captionSemiBold, styles.backLinkText]}>
                   Înapoi la conectare
                 </Text>
               </Pressable>
@@ -222,7 +320,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.base,
     borderRadius: 12,
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.inputBorder,
     alignSelf: "stretch",
@@ -230,6 +328,46 @@ const styles = StyleSheet.create({
   noteText: {
     color: Colors.textSecondary,
     flex: 1,
+  },
+  errorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.errorMuted,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.base,
+    borderRadius: 12,
+    marginBottom: Spacing.base,
+    alignSelf: "stretch",
+  },
+  errorText: {
+    ...Typography.caption,
+    color: Colors.error,
+    flex: 1,
+  },
+  otpRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: Spacing.sm,
+    marginBottom: Spacing.xl,
+  },
+  otpCell: {
+    width: 48,
+    height: 56,
+    borderWidth: 1,
+    borderColor: Colors.inputBorder,
+    borderRadius: 12,
+    backgroundColor: Colors.white,
+    textAlign: "center",
+    ...Typography.h2,
+    color: Colors.text,
+  },
+  otpCellFocused: {
+    borderColor: Colors.gradientStart,
+    borderWidth: 2,
+  },
+  swipeContainer: {
+    alignSelf: "stretch",
+    marginBottom: Spacing.base,
   },
   resendButton: {
     flexDirection: "row",

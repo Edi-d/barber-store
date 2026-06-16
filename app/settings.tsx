@@ -31,8 +31,10 @@ interface ProfileForm {
 }
 
 export default function SettingsScreen() {
-  const { profile, signOut, updateProfile, fetchProfile } = useAuthStore();
+  const { profile, signOut, deleteAccount, updateProfile, fetchProfile } =
+    useAuthStore();
   const [isUploading, setIsUploading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const {
     control,
@@ -125,19 +127,27 @@ export default function SettingsScreen() {
   };
 
   const handleDeleteAccount = () => {
+    if (isDeleting) return;
     Alert.alert(
       "Șterge contul",
-      "Această acțiune este ireversibilă. Toate datele tale vor fi șterse permanent.",
+      "Această acțiune este ireversibilă. Toate datele tale — profil, programări și conținut — vor fi șterse permanent.",
       [
         { text: "Anulează", style: "cancel" },
         {
           text: "Șterge contul",
           style: "destructive",
-          onPress: () => {
-            Alert.alert(
-              "In curand",
-              "Ștergerea contului va fi disponibilă în curând. Contactează-ne pentru asistență."
-            );
+          onPress: async () => {
+            setIsDeleting(true);
+            const { error } = await deleteAccount();
+            setIsDeleting(false);
+            if (error) {
+              Alert.alert(
+                "Eroare",
+                "Nu am putut șterge contul. Încearcă din nou mai târziu."
+              );
+              return;
+            }
+            router.replace("/(auth)/welcome");
           },
         },
       ]
@@ -300,6 +310,7 @@ export default function SettingsScreen() {
                 iconBg="#E5393512"
                 label="Șterge contul"
                 onPress={handleDeleteAccount}
+                loading={isDeleting}
                 danger
               />
             </View>
@@ -325,6 +336,7 @@ function SettingsItem({
   label,
   onPress,
   danger = false,
+  loading = false,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   iconColor?: string;
@@ -332,11 +344,13 @@ function SettingsItem({
   label: string;
   onPress: () => void;
   danger?: boolean;
+  loading?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+      disabled={loading}
+      style={({ pressed }) => [pressed && { opacity: 0.7 }, loading && { opacity: 0.6 }]}
     >
       <View style={s.settingsItemRow}>
         <View style={[s.settingsItemIconBg, iconBg ? { backgroundColor: iconBg } : {}]}>
@@ -345,7 +359,11 @@ function SettingsItem({
         <Text style={[s.settingsItemLabel, danger && { color: "#E53935" }]}>
           {label}
         </Text>
-        <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
+        {loading ? (
+          <ActivityIndicator size="small" color={danger ? "#E53935" : Colors.textTertiary} />
+        ) : (
+          <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
+        )}
       </View>
     </Pressable>
   );

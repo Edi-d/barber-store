@@ -23,6 +23,8 @@ import { AuthProvider } from '@/providers/auth-provider';
 import { SalonProvider } from '@/providers/salon-provider';
 import { TutorialProvider } from '@/components/tutorial/TutorialProvider';
 import { useLoyaltyNotifications } from '@/hooks/useLoyaltyNotifications';
+import { usePushRegistration } from '@/hooks/use-push-registration';
+import { usePushDeepLinks } from '@/hooks/use-push-deep-links';
 import { PointsEarnedToast } from '@/components/loyalty/PointsEarnedToast';
 import { PointsLevelUpModal } from '@/components/loyalty/PointsLevelUpModal';
 import { useLoyaltyQueueStore } from '@/stores/loyaltyQueueStore';
@@ -175,7 +177,13 @@ function LoyaltyGlobalOverlays() {
 
 function RootLayoutNav() {
   const { isInitialized, initialize } = useAuthStore();
+  const userId = useAuthStore((s) => s.session?.user.id ?? null);
   const router = useRouter();
+
+  // Push: register a token once signed in, and route notification taps to the
+  // matching in-app screen (e.g. /salon/<id>) instead of the web URL.
+  usePushRegistration(userId);
+  usePushDeepLinks();
 
   useEffect(() => {
     initialize();

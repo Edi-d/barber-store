@@ -40,7 +40,10 @@ interface AuthState {
   initialize: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
+  verifySignUpOtp: (email: string, token: string) => Promise<{ error: Error | null }>;
+  resendSignUpOtp: (email: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<{ error: Error | null }>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   verifyResetPasswordOtp: (email: string, token: string) => Promise<{ error: Error | null }>;
   updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
@@ -190,12 +193,64 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  // Confirm a new account with the 6-digit code from the signup email. A
+  // successful verification establishes the session (onAuthStateChange picks it
+  // up), so the caller can forward straight into onboarding.
+  verifySignUpOtp: async (email: string, token: string) => {
+    set({ isSubmitting: true });
+    try {
+      const { error } = await supabase.auth.verifyOtp({ email, token, type: "signup" });
+      console.log("[AUTH] verifySignUpOtp result:", error ?? "ok");
+      if (error) throw error;
+      return { error: null };
+    } catch (error) {
+      return { error: error as Error };
+    } finally {
+      set({ isSubmitting: false });
+    }
+  },
+
+  resendSignUpOtp: async (email: string) => {
+    set({ isSubmitting: true });
+    try {
+      const { error } = await supabase.auth.resend({ type: "signup", email });
+      console.log("[AUTH] resendSignUpOtp result:", error ?? "ok");
+      if (error) throw error;
+      return { error: null };
+    } catch (error) {
+      return { error: error as Error };
+    } finally {
+      set({ isSubmitting: false });
+    }
+  },
+
   signOut: async () => {
     set({ isSubmitting: true });
     try {
       cleanupAllChannels(); // Clean up realtime channels before signing out
       await supabase.auth.signOut();
       set({ session: null, profile: null });
+    } finally {
+      set({ isSubmitting: false });
+    }
+  },
+
+  deleteAccount: async () => {
+    if (!get().session) return { error: new Error("Not authenticated") };
+    set({ isSubmitting: true });
+    try {
+      // The Edge Function runs with the service role and removes the auth user
+      // (cascading to the profile and all dependent data). Once it succeeds the
+      // server session is gone, so we tear down the local session too.
+      const { error } = await supabase.functions.invoke("delete-account");
+      if (error) throw error;
+
+      cleanupAllChannels();
+      await supabase.auth.signOut({ scope: "local" });
+      set({ session: null, profile: null });
+      return { error: null };
+    } catch (error) {
+      return { error: error as Error };
     } finally {
       set({ isSubmitting: false });
     }

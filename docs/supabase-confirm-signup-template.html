@@ -187,8 +187,21 @@
                         class="body-text"
                         style="margin:0 0 28px 0;font-family:'Outfit',sans-serif;font-size:16px;line-height:1.55;text-align:center;color:#5A607A;"
                       >
-                        Confirma adresa de email ca sa-ti activam contul. Apoi alegi planul si incepi sa primesti programari in cateva minute.
+                        Confirma adresa de email ca sa-ti activam contul. Introdu codul de mai jos in aplicatie. Apoi alegi planul si incepi sa primesti programari in cateva minute.
                       </p>
+
+                      <!-- OTP code -->
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td align="center" style="padding:0 0 28px 0;">
+                            <div
+                              style="display:inline-block;background:#F4F6FF;border:1px solid #E0E5FB;border-radius:14px;padding:18px 32px;font-family:'Outfit',sans-serif;font-size:34px;font-weight:700;letter-spacing:10px;color:#0F1729;"
+                            >
+                              {{ .Token }}
+                            </div>
+                          </td>
+                        </tr>
+                      </table>
 
                       <!-- CTA -->
                       <table

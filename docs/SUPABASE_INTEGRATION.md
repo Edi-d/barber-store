@@ -770,7 +770,7 @@ Located at `supabase/functions/` (two deployed):
 | `hairstyle-tryon` | Orphaned — NOT called by consumer app | `{ imageBase64, hairstyleName, hairstylePrompt }` | `{ imageBase64, mimeType, description? }` | Uses `gemini-2.0-flash-exp` server-side; web clients could use this instead of embedding a key |
 
 **Server-side functions (invoked via pg_net or service_role, not by clients):**
-- `send-push` — invoked by `notification_log_send_push` trigger (AFTER INSERT ON `notification_log`) via `net.http_post`; handles push preference gating and i18n
+- `send-push` — invoked by `notification_log_send_push` trigger (AFTER INSERT ON `notification_log`) via `net.http_post`; renders RO copy from type+params, gates on `user_notification_prefs` (push_enabled + category toggles), fans out to active `push_tokens` via the Expo Push API, and deactivates `DeviceNotRegistered` tokens. Requires the `app.settings.service_role_key` GUC and the dispatch URL set by mig 148 (mig 105 shipped a placeholder host). Deploy: `supabase functions deploy send-push`.
 - `process-reminders` (appointment SMS/email reminders) — invoked by pg_cron every 5 min; reads `appointment_reminders` with `status='pending'`
 
 ---

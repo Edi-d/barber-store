@@ -111,14 +111,23 @@ AS $$
 DECLARE
     -- !! REPLACE <your-project-ref> below with the actual Supabase project ref.
     -- Example: 'https://abcdwxyz1234.supabase.co/functions/v1/send-push'
-    v_url     TEXT := 'https://<your-project-ref>.supabase.co/functions/v1/send-push';
+    v_url     TEXT := 'https://iaqztbhkukgghomwnict.supabase.co/functions/v1/send-push';
     v_key     TEXT;
     v_headers JSONB;
 BEGIN
-    -- Pull the service-role key from Postgres GUCs set by:
-    --   ALTER DATABASE postgres SET app.settings.service_role_key = '...';
-    -- `true` means "missing setting returns NULL, don't raise".
-    v_key := current_setting('app.settings.service_role_key', true);
+    -- Pull the service-role key from Supabase Vault. Store it once with:
+    --   select vault.create_secret('<service-role-key>', 'service_role_key');
+    -- (Managed Supabase forbids `ALTER DATABASE ... SET`, so the old
+    --  app.settings.* GUC approach can't be used here.) Wrapped so a missing
+    --  secret or no read access degrades to "no auth header" rather than aborting.
+    BEGIN
+        SELECT decrypted_secret INTO v_key
+        FROM vault.decrypted_secrets
+        WHERE name = 'service_role_key'
+        LIMIT 1;
+    EXCEPTION WHEN OTHERS THEN
+        v_key := NULL;
+    END;
 
     v_headers := jsonb_build_object('Content-Type', 'application/json');
     IF v_key IS NOT NULL AND length(v_key) > 0 THEN
@@ -510,7 +519,7 @@ BEGIN
         $SQL$ SELECT public.emit_booking_reminders_1h(); $SQL$
     );
 EXCEPTION
-    WHEN undefined_function OR undefined_table OR undefined_schema THEN
+    WHEN undefined_function OR undefined_table OR invalid_schema_name THEN
         RAISE NOTICE 'pg_cron not installed — reminder schedules skipped';
     WHEN OTHERS THEN
         RAISE NOTICE 'Failed to schedule reminder crons: %', SQLERRM;

@@ -30,6 +30,19 @@ interface ProfileForm {
   bio: string;
 }
 
+// Legal/policy pages embedded from barber-store.ro. Slugs map to /legal/[doc].
+const LEGAL_DOCS: {
+  slug: string;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
+  { slug: "terms", label: "Termeni și condiții", icon: "reader-outline" },
+  { slug: "privacy", label: "Politica de confidențialitate", icon: "lock-closed-outline" },
+  { slug: "returns", label: "Retur produse", icon: "refresh-outline" },
+  { slug: "service", label: "Politică de service", icon: "construct-outline" },
+  { slug: "shipping", label: "Livrare și plată", icon: "car-outline" },
+];
+
 export default function SettingsScreen() {
   const { profile, signOut, deleteAccount, updateProfile, fetchProfile } =
     useAuthStore();
@@ -313,6 +326,33 @@ export default function SettingsScreen() {
                 loading={isDeleting}
                 danger
               />
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* Legal Documents */}
+        <Animated.View entering={FadeInDown.duration(400).delay(350)}>
+          <View style={s.sectionCard}>
+            <View style={s.sectionHeaderRow}>
+              <View style={[s.sectionIconBg, { backgroundColor: Colors.indigo + "15" }]}>
+                <Ionicons name="document-text" size={16} color={Colors.indigo} />
+              </View>
+              <Text style={s.sectionTitle}>Documente legale</Text>
+            </View>
+
+            <View style={s.actionsCard}>
+              {LEGAL_DOCS.map((d, i) => (
+                <View key={d.slug}>
+                  {i > 0 && <View style={s.actionDivider} />}
+                  <SettingsItem
+                    icon={d.icon}
+                    iconColor={Colors.indigo}
+                    iconBg="rgba(99,102,241,0.1)"
+                    label={d.label}
+                    onPress={() => router.push(`/legal/${d.slug}` as any)}
+                  />
+                </View>
+              ))}
             </View>
           </View>
         </Animated.View>

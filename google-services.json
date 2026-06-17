@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "719725341782",
+    "project_id": "barber-store-56205",
+    "storage_bucket": "barber-store-56205.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:719725341782:android:3a188c56ea1d51ed3f1ff7",
+        "android_client_info": {
+          "package_name": "com.tapzi.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD3SzhH3KFGOv13KwC-DmEyLtbIm4Xq9tU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

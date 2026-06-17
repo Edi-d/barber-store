@@ -34,6 +34,7 @@ import { UpcomingAppointmentBanner } from "@/components/home/UpcomingAppointment
 import { Bubble, Colors, FontFamily } from "@/constants/theme";
 import { DiscoverSalonCard } from "@/components/discover/DiscoverSalonCard";
 import * as Haptics from 'expo-haptics';
+import * as Notifications from 'expo-notifications';
 import { useDiscoverFilters } from '@/hooks/useDiscoverFilters';
 import { applyFilters, type FilterContext } from '@/lib/discover-filter';
 import type { DiscoverFilters } from '@/types/filters';
@@ -95,9 +96,18 @@ export default function DiscoverScreen() {
   const tutorialSalonCardRef = useRef<View>(null);
 
   useEffect(() => {
-    if (!isTutorialActive) {
-      setShowCategoryPicker(true);
-    }
+    if (isTutorialActive) return;
+    // Skip the category picker when a push notification cold-started the app —
+    // that launch is deep-linking to a specific screen (e.g. a salon profile),
+    // and this modal renders above it (RN <Modal> overlays pushed screens).
+    // getLastNotificationResponseAsync resolves null on a normal launch.
+    let active = true;
+    Notifications.getLastNotificationResponseAsync().then((resp) => {
+      if (active && !resp) setShowCategoryPicker(true);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {

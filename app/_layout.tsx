@@ -274,6 +274,7 @@ function RootLayoutNav() {
         />
         <Stack.Screen name="appointments" />
         <Stack.Screen name="settings" />
+        <Stack.Screen name="legal/[doc]" />
         <Stack.Screen name="courses" />
         <Stack.Screen name="tutorials" options={{ headerShown: false }} />
         <Stack.Screen name="tutorial/[id]" options={{ headerShown: false }} />

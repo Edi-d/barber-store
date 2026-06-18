@@ -16,7 +16,7 @@
 		"ios": {
 			"supportsTablet": true,
 			"buildNumber": "23",
-			"bundleIdentifier": "com.tapzi.app",
+			"bundleIdentifier": "com.reverbarber.tapzi",
 			"associatedDomains": ["applinks:tapzi.ro"],
 			"infoPlist": {
 				"ITSAppUsesNonExemptEncryption": false,

@@ -85,6 +85,8 @@ export default function DiscoverScreen() {
   const cameraRef = useRef<Mapbox.Camera>(null);
   const mapRef = useRef<Mapbox.MapView>(null);
   const bottomSheetRef = useRef<BottomSheet>(null);
+  // Guards the one-time auto-center on the user's location after app open.
+  const didAutoCenterRef = useRef(false);
 
   const { isOverlayVisible: isTutorialActive } = useTutorialStore();
 
@@ -579,6 +581,23 @@ export default function DiscoverScreen() {
     },
     [SHEET_OPEN_BOTTOM, SHEET_CLOSED_BOTTOM]
   );
+
+  // Auto-center the map on the user's location once it arrives after app open.
+  // `requestLocation()` (called on mount) is async, so the map first renders on
+  // the Bucharest fallback; this flies the camera to the user as soon as coords
+  // are available. Runs only once so it never fights manual panning or salon
+  // selection later in the session.
+  useEffect(() => {
+    if (didAutoCenterRef.current) return;
+    if (latitude == null || longitude == null) return;
+    didAutoCenterRef.current = true;
+    focusCamera([longitude, latitude], {
+      zoomLevel: 13.5,
+      sheetOpen: sheetIndex >= 1,
+      animationMode: "flyTo",
+      animationDuration: 900,
+    });
+  }, [latitude, longitude, sheetIndex, focusCamera]);
 
   // Animate to salon on map when selected from search results
   const handleSalonSearchSelect = (salon: SalonWithDistance) => {

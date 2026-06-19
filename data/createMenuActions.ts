@@ -37,12 +37,13 @@ export const CLIENT_ACTIONS: CreateMenuAction[] = [
     colorKey: 'today',
     requiresAuth: true,
   },
-  {
-    id: 'shop',
-    label: 'Explorează produse',
-    icon: 'storefront-outline',
-    route: '/(tabs)/shop',
-    colorKey: 'shop',
-    requiresAuth: false,
-  },
+  // Shop temporarily hidden — re-add this action to restore the marketplace entry point.
+  // {
+  //   id: 'shop',
+  //   label: 'Explorează produse',
+  //   icon: 'storefront-outline',
+  //   route: '/(tabs)/shop',
+  //   colorKey: 'shop',
+  //   requiresAuth: false,
+  // },
 ];

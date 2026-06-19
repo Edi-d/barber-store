@@ -89,13 +89,14 @@ export default function ProfileScreen() {
       iconBgColor: "rgba(10,102,194,0.1)",
       tutorialRef: menuAppointmentsRef,
     },
-    {
-      icon: "cart",
-      label: "Comenzile mele",
-      onPress: () => router.push("/orders"),
-      iconColor: Colors.indigo,
-      iconBgColor: "rgba(99,102,241,0.1)",
-    },
+    // Shop temporarily hidden — re-add this menu item to restore order history access.
+    // {
+    //   icon: "cart",
+    //   label: "Comenzile mele",
+    //   onPress: () => router.push("/orders"),
+    //   iconColor: Colors.indigo,
+    //   iconBgColor: "rgba(99,102,241,0.1)",
+    // },
     {
       icon: "play-circle",
       label: "Tutoriale aplicație",

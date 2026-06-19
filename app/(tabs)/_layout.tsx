@@ -440,6 +440,8 @@ export default function TabsLayout() {
         <Tabs.Screen name="feed" />
         <Tabs.Screen name="discover" />
         <Tabs.Screen name="create" options={{ href: null }} />
+        {/* Shop tab stays visible but routes to a "Coming Soon" screen while the
+            marketplace is disabled — see app/(tabs)/shop.tsx. */}
         <Tabs.Screen name="shop" />
         <Tabs.Screen name="profile" />
       </Tabs>

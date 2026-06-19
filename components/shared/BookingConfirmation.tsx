@@ -33,6 +33,10 @@ interface BookingConfirmationProps {
   summaryCardRef?: React.RefObject<View>;
   notesInputRef?: React.RefObject<View>;
   confirmBtnRef?: React.RefObject<View>;
+  /** Extended-hours surcharge (in cents) added to the total when the chosen
+   *  slot is after-close, with a short label like "+20%" or "+15 RON". */
+  surchargeCents?: number;
+  surchargeLabel?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -204,9 +208,12 @@ export function BookingConfirmation({
   summaryCardRef,
   notesInputRef,
   confirmBtnRef,
+  surchargeCents = 0,
+  surchargeLabel,
 }: BookingConfirmationProps) {
   // Derived totals
-  const totalCents = services.reduce((sum, s) => sum + s.price_cents, 0);
+  const baseCents = services.reduce((sum, s) => sum + s.price_cents, 0);
+  const totalCents = baseCents + surchargeCents;
   const totalDuration = services.reduce((sum, s) => sum + s.duration_min, 0);
   const currency = services[0]?.currency ?? 'RON';
   const hasMultiple = services.length > 1;
@@ -271,6 +278,20 @@ export function BookingConfirmation({
       {/* ------------------------------------------------------------------ */}
       {/* Total bar                                                            */}
       {/* ------------------------------------------------------------------ */}
+      {surchargeCents > 0 && (
+        <Animated.View
+          entering={FadeInRight.delay(460).duration(250)}
+          style={styles.surchargeRow}
+        >
+          <Text style={styles.surchargeLabel}>
+            Program extins {surchargeLabel ? `(${surchargeLabel})` : ''}
+          </Text>
+          <Text style={styles.surchargeValue}>
+            +{formatPrice(surchargeCents, currency)}
+          </Text>
+        </Animated.View>
+      )}
+
       <Animated.View entering={FadeInRight.delay(480).duration(250)} style={styles.totalBar}>
         <View>
           <Text style={styles.totalLabel}>Total</Text>
@@ -470,6 +491,22 @@ const styles = StyleSheet.create({
   },
 
   // --- Total bar ---
+  surchargeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: -8,
+  },
+  surchargeLabel: {
+    ...Typography.small,
+    color: '#B45309',
+  },
+  surchargeValue: {
+    ...Typography.captionSemiBold,
+    color: '#B45309',
+  },
+
   totalBar: {
     flexDirection: 'row',
     alignItems: 'center',

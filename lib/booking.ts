@@ -25,17 +25,23 @@
 
 import { supabase } from "@/lib/supabase";
 import { BusyInterval } from "@/types/database";
+import { fetchSalonExtendedHours, timeToMinutes } from "@/lib/extended-hours";
 
 // ─── Public types ────────────────────────────────────────────────────────────
 
 export interface TimeSlot {
   time: string; // "HH:MM" wall-clock
   available: boolean;
+  /** True when the slot starts in the salon's after-close "extended" window
+   *  (subject to a surcharge enforced by the book_appointment RPC). */
+  extended?: boolean;
 }
 
 // ─── Internal helpers ────────────────────────────────────────────────────────
 
-type DayHours = { start_time: string; end_time: string };
+// `normal_end_time` is the pre-extension close; when set, slots starting at/after
+// it fall in the extended window. Only populated on the salon_hours fallback path.
+type DayHours = { start_time: string; end_time: string; normal_end_time?: string };
 
 /**
  * Parse a "HH:MM" or "HH:MM:SS" time string into [hours, minutes].
@@ -110,6 +116,26 @@ async function resolveSchedule(
         });
       }
     }
+
+    // Stretch the window with the salon's extended hours: on an enabled day
+    // whose extended close is later than the normal close, push end_time out so
+    // after-close slots are offered, and remember the normal close so those
+    // slots can be tagged `extended` (and surcharged). Extension only applies to
+    // salon_hours-governed barbers — a barber with explicit availability owns
+    // their schedule and returned above before reaching this branch.
+    const extByDay = await fetchSalonExtendedHours(salonId);
+    for (const [dow, ext] of extByDay) {
+      const day = map.get(dow);
+      if (!day) continue; // salon closed that day → nothing to extend
+      const closeMin = timeToMinutes(day.end_time);
+      if (timeToMinutes(ext.extended_close_time) > closeMin) {
+        map.set(dow, {
+          ...day,
+          end_time: ext.extended_close_time,
+          normal_end_time: day.end_time,
+        });
+      }
+    }
   }
 
   return map;
@@ -160,6 +186,10 @@ function computeSlotsForDay(
   const [startH, startM] = parseTime(dayHours.start_time);
   const [endH, endM] = parseTime(dayHours.end_time);
   const workEndMin = endH * 60 + endM;
+  // Slots starting at/after the normal close fall in the extended window.
+  const normalEndMin = dayHours.normal_end_time
+    ? timeToMinutes(dayHours.normal_end_time)
+    : null;
   const slotIntervalMin = 30;
   const isToday = date.toDateString() === now.toDateString();
 
@@ -196,6 +226,7 @@ function computeSlotsForDay(
     slots.push({
       time: timeStr,
       available: !isPast && !hasConflict,
+      extended: normalEndMin != null && h * 60 + m >= normalEndMin,
     });
 
     m += slotIntervalMin;

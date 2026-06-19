@@ -17,6 +17,12 @@ import { useAuthStore } from "@/stores/authStore";
 import { Barber, BarberService } from "@/types/database";
 import { formatPrice } from "@/lib/utils";
 import { generateTimeSlots, getNext14Days, formatCalendarDay, findFirstAvailableDate, findSoonestAvailableBarber } from "@/lib/booking";
+import {
+  fetchSalonExtendedHours,
+  surchargedTotalCents,
+  surchargeLabel,
+  extensionCoversService,
+} from "@/lib/extended-hours";
 import { addBookingToCalendar, openAppSettings, CalendarError } from "@/lib/calendar";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -229,6 +235,15 @@ export default function BookAppointmentScreen() {
     return services.filter((s) => allowed.has(s.id));
   }, [services, barberAssignments]);
 
+  // Salon extended-hours config (after-close window + surcharge), keyed by
+  // weekday. Drives the surcharge preview; the book_appointment RPC enforces it.
+  const { data: extendedHoursByDay } = useQuery({
+    queryKey: ["salon-extended-hours", effectiveSalonId ?? "none"],
+    queryFn: () => fetchSalonExtendedHours(effectiveSalonId!),
+    enabled: !!effectiveSalonId,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const { data: timeSlots, isLoading: slotsLoading, isError: slotsError, refetch: refetchSlots } = useQuery({
     queryKey: [
       "time-slots",
@@ -248,6 +263,32 @@ export default function BookAppointmentScreen() {
     enabled: !!selectedBarber && !!selectedDate && totalDurationMin > 0,
     staleTime: 30_000, // Override global 5-min staleTime — slots go stale quickly
   });
+
+  // ── Extended-hours surcharge (preview only; RPC is authoritative) ──────────
+  // The chosen slot is "extended" when generateTimeSlots tagged it so (start at/
+  // after the salon's normal close). Surcharge the displayed total and flag any
+  // selected service that isn't allowed in the extended window.
+  const selectedExtension = useMemo(() => {
+    if (!selectedDate || !extendedHoursByDay) return undefined;
+    return extendedHoursByDay.get(selectedDate.getDay());
+  }, [selectedDate, extendedHoursByDay]);
+
+  const isExtendedSlot = useMemo(() => {
+    if (!selectedTime || !timeSlots) return false;
+    return timeSlots.find((s) => s.time === selectedTime)?.extended === true;
+  }, [selectedTime, timeSlots]);
+
+  const surchargeCents = useMemo(() => {
+    if (!isExtendedSlot || !selectedExtension) return 0;
+    return surchargedTotalCents(totalPriceCents, selectedExtension) - totalPriceCents;
+  }, [isExtendedSlot, selectedExtension, totalPriceCents]);
+
+  const extendedServiceBlocked = useMemo(() => {
+    if (!isExtendedSlot || !selectedExtension) return false;
+    return selectedServices.some((s) => !extensionCoversService(selectedExtension, s.id));
+  }, [isExtendedSlot, selectedExtension, selectedServices]);
+
+  const effectiveTotalCents = totalPriceCents + surchargeCents;
 
   // Find first available date (checks schedule + appointments)
   const { data: firstAvailableData } = useQuery({
@@ -871,10 +912,17 @@ export default function BookAppointmentScreen() {
                 >
                   {totalDurationMin} min · cu {selectedBarber?.name}
                 </Text>
+                {isExtendedSlot && selectedExtension && (
+                  <Text style={[Typography.small, { color: "#B45309", marginTop: 2 }]}>
+                    {extendedServiceBlocked
+                      ? "Unele servicii nu sunt disponibile în programul extins"
+                      : `Program extins · supliment ${surchargeLabel(selectedExtension)}`}
+                  </Text>
+                )}
               </View>
               <View style={styles.serviceChipPrice}>
                 <Text style={styles.serviceChipPriceText}>
-                  {formatPrice(totalPriceCents, primaryCurrency)}
+                  {formatPrice(effectiveTotalCents, primaryCurrency)}
                 </Text>
               </View>
             </View>
@@ -931,6 +979,10 @@ export default function BookAppointmentScreen() {
               summaryCardRef={summaryCardRef}
               notesInputRef={notesInputRef}
               confirmBtnRef={confirmBtnRef}
+              surchargeCents={surchargeCents}
+              surchargeLabel={
+                selectedExtension ? surchargeLabel(selectedExtension) : undefined
+              }
             />
           </View>
         )}

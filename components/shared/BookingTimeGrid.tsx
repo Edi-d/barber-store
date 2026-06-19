@@ -184,6 +184,8 @@ function SlotButton({ slot, isSelected, enterDelay, onPress }: SlotButtonProps) 
             {slot.time}
           </Animated.Text>
         </Pressable>
+        {/* After-close "extended" slot marker (surcharge applies) */}
+        {slot.extended && <View style={styles.slotExtendedDot} />}
       </Animated.View>
     );
   }
@@ -482,6 +484,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 0,
+  },
+  // Amber corner dot marking an after-close "extended" slot (surcharge applies).
+  slotExtendedDot: {
+    position: 'absolute',
+    top: 5,
+    right: 6,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#F59E0B',
   },
 
   // Available (default)

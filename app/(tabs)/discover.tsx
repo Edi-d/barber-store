@@ -17,7 +17,7 @@ import {
 import { useTutorialContext } from "@/components/tutorial/TutorialProvider";
 import { useTutorialStore } from "@/stores/tutorialStore";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -39,7 +39,7 @@ import { useDiscoverFilters } from '@/hooks/useDiscoverFilters';
 import { applyFilters, type FilterContext } from '@/lib/discover-filter';
 import type { DiscoverFilters } from '@/types/filters';
 import { FiltersSheet, type FiltersSheetHandle, type ServiceOption } from '@/components/discover/FiltersSheet';
-import SalonMarker from "@/components/discover/SalonMarker";
+import SalonMarkersLayer from "@/components/discover/SalonMarkersLayer";
 import { BarberService } from '@/types/database';
 
 const bubbleRadii = Bubble.radii;
@@ -133,7 +133,7 @@ export default function DiscoverScreen() {
   }, []);
 
   // Fetch salons from our DB
-  const { data: salonsList, isLoading: salonsLoading } = useQuery({
+  const { data: salonsList, isLoading: salonsLoading, refetch: refetchSalons } = useQuery({
     queryKey: ["salons-active"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -145,7 +145,19 @@ export default function DiscoverScreen() {
       if (error) throw error;
       return data as Salon[];
     },
+    // Salon location/details are edited in the owner app; treat the cached list
+    // as immediately stale so re-focusing this screen pulls fresh coordinates.
+    staleTime: 0,
   });
+
+  // Refetch salons whenever the discover screen regains focus. `salons` isn't in
+  // the realtime publication, so without this an owner-side location change only
+  // appears after a cold app restart or the 5-min default cache window.
+  useFocusEffect(
+    useCallback(() => {
+      refetchSalons();
+    }, [refetchSalons])
+  );
 
   // Fetch user favorites
   const { data: favorites } = useQuery({
@@ -756,16 +768,11 @@ export default function DiscoverScreen() {
                 visible
               />
             ) : null}
-            {sortedSalons
-              .filter((salon) => salon.latitude != null && salon.longitude != null)
-              .map((salon) => (
-              <SalonMarker
-                key={salon.id}
-                salon={salon}
-                isSelected={selectedSalon?.id === salon.id}
-                onPress={handleMarkerPress}
-              />
-            ))}
+            <SalonMarkersLayer
+              salons={sortedSalons}
+              selectedId={selectedSalon?.id ?? null}
+              onSelect={handleMarkerPress}
+            />
           </Mapbox.MapView>
 
           {/* Search Bar Overlay */}

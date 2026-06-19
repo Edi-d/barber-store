@@ -75,7 +75,7 @@ const TAB_CFG: Record<
 > = {
   feed: { icon: "home-outline", iconFocused: "home", label: "Acasa" },
   discover: { icon: "calendar-outline", iconFocused: "calendar", label: "Programari" },
-  shop: { icon: "bag-outline", iconFocused: "bag", label: "Magazin" },
+  shop: { icon: "trophy-outline", iconFocused: "trophy", label: "Punctele mele" },
   profile: { icon: "person-outline", iconFocused: "person", label: "Profil" },
 };
 

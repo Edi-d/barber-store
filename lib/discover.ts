@@ -8,6 +8,9 @@ export interface SalonWithDistance extends Salon {
   happy_hour_discount: number | null;
   happy_hour_ends_at: string | null;
   is_available_now: boolean;
+  // True when the salon is currently inside its enabled after-close extended
+  // window (past the normal close, before the extended close) today.
+  extended_open_now: boolean;
   price_range_label: string | null;
 }
 
@@ -124,6 +127,26 @@ function checkAvailableNow(
   });
 }
 
+// "HH:MM[:SS]" → minutes since midnight (seconds ignored).
+function hhmmToMinutes(t: string): number {
+  const [h, m] = t.split(":").map(Number);
+  return (h ?? 0) * 60 + (m ?? 0);
+}
+
+// Whether the salon is currently inside its after-close extended window today:
+// past the normal close and before the extended close (which must be later).
+function checkExtendedOpenNow(
+  salonHoursToday: { start: string; end: string } | null,
+  extendedCloseToday: string | undefined
+): boolean {
+  if (!salonHoursToday || !extendedCloseToday) return false;
+  const now = new Date();
+  const cur = now.getHours() * 60 + now.getMinutes();
+  const end = hhmmToMinutes(salonHoursToday.end);
+  const ext = hhmmToMinutes(extendedCloseToday);
+  return ext > end && cur >= end && cur < ext;
+}
+
 // Enrich salons with computed fields from real DB data
 export function enrichSalons(
   salons: Salon[],
@@ -134,7 +157,8 @@ export function enrichSalons(
   availabilityMap: Map<string, { barber_id: string; day_of_week: number; start_time: string; end_time: string; is_available: boolean }[]>,
   barberAppointments: Map<string, BarberAppointment[]>,
   priceRangeMap: Map<string, { min: number; max: number }> = new Map(),
-  salonHoursTodayMap: Map<string, { start: string; end: string }> = new Map()
+  salonHoursTodayMap: Map<string, { start: string; end: string }> = new Map(),
+  extendedTodayMap: Map<string, string> = new Map()
 ): SalonWithDistance[] {
   const now = Date.now();
   const activeHappyHours = new Map<string, SalonHappyHour>();
@@ -167,6 +191,7 @@ export function enrichSalons(
         happy_hour_discount: hh?.discount_percent ?? null,
         happy_hour_ends_at: hh?.ends_at ?? null,
         is_available_now: checkAvailableNow(availability, barberAppointments, salonHoursTodayMap.get(salon.id) ?? null),
+        extended_open_now: checkExtendedOpenNow(salonHoursTodayMap.get(salon.id) ?? null, extendedTodayMap.get(salon.id)),
         price_range_label: formatPriceRange(priceRangeMap.get(salon.id), salon.avg_price_cents),
       };
     });

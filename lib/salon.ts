@@ -8,6 +8,7 @@ import {
   SalonReview,
   SalonReviewWithAuthor,
 } from "@/types/database";
+import type { SalonExtendedHours } from "@/lib/extended-hours";
 
 // Fetch gallery photos for a salon
 export async function fetchSalonPhotos(salonId: string): Promise<SalonPhoto[]> {
@@ -272,8 +273,32 @@ function timeToMinutes(time: string): number {
   return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
 }
 
-// Get today's schedule text
-export function getTodayScheduleText(availability: BarberAvailability[]): {
+// A usable extension for a given weekday's normal close: enabled and actually
+// later than that close. Returns the extended close in minutes, or null.
+function extendedEndMinutes(
+  extendedHours: Map<number, SalonExtendedHours> | null | undefined,
+  dow: number,
+  normalEndMinutes: number
+): number | null {
+  const ext = extendedHours?.get(dow);
+  if (!ext || !ext.enabled) return null;
+  const extEnd = timeToMinutes(ext.extended_close_time);
+  return extEnd > normalEndMinutes ? extEnd : null;
+}
+
+// "HH:MM" from minutes since midnight (for extended-close display).
+function minutesToHHMM(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+// Get today's schedule text. `extendedHours` (optional) lets the salon read as
+// open past its normal close while inside an enabled after-close window.
+export function getTodayScheduleText(
+  availability: BarberAvailability[],
+  extendedHours?: Map<number, SalonExtendedHours> | null
+): {
   isOpen: boolean;
   text: string;
 } {
@@ -304,6 +329,15 @@ export function getTodayScheduleText(availability: BarberAvailability[]): {
     };
   }
 
+  // Past normal close — still open if inside the extended window.
+  const extEnd = extendedEndMinutes(extendedHours, dayOfWeek, endMinutes);
+  if (extEnd != null && currentMinutes >= endMinutes && currentMinutes < extEnd) {
+    return {
+      isOpen: true,
+      text: `Deschis prelungit · până la ${minutesToHHMM(extEnd)}`,
+    };
+  }
+
   if (currentMinutes < startMinutes) {
     return {
       isOpen: false,
@@ -314,8 +348,12 @@ export function getTodayScheduleText(availability: BarberAvailability[]): {
   return { isOpen: false, text: "Închis acum" };
 }
 
-// Get full week schedule
-export function getWeekSchedule(availability: BarberAvailability[]): {
+// Get full week schedule. `extendedHours` (optional) annotates days that stay
+// open later than usual with their extended close.
+export function getWeekSchedule(
+  availability: BarberAvailability[],
+  extendedHours?: Map<number, SalonExtendedHours> | null
+): {
   day: string;
   hours: string;
   isToday: boolean;
@@ -324,9 +362,21 @@ export function getWeekSchedule(availability: BarberAvailability[]): {
 
   return [1, 2, 3, 4, 5, 6, 0].map((dow) => {
     const slot = availability.find((a) => a.day_of_week === dow && a.is_available);
+    let hours = "Închis";
+    if (slot) {
+      hours = `${stripSeconds(slot.start_time)} - ${stripSeconds(slot.end_time)}`;
+      const extEnd = extendedEndMinutes(
+        extendedHours,
+        dow,
+        timeToMinutes(slot.end_time)
+      );
+      if (extEnd != null) {
+        hours += ` · prelungit ${minutesToHHMM(extEnd)}`;
+      }
+    }
     return {
       day: DAY_NAMES[dow],
-      hours: slot ? `${stripSeconds(slot.start_time)} - ${stripSeconds(slot.end_time)}` : "Închis",
+      hours,
       isToday: dow === todayDow,
     };
   });

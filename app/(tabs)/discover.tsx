@@ -223,6 +223,23 @@ export default function DiscoverScreen() {
     refetchInterval: 60000,
   });
 
+  // Fetch today's enabled extended-hours windows (after-close), for the
+  // "Deschis prelungit" badge. Keyed by salon_id → extended_close_time.
+  const { data: extendedToday } = useQuery({
+    queryKey: ["salon-extended-hours-today"],
+    queryFn: async () => {
+      const dow = new Date().getDay();
+      const { data, error } = await supabase
+        .from("salon_extended_hours")
+        .select("salon_id, extended_close_time")
+        .eq("day_of_week", dow)
+        .eq("enabled", true);
+      if (error) throw error;
+      return data as { salon_id: string; extended_close_time: string }[];
+    },
+    refetchInterval: 60000,
+  });
+
   // Fetch today's appointments for all barbers (for real availability check)
   const { data: todayAppointments } = useQuery({
     queryKey: ["today-appointments-all"],
@@ -415,12 +432,21 @@ export default function DiscoverScreen() {
     return map;
   }, [salonHoursToday]);
 
+  // Build today's extended-close map keyed by salon_id
+  const extendedTodayMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const e of extendedToday ?? []) {
+      map.set(e.salon_id, e.extended_close_time);
+    }
+    return map;
+  }, [extendedToday]);
+
   // Enrich salons with computed fields
   const salons = useMemo(() => {
     if (!salonsList) return [];
     const favSet = new Set(favorites || []);
-    return enrichSalons(salonsList, latitude, longitude, favSet, happyHours || [], availabilityMap, barberAppointmentsMap, priceRangeMap, salonHoursTodayMap);
-  }, [salonsList, latitude, longitude, favorites, happyHours, availabilityMap, barberAppointmentsMap, priceRangeMap, salonHoursTodayMap]);
+    return enrichSalons(salonsList, latitude, longitude, favSet, happyHours || [], availabilityMap, barberAppointmentsMap, priceRangeMap, salonHoursTodayMap, extendedTodayMap);
+  }, [salonsList, latitude, longitude, favorites, happyHours, availabilityMap, barberAppointmentsMap, priceRangeMap, salonHoursTodayMap, extendedTodayMap]);
 
   // Sort and filter salons - search our DB only
   const sortedSalons = useMemo(() => {

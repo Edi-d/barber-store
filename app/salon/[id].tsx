@@ -38,6 +38,7 @@ import {
   getTodayScheduleText,
   getWeekSchedule,
 } from "@/lib/salon";
+import { fetchSalonExtendedHours } from "@/lib/extended-hours";
 import { CountdownTimer } from "@/components/shared/CountdownTimer";
 import { ReviewModal } from "@/components/salon/ReviewModal";
 import { ReviewPhotoStrip } from "@/components/shared/ReviewPhotoStrip";
@@ -152,6 +153,13 @@ export default function SalonDetailScreen() {
     enabled: !!id,
   });
 
+  const { data: extendedHours } = useQuery({
+    queryKey: ["salon-extended-hours", id],
+    queryFn: () => fetchSalonExtendedHours(id!),
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const { data: reviews } = useQuery({
     queryKey: ["salon-reviews", id, reviewLimit],
     queryFn: () => fetchSalonReviews(id!, reviewLimit),
@@ -194,13 +202,13 @@ export default function SalonDetailScreen() {
   }, [latitude, longitude, salon]);
 
   const todaySchedule = useMemo(
-    () => getTodayScheduleText(availability || []),
-    [availability]
+    () => getTodayScheduleText(availability || [], extendedHours),
+    [availability, extendedHours]
   );
 
   const weekSchedule = useMemo(
-    () => getWeekSchedule(availability || []),
-    [availability]
+    () => getWeekSchedule(availability || [], extendedHours),
+    [availability, extendedHours]
   );
 
   const availableCategories = useMemo(() => {

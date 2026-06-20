@@ -165,12 +165,17 @@ const DiscoverSalonCardInner = forwardRef<View, DiscoverSalonCardProps>(
               {salon.price_range_label ?? ''}
             </Text>
 
-            {salon.is_available_now && (
+            {salon.is_available_now ? (
               <View style={styles.availableBadge}>
                 <View style={styles.availableDot} />
                 <Text style={styles.availableText}>Liber acum</Text>
               </View>
-            )}
+            ) : salon.extended_open_now ? (
+              <View style={styles.extendedBadge}>
+                <View style={styles.extendedDot} />
+                <Text style={styles.extendedText}>Deschis prelungit</Text>
+              </View>
+            ) : null}
           </View>
         </View>
         </Pressable>
@@ -338,6 +343,29 @@ const styles = StyleSheet.create({
     height: 5,
     borderRadius: 2.5,
     backgroundColor: '#10B981',
+  },
+  extendedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFBEB',
+    borderTopLeftRadius: 9,
+    borderTopRightRadius: 4,
+    borderBottomRightRadius: 9,
+    borderBottomLeftRadius: 9,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    gap: 5,
+  },
+  extendedDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#F59E0B',
+  },
+  extendedText: {
+    fontFamily: FontFamily.semiBold,
+    fontSize: 11,
+    color: '#B45309',
   },
   availableText: {
     fontFamily: FontFamily.semiBold,

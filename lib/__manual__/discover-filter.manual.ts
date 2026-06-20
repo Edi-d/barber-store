@@ -38,6 +38,7 @@ function makeSalon(over: Partial<SalonWithDistance>): SalonWithDistance {
     happy_hour_discount: null,
     happy_hour_ends_at: null,
     is_available_now: false,
+    extended_open_now: false,
     price_range_label: null,
     ...over,
   };

@@ -53,12 +53,17 @@ export function SalonCard({ salon, onPress, variant = "default" }: SalonCardProp
         {salon.price_range_label && (
           <Text className="text-primary-500 text-xs font-semibold mt-1">{salon.price_range_label}</Text>
         )}
-        {salon.is_available_now && (
+        {salon.is_available_now ? (
           <View className="flex-row items-center mt-1">
             <View className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1" />
             <Text className="text-[11px] text-emerald-600 font-semibold">Liber acum</Text>
           </View>
-        )}
+        ) : salon.extended_open_now ? (
+          <View className="flex-row items-center mt-1">
+            <View className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1" />
+            <Text className="text-[11px] text-amber-700 font-semibold">Deschis prelungit</Text>
+          </View>
+        ) : null}
       </Pressable>
     );
   }
@@ -127,12 +132,17 @@ export function SalonCard({ salon, onPress, variant = "default" }: SalonCardProp
           </View>
 
           {/* Available now */}
-          {salon.is_available_now && (
+          {salon.is_available_now ? (
             <View className="flex-row items-center mt-1">
               <View className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1" />
               <Text className="text-[11px] text-emerald-600 font-semibold">Liber acum</Text>
             </View>
-          )}
+          ) : salon.extended_open_now ? (
+            <View className="flex-row items-center mt-1">
+              <View className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1" />
+              <Text className="text-[11px] text-amber-700 font-semibold">Deschis prelungit</Text>
+            </View>
+          ) : null}
 
           {/* Location */}
           {(salon.city || salon.address) && (

@@ -119,6 +119,21 @@ export default function SalonDetailScreen() {
     return map;
   }, [memberRoles]);
 
+  // Owner always first, then the rest of the team alphabetically. Uses the same
+  // role expression as the "owner" badge below so order and badge stay in sync.
+  // The query already returns rows by name, so within each group order is kept.
+  const sortedTeamBarbers = useMemo(() => {
+    if (!teamBarbers) return teamBarbers;
+    const isOwner = (b: TeamBarber) =>
+      ((b.profile_id && roleByProfileId.get(b.profile_id)) || b.role) === "owner";
+    return [...teamBarbers].sort((a, b) => {
+      const ao = isOwner(a);
+      const bo = isOwner(b);
+      if (ao !== bo) return ao ? -1 : 1;
+      return a.name.localeCompare(b.name, "ro");
+    });
+  }, [teamBarbers, roleByProfileId]);
+
   const { data: photos } = useQuery({
     queryKey: ["salon-photos", id],
     queryFn: () => fetchSalonPhotos(id!),
@@ -730,7 +745,7 @@ export default function SalonDetailScreen() {
         )}
 
         {/* ── 9. Team ── */}
-        {teamBarbers && teamBarbers.length > 0 && (
+        {sortedTeamBarbers && sortedTeamBarbers.length > 0 && (
           <View className="mt-4">
             <Text className="mx-4 mb-3 font-bold text-base text-[#191919]">Echipa</Text>
             <ScrollView
@@ -741,7 +756,7 @@ export default function SalonDetailScreen() {
               // so the cards look cut off.
               contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8, gap: 12 }}
             >
-              {teamBarbers.map((barber) => (
+              {sortedTeamBarbers.map((barber) => (
                 <Pressable
                   key={barber.id}
                   onPress={() => router.push(`/barber/${barber.id}`)}

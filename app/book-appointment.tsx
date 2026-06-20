@@ -193,6 +193,23 @@ export default function BookAppointmentScreen() {
     return map;
   }, [memberRoles]);
 
+  // Owner always first, then the rest of the team alphabetically. Owner is
+  // resolved from the authoritative salon_members role (same source the card
+  // badge uses); in the cross-salon "all" view that map is empty, so the list
+  // simply stays alphabetical. The query already returns rows by name, so
+  // within each group order is preserved.
+  const sortedBarbers = useMemo(() => {
+    if (!barbers) return barbers;
+    const isOwner = (b: Barber) =>
+      b.profile_id ? roleByProfileId.get(b.profile_id) === "owner" : false;
+    return [...barbers].sort((a, b) => {
+      const ao = isOwner(a);
+      const bo = isOwner(b);
+      if (ao !== bo) return ao ? -1 : 1;
+      return a.name.localeCompare(b.name, "ro");
+    });
+  }, [barbers, roleByProfileId]);
+
   // Effective salon ID: prefer the barber's own salon_id once a barber is selected
   const effectiveSalonId = selectedBarber?.salon_id ?? salonId;
 
@@ -786,7 +803,7 @@ export default function BookAppointmentScreen() {
                     isResolving={isResolvingAnyBarber}
                   />
                 )}
-                {barbers?.map((barber, index) => (
+                {sortedBarbers?.map((barber, index) => (
                   <View
                     key={barber.id}
                     ref={index === 0 ? barberCardRef : undefined}

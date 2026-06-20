@@ -87,6 +87,10 @@ const TEMPLATES: Record<
     title: "Felicitări! Ai urcat de nivel",
     body: `Ai ajuns la ${p(x, "tierName", "un nou nivel")}.`,
   }),
+  loyalty_xp_earned: (x) => ({
+    title: "Ai câștigat XP",
+    body: `+${p(x, "xp")} XP la ${p(x, "salonName")}.`,
+  }),
 };
 
 function humanizeType(type: string): string {

@@ -20,6 +20,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { AuthBackground } from "@/components/auth/AuthBackground";
 import { GlassCard } from "@/components/auth/GlassCard";
 import { SwipeButton, SwipeButtonRef } from "@/components/auth/SwipeButton";
+import { SalonGlyph } from "@/components/auth/SalonGlyph";
 import { Colors, Typography, Bubble, Spacing } from "@/constants/theme";
 import { mapAuthError } from "@/lib/authErrors";
 
@@ -342,7 +343,7 @@ export default function SignUpScreen() {
                   loading={swipeLoading || isSubmitting}
                   label="Glisează pentru înregistrare"
                   successLabel="Cont creat!"
-                  icon="arrow-forward"
+                  glyph={<SalonGlyph size={30} color={Colors.gradientStart} />}
                 />
               </View>
 

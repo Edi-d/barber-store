@@ -1,4 +1,4 @@
-import { useState, forwardRef, useImperativeHandle } from "react";
+import { useState, forwardRef, useImperativeHandle, type ReactNode } from "react";
 import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -26,6 +26,8 @@ interface SwipeButtonProps {
   label?: string;
   successLabel?: string;
   icon?: keyof typeof Ionicons.glyphMap;
+  /** Custom thumb artwork; overrides `icon` when provided (e.g. a brand glyph). */
+  glyph?: ReactNode;
 }
 
 export const SwipeButton = forwardRef<SwipeButtonRef, SwipeButtonProps>(
@@ -36,6 +38,7 @@ export const SwipeButton = forwardRef<SwipeButtonRef, SwipeButtonProps>(
       label = "Glisează pentru a continua",
       successLabel = "Bine ai venit!",
       icon = "cut-outline",
+      glyph,
     },
     ref
   ) {
@@ -141,6 +144,8 @@ export const SwipeButton = forwardRef<SwipeButtonRef, SwipeButtonProps>(
               <Animated.View style={[styles.thumb, thumbStyle]}>
                 {loading ? (
                   <ActivityIndicator color={Colors.gradientStart} size="small" />
+                ) : glyph ? (
+                  glyph
                 ) : (
                   <Ionicons name={icon} size={22} color={Colors.gradientStart} />
                 )}

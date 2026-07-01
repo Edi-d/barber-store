@@ -15,56 +15,51 @@ export interface LevelConfig {
   perks: string[];
 }
 
-// Dark slate for foreground on warm/light tier colors (Gold).
-// White foreground for dark/saturated tiers (Bronze, Silver, Platinum, Diamond).
+// Dark slate for foreground on warm/light tier colors.
+// White foreground for dark/saturated tiers.
 const DARK_FG = '#1E293B';
 const LIGHT_FG = '#FFFFFF';
 
+// Re-skinned to match the barber loyalty tiers (Clipper/Blade/Sharp/Maestru).
+// Levels + xp_required mirror xp_level_thresholds (migration 161); icons are now
+// the gradient badge art (see components/loyalty/TierArt.tsx), iconName is kept
+// only as a harmless fallback and is no longer rendered.
 export const LEVEL_CONFIG: Record<number, LevelConfig> = {
   1: {
     level: 1,
-    title: 'Bronze',
+    title: 'Clipper',
     xpRequired: 0,
-    color: '#D97706',      // amber-600 — warm entry tier, matches CreateMenuColors.today accent
+    color: '#8E8E93',      // gray — entry tier
     textColor: LIGHT_FG,
-    iconName: 'shield',
-    perks: ['Acces la produse de baza'],
+    iconName: 'cut',
+    perks: ['Acumulezi XP la fiecare achizitie'],
   },
   2: {
     level: 2,
-    title: 'Silver',
+    title: 'Blade',
     xpRequired: 1000,
-    color: '#6B7280',      // slate-500 — cool neutral, on-brand with blues
+    color: '#0A84FF',      // brand blue
     textColor: LIGHT_FG,
-    iconName: 'star',
-    perks: ['Acces la produse exclusive', 'Badge Silver pe profil'],
+    iconName: 'flash',
+    perks: ['Acces la produse exclusive'],
   },
   3: {
     level: 3,
-    title: 'Gold',
+    title: 'Sharp',
     xpRequired: 3000,
-    color: '#F5A623',      // warm accent used in CreateMenuColors — signals progress
+    color: '#F5A623',      // gold accent
     textColor: DARK_FG,
-    iconName: 'trophy',
-    perks: ['Produse Gold deblocate', 'Acces anticipat la produse noi'],
+    iconName: 'star',
+    perks: ['Produse deblocate', 'Acces anticipat la produse noi'],
   },
   4: {
     level: 4,
-    title: 'Platinum',
+    title: 'Maestru',
     xpRequired: 7000,
-    color: '#0A85F4',      // Brand.primaryLight — elite tier enters brand-blue spectrum
-    textColor: LIGHT_FG,
-    iconName: 'diamond',
-    perks: ['Produse Platinum disponibile', 'Prioritate la comenzi'],
-  },
-  5: {
-    level: 5,
-    title: 'Diamond',
-    xpRequired: 15000,
-    color: '#040EFD',      // Brand.gradientEnd — electric-blue, highest tier = pure brand
-    textColor: LIGHT_FG,
-    iconName: 'sparkles',
-    perks: ['Toate produsele deblocate', 'Prioritate maxima', 'Cadou la fiecare nivel'],
+    color: '#FFD700',      // legendary gold
+    textColor: DARK_FG,
+    iconName: 'trophy',
+    perks: ['Toate produsele deblocate', 'Prioritate la comenzi'],
   },
 };
 

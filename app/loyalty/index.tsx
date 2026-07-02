@@ -64,12 +64,9 @@ export default function LoyaltyScreen() {
           <ActivityIndicator size="large" color={Colors.primary} />
         </View>
       ) : (
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          stickyHeaderIndices={[1]}
-        >
+        <>
+          {/* Fixed hero + segmented tabs (always visible & tappable) */}
+          <View style={styles.topFixed}>
           {/* Hero card — brand blue gradient */}
           <View style={styles.heroWrap}>
             <LinearGradient
@@ -112,29 +109,34 @@ export default function LoyaltyScreen() {
             </LinearGradient>
           </View>
 
-          {/* Sticky segmented tab bar */}
-          <View style={styles.tabBarSticky}>
-            <View style={styles.tabBar}>
-              {TABS.map((t) => {
-                const active = activeTab === t.key;
-                return (
-                  <Pressable
-                    key={t.key}
-                    style={[styles.tab, active && styles.tabActive]}
-                    onPress={() => {
-                      Haptics.selectionAsync().catch(() => {});
-                      setActiveTab(t.key);
-                    }}
-                  >
-                    <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>
-                      {t.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+          {/* Segmented tab bar */}
+          <View style={styles.tabBar}>
+            {TABS.map((t) => {
+              const active = activeTab === t.key;
+              return (
+                <Pressable
+                  key={t.key}
+                  style={[styles.tab, active && styles.tabActive]}
+                  onPress={() => {
+                    Haptics.selectionAsync().catch(() => {});
+                    setActiveTab(t.key);
+                  }}
+                >
+                  <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>
+                    {t.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
+          </View>
+          {/* end fixed top */}
 
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
           {/* Tab: Beneficii */}
           {activeTab === 'beneficii' && (
             <>
@@ -208,7 +210,8 @@ export default function LoyaltyScreen() {
               )}
             </>
           )}
-        </ScrollView>
+          </ScrollView>
+        </>
       )}
     </SafeAreaView>
   );
@@ -249,7 +252,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: Spacing.base,
     paddingBottom: Spacing['3xl'] * 3,
-    paddingTop: Spacing.sm,
+    paddingTop: Spacing.md,
   },
 
   /* Hero */
@@ -322,15 +325,13 @@ const styles = StyleSheet.create({
     marginTop: Spacing.lg,
   },
 
-  /* Segmented tab bar */
-  tabBarSticky: {
-    backgroundColor: Colors.background,
-    // Bleed past the scroll content's horizontal padding so the sticky
-    // background spans the full width when pinned to the top.
-    marginHorizontal: -Spacing.base,
+  /* Fixed top area (hero + tabs), sits above the scrolling tab content */
+  topFixed: {
     paddingHorizontal: Spacing.base,
-    paddingBottom: Spacing.md,
+    paddingTop: Spacing.sm,
   },
+
+  /* Segmented tab bar */
   tabBar: {
     flexDirection: 'row',
     backgroundColor: '#E4EAF2',

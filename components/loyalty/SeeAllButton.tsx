@@ -9,7 +9,9 @@ interface Props {
   onPress: () => void;
 }
 
-/** Centered rounded-pill "see all" button used at the bottom of previewed lists. */
+/** Centered rounded-pill "see all" button used at the bottom of previewed lists.
+ *  The visual pill lives on a plain View so it renders reliably; the Pressable
+ *  is only the tap target + press feedback. */
 export function SeeAllButton({ label, onPress }: Props) {
   return (
     <View style={styles.wrap}>
@@ -18,10 +20,12 @@ export function SeeAllButton({ label, onPress }: Props) {
           Haptics.selectionAsync().catch(() => {});
           onPress();
         }}
-        style={({ pressed }) => [styles.btn, pressed && { opacity: 0.85 }]}
+        style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
       >
-        <Text style={styles.label}>{label}</Text>
-        <Ionicons name="arrow-forward" size={16} color={Colors.primary} />
+        <View style={styles.btn}>
+          <Text style={styles.label}>{label}</Text>
+          <Ionicons name="arrow-forward" size={16} color={Colors.primary} />
+        </View>
       </Pressable>
     </View>
   );
@@ -36,13 +40,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 22,
+    gap: 8,
+    paddingVertical: 13,
+    paddingHorizontal: 24,
     borderRadius: Radius.full,
-    backgroundColor: Colors.white,
+    backgroundColor: '#E8F3FF',
     borderWidth: 1,
-    borderColor: '#E4EAF2',
+    borderColor: 'rgba(10,102,194,0.20)',
     ...Shadows.sm,
   },
   label: {

@@ -15,6 +15,7 @@ import { TierProgressBar } from '@/components/loyalty/TierProgressBar';
 import { PointsTransactionList } from '@/components/loyalty/PointsTransactionList';
 import { VoucherConversionSection } from '@/components/loyalty/VoucherConversionSection';
 import { MyVouchersSection } from '@/components/loyalty/MyVouchersSection';
+import { SeeAllButton } from '@/components/loyalty/SeeAllButton';
 import { Brand, Colors, Bubble, Shadows, FontFamily, Typography, Spacing, Radius } from '@/constants/theme';
 
 type LoyaltyTab = 'beneficii' | 'vouchere' | 'istoric';
@@ -200,18 +201,10 @@ export default function LoyaltyScreen() {
               </View>
 
               {transactions.length > HISTORY_PREVIEW && (
-                <Pressable
-                  onPress={() => {
-                    Haptics.selectionAsync().catch(() => {});
-                    router.push('/loyalty/history');
-                  }}
-                  style={({ pressed }) => [styles.seeAllBtn, pressed && { opacity: 0.85 }]}
-                >
-                  <Text style={styles.seeAllText}>
-                    Vezi tot istoricul ({transactions.length})
-                  </Text>
-                  <Ionicons name="arrow-forward" size={16} color={Colors.primary} />
-                </Pressable>
+                <SeeAllButton
+                  label={`Vezi tot istoricul (${transactions.length})`}
+                  onPress={() => router.push('/loyalty/history')}
+                />
               )}
             </>
           )}
@@ -361,26 +354,6 @@ const styles = StyleSheet.create({
   },
   tabLabelActive: {
     color: Colors.white,
-  },
-
-  seeAllBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 22,
-    marginTop: Spacing.xs,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: '#E4EAF2',
-    ...Shadows.sm,
-  },
-  seeAllText: {
-    ...Typography.captionSemiBold,
-    color: Colors.primary,
   },
 
   /* Section titles */

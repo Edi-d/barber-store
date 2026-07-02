@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { fetchMyVouchers, type LoyaltyVoucher, type VoucherStatus } from '@/lib/loyalty';
 import { formatPrice } from '@/lib/utils';
+import { SeeAllButton } from '@/components/loyalty/SeeAllButton';
 import { Bubble, Shadows, FontFamily, Colors, Spacing, Radius } from '@/constants/theme';
 
 interface Props {
@@ -201,16 +202,10 @@ export function MyVouchersSection({ userId, previewCount }: Props) {
       ))}
 
       {isPreview && hiddenCount > 0 && (
-        <Pressable
-          onPress={() => {
-            Haptics.selectionAsync().catch(() => {});
-            router.push('/loyalty/vouchers');
-          }}
-          style={({ pressed }) => [styles.seeAllBtn, pressed && { opacity: 0.85 }]}
-        >
-          <Text style={styles.seeAllText}>Vezi toate voucherele ({sorted.length})</Text>
-          <Ionicons name="arrow-forward" size={16} color={Colors.primary} />
-        </Pressable>
+        <SeeAllButton
+          label={`Vezi toate voucherele (${sorted.length})`}
+          onPress={() => router.push('/loyalty/vouchers')}
+        />
       )}
     </View>
   );
@@ -356,28 +351,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     color: Colors.textTertiary,
-  },
-
-  /* See-all button — rounded pill bubble */
-  seeAllBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 22,
-    marginTop: Spacing.sm,
-    borderRadius: Radius.full,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E4EAF2',
-    ...Shadows.sm,
-  },
-  seeAllText: {
-    fontFamily: FontFamily.semiBold,
-    fontSize: 14,
-    lineHeight: 18,
-    color: Colors.primary,
   },
 });

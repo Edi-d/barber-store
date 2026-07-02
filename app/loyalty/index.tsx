@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: {
     paddingHorizontal: Spacing.base,
-    paddingBottom: Spacing['3xl'] * 2,
+    paddingBottom: Spacing['3xl'] * 3,
     paddingTop: Spacing.sm,
   },
 
@@ -367,10 +367,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    alignSelf: 'center',
     gap: 6,
-    paddingVertical: 14,
-    borderRadius: Radius.lg,
-    backgroundColor: '#EAF1FB',
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    marginTop: Spacing.xs,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: '#E4EAF2',
+    ...Shadows.sm,
   },
   seeAllText: {
     ...Typography.captionSemiBold,

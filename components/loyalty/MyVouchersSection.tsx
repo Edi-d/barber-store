@@ -131,8 +131,14 @@ function VoucherCard({ voucher }: { voucher: LoyaltyVoucher }) {
               pressed && { opacity: 0.85 },
             ]}
           >
-            <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={14} color="#FFFFFF" />
-            <Text style={styles.copyBtnText}>{copied ? 'Copiat' : 'Copiază'}</Text>
+            <Ionicons
+              name={copied ? 'checkmark' : 'copy-outline'}
+              size={14}
+              color={copied ? '#15803D' : Colors.primary}
+            />
+            <Text style={[styles.copyBtnText, copied && styles.copyBtnTextDone]}>
+              {copied ? 'Copiat' : 'Copiază'}
+            </Text>
           </Pressable>
         )}
       </View>
@@ -320,18 +326,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: Colors.primary,
+    backgroundColor: '#FFFFFF',
     borderRadius: Radius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(10,102,194,0.30)',
     paddingVertical: 7,
     paddingHorizontal: 12,
   },
-  copyBtnDone: { backgroundColor: '#15803D' },
+  copyBtnDone: {
+    backgroundColor: '#DCFCE7',
+    borderColor: 'rgba(21,128,61,0.35)',
+  },
   copyBtnText: {
     fontFamily: FontFamily.semiBold,
     fontSize: 12,
     lineHeight: 16,
-    color: '#FFFFFF',
+    color: Colors.primary,
   },
+  copyBtnTextDone: { color: '#15803D' },
 
   /* Footer */
   footerRow: {
@@ -346,16 +358,21 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
   },
 
-  /* See-all button */
+  /* See-all button — rounded pill bubble */
   seeAllBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    alignSelf: 'center',
     gap: 6,
-    paddingVertical: 14,
-    marginTop: Spacing.xs,
-    borderRadius: Radius.lg,
-    backgroundColor: '#EAF1FB',
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    marginTop: Spacing.sm,
+    borderRadius: Radius.full,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E4EAF2',
+    ...Shadows.sm,
   },
   seeAllText: {
     fontFamily: FontFamily.semiBold,

@@ -143,8 +143,9 @@ export async function convertPointsToVoucher(
 export function transactionSourceLabel(sourceType: string): string {
   switch (sourceType) {
     case 'appointment':         return 'Programare finalizata';
-    case 'order':               return 'Comanda shop';
-    case 'voucher':             return 'Voucher generat';
+    case 'order':               return 'Comandă';
+    case 'voucher':
+    case 'voucher_convert':     return 'Voucher generat';
     case 'reverse':
     case 'reverse_appointment':
     case 'reverse_order':       return 'Stornare';

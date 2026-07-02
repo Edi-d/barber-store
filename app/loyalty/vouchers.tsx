@@ -66,6 +66,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: Spacing.base,
     paddingTop: Spacing.sm,
-    paddingBottom: Spacing['3xl'] * 2,
+    paddingBottom: Spacing['3xl'] * 3,
   },
 });

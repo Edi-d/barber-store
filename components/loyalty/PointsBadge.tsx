@@ -98,7 +98,7 @@ function PointsBadgeInner({ points, level, size = 'md' }: PointsBadgeProps) {
             isSm && styles.xpLabelSm,
           ]}
         >
-          pts
+          pct
         </Text>
       </View>
 

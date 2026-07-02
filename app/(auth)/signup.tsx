@@ -215,6 +215,8 @@ export default function SignUpScreen() {
                         placeholder="Minim 6 caractere"
                         placeholderTextColor={Colors.textTertiary}
                         secureTextEntry={!showPassword}
+                        autoCapitalize="none"
+                        autoCorrect={false}
                         autoComplete="password"
                         returnKeyType="next"
                         onSubmitEditing={() =>
@@ -285,6 +287,9 @@ export default function SignUpScreen() {
                         placeholder="Repetă parola"
                         placeholderTextColor={Colors.textTertiary}
                         secureTextEntry={!showConfirmPassword}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        autoComplete="password"
                         returnKeyType="done"
                         onSubmitEditing={handleSubmit(onSubmit)}
                         onFocus={() => setFocusedField("confirmPassword")}

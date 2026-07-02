@@ -32,7 +32,6 @@ import { EmptyState } from "@/components/shared/EmptyState";
 const CHAPTER_COLORS: Record<string, { icon: string; color: string; bg: string }> = {
   "ch0-welcome":      { icon: "rocket",       color: "#8B5CF6", bg: "rgba(139,92,246,0.12)" },
   "ch1-appointments": { icon: "map",           color: "#0A66C2", bg: "rgba(10,102,194,0.12)" },
-  "ch2-shop":         { icon: "bag-handle",    color: "#6366F1", bg: "rgba(99,102,241,0.12)" },
   "ch3-feed":         { icon: "chatbubbles",   color: "#16A34A", bg: "rgba(22,163,74,0.12)"  },
 };
 

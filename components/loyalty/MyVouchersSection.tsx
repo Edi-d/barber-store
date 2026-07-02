@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { fetchMyVouchers, type LoyaltyVoucher, type VoucherStatus } from '@/lib/loyalty';
 import { formatPrice } from '@/lib/utils';
@@ -9,6 +10,9 @@ import { Bubble, Shadows, FontFamily, Colors, Spacing, Radius } from '@/constant
 
 interface Props {
   userId: string | undefined;
+  /** When set, only this many vouchers are shown, followed by a button that
+   *  navigates to the full list screen. Omit to render every voucher. */
+  previewCount?: number;
 }
 
 const RO_MONTHS = ['ian.', 'feb.', 'mar.', 'apr.', 'mai', 'iun.', 'iul.', 'aug.', 'sep.', 'oct.', 'nov.', 'dec.'];
@@ -40,17 +44,109 @@ const STATUS_META: Record<VoucherStatus, { label: string; color: string; bg: str
   cancelled: { label: 'Anulat',  color: '#475569', bg: '#F1F5F9' },
 };
 
-function scopeLabel(scope: LoyaltyVoucher['scope']): string {
-  switch (scope) {
-    case 'services':    return 'Doar salon';
-    case 'marketplace': return 'Doar shop';
-    default:            return 'Salon & shop';
+const FOOTER_ICON: Record<VoucherStatus, keyof typeof Ionicons.glyphMap> = {
+  active: 'time-outline',
+  used: 'checkmark-circle-outline',
+  expired: 'alert-circle-outline',
+  cancelled: 'close-circle-outline',
+};
+
+async function copyToClipboard(code: string): Promise<boolean> {
+  try {
+    // Lazy require: expo-clipboard resolves its native module at module-load
+    // time, which throws on a dev client that hasn't been rebuilt yet. Deferring
+    // the require here keeps the screen loadable; we fall back to an Alert when
+    // the native module is absent. Becomes one-tap copy after the next rebuild.
+    const Clipboard = require('expo-clipboard');
+    await Clipboard.setStringAsync(code);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    return true;
+  } catch {
+    // Native clipboard unavailable (e.g. dev client not yet rebuilt) — show
+    // the code so it can still be read/copied manually.
+    Alert.alert('Cod voucher', code);
+    return false;
   }
 }
 
-export function MyVouchersSection({ userId }: Props) {
-  const [copied, setCopied] = useState<string | null>(null);
+function VoucherCard({ voucher }: { voucher: LoyaltyVoucher }) {
+  const [copied, setCopied] = useState(false);
 
+  const status = effectiveStatus(voucher);
+  const meta = STATUS_META[status];
+  const isActive = status === 'active';
+
+  const valueText =
+    voucher.value_cents != null ? formatPrice(voucher.value_cents) : `${voucher.points_spent} puncte`;
+
+  const dateText =
+    status === 'used' && voucher.used_at
+      ? `Folosit pe ${formatDate(voucher.used_at)}`
+      : status === 'active'
+        ? `Expiră pe ${formatDate(voucher.expires_at)}`
+        : status === 'expired'
+          ? `A expirat pe ${formatDate(voucher.expires_at)}`
+          : 'Voucher anulat';
+
+  const onCopy = async () => {
+    const ok = await copyToClipboard(voucher.code);
+    if (!ok) return;
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1600);
+  };
+
+  return (
+    <View style={[styles.card, !isActive && styles.cardInactive]}>
+      {/* Header: icon + value + status */}
+      <View style={styles.cardHeader}>
+        <View style={[styles.iconCircle, { backgroundColor: meta.bg }]}>
+          <Ionicons name="gift" size={20} color={meta.color} />
+        </View>
+        <View style={styles.headerMid}>
+          <Text style={styles.value} numberOfLines={1}>
+            {valueText}
+          </Text>
+          <Text style={styles.scope}>Valabil în salon</Text>
+        </View>
+        <View style={[styles.statusPill, { backgroundColor: meta.bg }]}>
+          <Text style={[styles.statusText, { color: meta.color }]}>{meta.label}</Text>
+        </View>
+      </View>
+
+      {/* Coupon code chip */}
+      <View style={[styles.codeChip, !isActive && styles.codeChipInactive]}>
+        <View style={styles.codeChipLeft}>
+          <Text style={styles.codeLabel}>COD VOUCHER</Text>
+          <Text style={styles.code} selectable>
+            {voucher.code}
+          </Text>
+        </View>
+        {isActive && (
+          <Pressable
+            onPress={onCopy}
+            hitSlop={8}
+            style={({ pressed }) => [
+              styles.copyBtn,
+              copied && styles.copyBtnDone,
+              pressed && { opacity: 0.85 },
+            ]}
+          >
+            <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={14} color="#FFFFFF" />
+            <Text style={styles.copyBtnText}>{copied ? 'Copiat' : 'Copiază'}</Text>
+          </Pressable>
+        )}
+      </View>
+
+      {/* Footer meta */}
+      <View style={styles.footerRow}>
+        <Ionicons name={FOOTER_ICON[status]} size={13} color={Colors.textTertiary} />
+        <Text style={styles.footerText}>{dateText}</Text>
+      </View>
+    </View>
+  );
+}
+
+export function MyVouchersSection({ userId, previewCount }: Props) {
   const { data: vouchers = [], isLoading } = useQuery({
     queryKey: ['my-vouchers', userId],
     queryFn: () => (userId ? fetchMyVouchers(userId) : Promise.resolve([])),
@@ -58,7 +154,7 @@ export function MyVouchersSection({ userId }: Props) {
   });
 
   // Usable vouchers first, then everything else; newest-first within each group.
-  const sorted = useMemo(() => {
+  const sorted = React.useMemo(() => {
     return [...vouchers].sort((a, b) => {
       const aActive = effectiveStatus(a) === 'active' ? 0 : 1;
       const bActive = effectiveStatus(b) === 'active' ? 0 : 1;
@@ -66,24 +162,6 @@ export function MyVouchersSection({ userId }: Props) {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
   }, [vouchers]);
-
-  const onCopy = async (code: string) => {
-    try {
-      // Lazy require: expo-clipboard resolves its native module at module-load
-      // time, which throws on a dev client that hasn't been rebuilt yet. Deferring
-      // the require here keeps the screen loadable; we fall back to an Alert when
-      // the native module is absent. Becomes one-tap copy after the next rebuild.
-      const Clipboard = require('expo-clipboard');
-      await Clipboard.setStringAsync(code);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      setCopied(code);
-      setTimeout(() => setCopied((c) => (c === code ? null : c)), 1600);
-    } catch {
-      // Native clipboard unavailable (e.g. dev client not yet rebuilt) — show
-      // the code so it can still be read/copied manually.
-      Alert.alert('Cod voucher', code);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -96,84 +174,58 @@ export function MyVouchersSection({ userId }: Props) {
   if (sorted.length === 0) {
     return (
       <View style={styles.emptyWrap}>
-        <Ionicons name="ticket-outline" size={26} color={Colors.textTertiary} />
+        <View style={styles.emptyIconCircle}>
+          <Ionicons name="ticket-outline" size={26} color={Colors.primary} />
+        </View>
         <Text style={styles.emptyText}>
-          Nu ai vouchere încă. Convertește puncte mai sus pentru a genera unul.
+          Nu ai vouchere încă. Convertește puncte pentru a genera unul.
         </Text>
       </View>
     );
   }
 
+  const isPreview = previewCount != null;
+  const visible = isPreview ? sorted.slice(0, previewCount) : sorted;
+  const hiddenCount = sorted.length - visible.length;
+
   return (
-    <View style={{ gap: Spacing.md }}>
-      {sorted.map((v) => {
-        const status = effectiveStatus(v);
-        const meta = STATUS_META[status];
-        const isActive = status === 'active';
-        const justCopied = copied === v.code;
+    <View style={styles.list}>
+      {visible.map((v) => (
+        <VoucherCard key={v.id} voucher={v} />
+      ))}
 
-        return (
-          <Pressable
-            key={v.id}
-            onPress={isActive ? () => onCopy(v.code) : undefined}
-            disabled={!isActive}
-            style={({ pressed }) => [styles.card, { opacity: !isActive ? 0.6 : pressed ? 0.85 : 1 }]}
-          >
-            {/* Left icon */}
-            <View style={[styles.iconCircle, { backgroundColor: meta.bg }]}>
-              <Ionicons name="gift-outline" size={22} color={meta.color} />
-            </View>
-
-            {/* Middle: value + code + meta */}
-            <View style={styles.textCol}>
-              <Text style={styles.value}>
-                {v.value_cents != null ? formatPrice(v.value_cents) : `${v.points_spent} puncte`}
-              </Text>
-              <Text style={styles.code} selectable>
-                {v.code}
-              </Text>
-              <Text style={styles.metaLine}>
-                {scopeLabel(v.scope)} · {status === 'used' && v.used_at
-                  ? `Folosit ${formatDate(v.used_at)}`
-                  : status === 'active'
-                    ? `Expiră ${formatDate(v.expires_at)}`
-                    : status === 'expired'
-                      ? `Expirat ${formatDate(v.expires_at)}`
-                      : 'Anulat'}
-              </Text>
-            </View>
-
-            {/* Right: status pill + copy hint */}
-            <View style={styles.rightCol}>
-              <View style={[styles.statusPill, { backgroundColor: meta.bg }]}>
-                <Text style={[styles.statusText, { color: meta.color }]}>{meta.label}</Text>
-              </View>
-              {isActive && (
-                <View style={styles.copyRow}>
-                  <Ionicons
-                    name={justCopied ? 'checkmark' : 'copy-outline'}
-                    size={13}
-                    color={justCopied ? '#15803D' : Colors.textTertiary}
-                  />
-                  <Text style={[styles.copyText, justCopied && { color: '#15803D' }]}>
-                    {justCopied ? 'Copiat' : 'Copiază'}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </Pressable>
-        );
-      })}
+      {isPreview && hiddenCount > 0 && (
+        <Pressable
+          onPress={() => {
+            Haptics.selectionAsync().catch(() => {});
+            router.push('/loyalty/vouchers');
+          }}
+          style={({ pressed }) => [styles.seeAllBtn, pressed && { opacity: 0.85 }]}
+        >
+          <Text style={styles.seeAllText}>Vezi toate voucherele ({sorted.length})</Text>
+          <Ionicons name="arrow-forward" size={16} color={Colors.primary} />
+        </Pressable>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  list: { gap: Spacing.md },
   loadingWrap: { paddingVertical: Spacing.lg, alignItems: 'center' },
+
   emptyWrap: {
     alignItems: 'center',
     gap: Spacing.sm,
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.xl,
+  },
+  emptyIconCircle: {
+    width: 52,
+    height: 52,
+    ...Bubble.radiiSm,
+    backgroundColor: Colors.primaryMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyText: {
     fontFamily: FontFamily.regular,
@@ -181,16 +233,24 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: Colors.textSecondary,
     textAlign: 'center',
+    paddingHorizontal: Spacing.lg,
   },
+
+  /* Card */
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: '#FFFFFF',
     padding: Spacing.base,
+    gap: Spacing.md,
     borderWidth: 1,
     borderColor: '#EEF2F6',
     ...Bubble.radiiSm,
     ...Shadows.sm,
+  },
+  cardInactive: { opacity: 0.7 },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
   },
   iconCircle: {
     width: 44,
@@ -198,52 +258,109 @@ const styles = StyleSheet.create({
     ...Bubble.radiiSm,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: Spacing.md,
   },
-  textCol: { flex: 1, gap: 2 },
+  headerMid: { flex: 1, gap: 2 },
   value: {
     fontFamily: FontFamily.semiBold,
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: 16,
+    lineHeight: 21,
     color: Colors.text,
   },
-  code: {
-    fontFamily: FontFamily.bold,
-    fontSize: 13,
-    lineHeight: 18,
-    letterSpacing: 1,
-    color: Colors.primary,
-  },
-  metaLine: {
+  scope: {
     fontFamily: FontFamily.regular,
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: 12,
+    lineHeight: 16,
     color: Colors.textTertiary,
-  },
-  rightCol: {
-    alignItems: 'flex-end',
-    gap: 6,
-    marginLeft: Spacing.sm,
   },
   statusPill: {
     borderRadius: Radius.full,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
   statusText: {
     fontFamily: FontFamily.semiBold,
     fontSize: 11,
     lineHeight: 15,
   },
-  copyRow: {
+
+  /* Coupon code chip */
+  codeChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+    backgroundColor: '#F3F7FC',
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(10,102,194,0.22)',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
-  copyText: {
+  codeChipInactive: {
+    backgroundColor: '#F5F6F8',
+    borderColor: '#E2E8F0',
+  },
+  codeChipLeft: { flex: 1, gap: 2 },
+  codeLabel: {
     fontFamily: FontFamily.semiBold,
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: 9,
+    lineHeight: 12,
+    letterSpacing: 1,
     color: Colors.textTertiary,
+  },
+  code: {
+    fontFamily: FontFamily.bold,
+    fontSize: 16,
+    lineHeight: 21,
+    letterSpacing: 2,
+    color: Colors.text,
+  },
+  copyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: Colors.primary,
+    borderRadius: Radius.full,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+  },
+  copyBtnDone: { backgroundColor: '#15803D' },
+  copyBtnText: {
+    fontFamily: FontFamily.semiBold,
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#FFFFFF',
+  },
+
+  /* Footer */
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  footerText: {
+    fontFamily: FontFamily.regular,
+    fontSize: 12,
+    lineHeight: 16,
+    color: Colors.textTertiary,
+  },
+
+  /* See-all button */
+  seeAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    marginTop: Spacing.xs,
+    borderRadius: Radius.lg,
+    backgroundColor: '#EAF1FB',
+  },
+  seeAllText: {
+    fontFamily: FontFamily.semiBold,
+    fontSize: 14,
+    lineHeight: 18,
+    color: Colors.primary,
   },
 });

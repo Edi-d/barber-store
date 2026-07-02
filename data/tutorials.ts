@@ -86,17 +86,10 @@ Tapzi e pentru toata lumea — fie ca vrei o tunsoare rapida, un styling complet
           position: 'top',
         },
         {
-          targetScreen: '/(tabs)/shop',
-          targetRefKey: 'tab-shop',
-          title: 'Magazin',
-          description: 'Cumpara produse profesionale de ingrijire',
-          position: 'top',
-        },
-        {
           targetScreen: '/(tabs)/profile',
           targetRefKey: 'tab-profile',
           title: 'Profilul tau',
-          description: 'Gestioneaza contul, programarile si comenzile',
+          description: 'Gestioneaza contul si programarile',
           position: 'top',
         },
       ],
@@ -343,171 +336,6 @@ Daca vrei sa schimbi data sau ora, anuleaza programarea curenta si creeaza una n
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Chapter 2 — Shop
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const CHAPTER_SHOP: TutorialChapter = {
-  id: 'ch2-shop',
-  title: 'Shop',
-  description: 'Cum cumperi produse profesionale direct din aplicatie',
-  icon: 'bag-handle',
-  iconColor: '#6366F1',
-  iconBgColor: 'rgba(99,102,241,0.1)',
-  lessons: [
-    {
-      id: 'ch2-l1-browse-catalog',
-      title: 'Rasfoieste catalogul',
-      type: 'text',
-      durationSec: 60,
-      content: `## Magazinul Tapzi
-
-Magazinul iti pune la dispozitie o selectie curata de produse profesionale — aceleasi produse pe care le folosesc frizerii si coaforii parteneri.
-
-## Cum e organizat
-
-- Populare: cele mai cumparate produse din ultimele 30 de zile
-- Discounturi: produse cu reduceri active
-- Categorii: clesti, masini de tuns, ceara, gel, produse barba, samponuri si multe altele
-- Branduri: filtreaza dupa brandul preferat
-
-## Pretul de partener
-
-Pretul afisat este pretul de partener — un pret negociat exclusiv pentru comunitatea Tapzi, mai mic decat pretul de retail. Pe fiecare card vezi si economia fata de pretul recomandat.
-
-## Navigare rapida
-
-Poti cauta produse dupa nume sau brand in bara de cautare. Foloseste filtrele de categorie si brand pentru a restrange rezultatele. Butonul de sortare iti permite sa ordonezi dupa pret, discount sau relevanta.
-
-💡 Urmareste sectiunea Discounturi — ofertele se schimba saptamanal`,
-    },
-    {
-      id: 'ch2-l2-search-filter',
-      title: 'Cauta si filtreaza produse',
-      type: 'interactive',
-      durationSec: 60,
-      steps: [
-        {
-          targetScreen: '/(tabs)/shop',
-          targetRefKey: 'shop-search',
-          title: 'Cauta produse',
-          description: 'Scrie numele sau brandul produsului cautat. Rezultatele se filtreaza instant.',
-          position: 'bottom',
-        },
-        {
-          targetScreen: '/(tabs)/shop',
-          targetRefKey: 'shop-category-filter',
-          title: 'Filtru categorie',
-          description: 'Alege din categorii: clesti, ceara, gel, masini de tuns si multe altele.',
-          position: 'bottom',
-        },
-        {
-          targetScreen: '/(tabs)/shop',
-          targetRefKey: 'shop-sort-btn',
-          title: 'Sorteaza rezultatele',
-          description: 'Ordoneaza produsele dupa pret, discount sau relevanta.',
-          position: 'bottom',
-        },
-      ],
-    },
-    {
-      id: 'ch2-l3-product-details',
-      title: 'Detaliile unui produs',
-      type: 'text',
-      durationSec: 60,
-      content: `## Pagina de produs
-
-Apasa pe orice produs din catalog pentru a vedea detaliile complete intr-un panou care se deschide de jos.
-
-## Ce gasesti
-
-- Imaginea produsului pe fundal gradient
-- Brandul si numele complet
-- Descrierea produsului (daca exista)
-- Pretul de partener si economia fata de pretul retail
-
-## Adauga in cos
-
-Alege cantitatea dorita cu butoanele + si -, apoi apasa "Adauga in cos". Produsul apare instant in cosul de cumparaturi.
-
-💡 Poti adauga mai multe bucati din acelasi produs fara sa inchizi panoul`,
-    },
-    {
-      id: 'ch2-l4-cart',
-      title: 'Cosul de cumparaturi',
-      type: 'text',
-      durationSec: 60,
-      content: `## Cosul de cumparaturi
-
-Acceseaza cosul apasand pe iconita de cos din tab-ul Magazin sau din bara care apare in josul ecranului cand ai produse.
-
-## Gestioneaza produsele
-
-- Modifica cantitatea cu butoanele + si -
-- Gliseaza un produs la stanga pentru a-l sterge
-- Bara de livrare gratuita iti arata cat mai ai de adaugat pana la pragul de 200 RON
-
-## Livrare gratuita
-
-Cand totalul depaseste 200 RON, livrarea devine gratuita. Bara de progres se coloreaza verde cand atingi pragul.
-
-💡 Apasa "Continua la plata" cand esti multumit cu cosul`,
-    },
-    {
-      id: 'ch2-l5-checkout',
-      title: 'Finalizeaza comanda',
-      type: 'text',
-      durationSec: 60,
-      content: `## Procesul de checkout
-
-Dupa ce apesi "Continua la plata", completezi formularul de comanda in cativa pasi simpli.
-
-## Informatii necesare
-
-- Nume si numar de telefon (obligatorii)
-- Metoda de livrare: ridicare personala sau livrare la adresa
-- Adresa completa (daca alegi livrare)
-- Note speciale (optional)
-
-## Plata
-
-Deocamdata disponibila: plata ramburs la livrare. Platesti cash cand primesti coletul. Plata online cu cardul va fi disponibila in curand.
-
-## Confirmare
-
-Verifica totalul si apasa "Plaseaza comanda". Vei primi un ecran de confirmare cu numarul comenzii si optiunea de a vedea comenzile sau de a continua cumparaturile.
-
-💡 Datele de contact sunt salvate — nu trebuie sa le completezi la fiecare comanda`,
-    },
-    {
-      id: 'ch2-l6-track-orders',
-      title: 'Urmareste comenzile',
-      type: 'text',
-      durationSec: 45,
-      content: `## Comenzile mele
-
-Dupa ce plasezi o comanda, o gasesti in Profil > Comenzile mele. Fiecare comanda are un card cu detalii complete.
-
-## Statusuri
-
-- In asteptare: comanda a fost plasata si urmeaza sa fie procesata
-- Platita: plata a fost confirmata
-- Expediata: comanda e pe drum
-- Anulata: comanda a fost anulata
-
-## Detalii comanda
-
-Apasa pe o comanda pentru a vedea: produsele comandate cu cantitati si preturi, totalul, adresa de livrare si numarul comenzii.
-
-## Istoric
-
-Toate comenzile ramam in istoric, indiferent de status. Poti reveni oricand sa verifici ce ai comandat anterior sau sa recomanzi un produs.
-
-💡 Vei primi notificari cand statusul comenzii se schimba`,
-    },
-  ],
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Chapter 3 — Feed Social
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -667,7 +495,6 @@ Apasa iconita de sortare (langa titlul "Toate postarile") pentru a alege ordinea
 export const TUTORIALS: TutorialChapter[] = [
   CHAPTER_WELCOME,
   CHAPTER_APPOINTMENTS,
-  CHAPTER_SHOP,
   CHAPTER_FEED,
 ];
 

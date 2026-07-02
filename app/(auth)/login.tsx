@@ -213,6 +213,8 @@ export default function LoginScreen() {
                         placeholder="Introdu parola"
                         placeholderTextColor={Colors.textTertiary}
                         secureTextEntry={!showPassword}
+                        autoCapitalize="none"
+                        autoCorrect={false}
                         autoComplete="password"
                         returnKeyType="done"
                         onSubmitEditing={handleSubmit(onSubmit)}

@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 
 import { useAuthStore } from '@/stores/authStore';
 import { useLoyaltyProfile } from '@/hooks/useLoyaltyProfile';
@@ -14,11 +15,21 @@ import { TierProgressBar } from '@/components/loyalty/TierProgressBar';
 import { PointsTransactionList } from '@/components/loyalty/PointsTransactionList';
 import { VoucherConversionSection } from '@/components/loyalty/VoucherConversionSection';
 import { MyVouchersSection } from '@/components/loyalty/MyVouchersSection';
-import { Brand, Colors, Bubble, Shadows, FontFamily, Typography, Spacing } from '@/constants/theme';
+import { Brand, Colors, Bubble, Shadows, FontFamily, Typography, Spacing, Radius } from '@/constants/theme';
+
+type LoyaltyTab = 'beneficii' | 'vouchere' | 'istoric';
+
+const TABS: { key: LoyaltyTab; label: string }[] = [
+  { key: 'beneficii', label: 'Beneficii' },
+  { key: 'vouchere', label: 'Vouchere' },
+  { key: 'istoric', label: 'Istoric' },
+];
 
 export default function LoyaltyScreen() {
   const session = useAuthStore((s) => s.session);
   const { data: xp, isLoading } = useLoyaltyProfile();
+  const [activeTab, setActiveTab] = useState<LoyaltyTab>('beneficii');
+  const HISTORY_PREVIEW = 3;
 
   const { data: transactions = [] } = useQuery({
     queryKey: ['loyalty-transactions', session?.user.id],
@@ -56,6 +67,7 @@ export default function LoyaltyScreen() {
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          stickyHeaderIndices={[1]}
         >
           {/* Hero card — brand blue gradient */}
           <View style={styles.heroWrap}>
@@ -99,62 +111,110 @@ export default function LoyaltyScreen() {
             </LinearGradient>
           </View>
 
-          {/* Section: Benefits */}
-          <Text style={styles.sectionTitle}>Beneficii nivel {xp.currentLevel.title}</Text>
-          <View style={styles.card}>
-            {xp.currentLevel.perks.map((p, i) => (
-              <View key={i} style={styles.benefitRow}>
-                <View style={[styles.bullet, { backgroundColor: xp.currentLevel.color }]} />
-                <Text style={styles.benefitText}>{p}</Text>
+          {/* Sticky segmented tab bar */}
+          <View style={styles.tabBarSticky}>
+            <View style={styles.tabBar}>
+              {TABS.map((t) => {
+                const active = activeTab === t.key;
+                return (
+                  <Pressable
+                    key={t.key}
+                    style={[styles.tab, active && styles.tabActive]}
+                    onPress={() => {
+                      Haptics.selectionAsync().catch(() => {});
+                      setActiveTab(t.key);
+                    }}
+                  >
+                    <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>
+                      {t.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Tab: Beneficii */}
+          {activeTab === 'beneficii' && (
+            <>
+              <Text style={styles.sectionTitle}>Beneficii nivel {xp.currentLevel.title}</Text>
+              <View style={styles.card}>
+                {xp.currentLevel.perks.map((p, i) => (
+                  <View key={i} style={styles.benefitRow}>
+                    <View style={[styles.bullet, { backgroundColor: xp.currentLevel.color }]} />
+                    <Text style={styles.benefitText}>{p}</Text>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
 
-          {/* Section: Vouchers */}
-          <Text style={styles.sectionTitle}>Vouchere disponibile</Text>
-          <View style={styles.card}>
-            <Text style={styles.cardSub}>
-              Converteste punctele in voucher folosibil la orice salon sau in marketplace.
-            </Text>
-            <View style={{ marginTop: Spacing.sm }}>
-              <VoucherConversionSection currentBalance={xp.balance} />
-            </View>
-          </View>
-
-          {/* Section: My vouchers */}
-          <Text style={styles.sectionTitle}>Voucherele mele</Text>
-          <View style={styles.card}>
-            <MyVouchersSection userId={session?.user.id} />
-          </View>
-
-          {/* Section: How to earn */}
-          <Text style={styles.sectionTitle}>Cum castigi puncte</Text>
-          <View style={styles.card}>
-            <View style={styles.howToRow}>
-              <View style={styles.howToIconCircle}>
-                <Ionicons name="star-outline" size={20} color={Colors.primary} />
+              <Text style={styles.sectionTitle}>Cum castigi puncte</Text>
+              <View style={styles.card}>
+                <View style={styles.howToRow}>
+                  <View style={styles.howToIconCircle}>
+                    <Ionicons name="star-outline" size={20} color={Colors.primary} />
+                  </View>
+                  <Text style={styles.howToText}>
+                    Primesti puncte automat dupa fiecare programare finalizata sau comanda platita.
+                    Cu cat cheltui mai mult, cu atat avansezi mai rapid in nivele si deblochezi
+                    vouchere mai valoroase.
+                  </Text>
+                </View>
               </View>
-              <Text style={styles.howToText}>
-                Primesti puncte automat dupa fiecare programare finalizata sau comanda platita.
-                Cu cat cheltui mai mult, cu atat avansezi mai rapid in nivele si deblochezi
-                vouchere mai valoroase.
-              </Text>
-            </View>
-          </View>
+            </>
+          )}
 
-          {/* Section: History */}
-          <Text style={styles.sectionTitle}>Istoric tranzactii</Text>
-          <View style={styles.card}>
-            <View style={styles.historyHeaderRow}>
-              <View style={styles.howToIconCircle}>
-                <Ionicons name="time-outline" size={20} color={Colors.primary} />
+          {/* Tab: Vouchere */}
+          {activeTab === 'vouchere' && (
+            <>
+              <Text style={styles.sectionTitle}>Vouchere disponibile</Text>
+              <View style={styles.card}>
+                <Text style={styles.cardSub}>
+                  Converteste punctele in voucher folosibil la orice salon.
+                </Text>
+                <View style={{ marginTop: Spacing.sm }}>
+                  <VoucherConversionSection currentBalance={xp.balance} />
+                </View>
               </View>
-              <Text style={styles.historyHeaderText}>Activitate recenta</Text>
-            </View>
-            <View style={{ marginTop: Spacing.md }}>
-              <PointsTransactionList transactions={transactions} />
-            </View>
-          </View>
+
+              <Text style={styles.sectionTitle}>Voucherele mele</Text>
+              <MyVouchersSection userId={session?.user.id} previewCount={HISTORY_PREVIEW} />
+            </>
+          )}
+
+          {/* Tab: Istoric */}
+          {activeTab === 'istoric' && (
+            <>
+              <Text style={styles.sectionTitle}>Istoric tranzactii</Text>
+              <View style={styles.card}>
+                <View style={styles.historyHeaderRow}>
+                  <View style={styles.howToIconCircle}>
+                    <Ionicons name="time-outline" size={20} color={Colors.primary} />
+                  </View>
+                  <Text style={styles.historyHeaderText}>Activitate recenta</Text>
+                </View>
+                <View style={{ marginTop: Spacing.md }}>
+                  <PointsTransactionList
+                    transactions={transactions.slice(0, HISTORY_PREVIEW)}
+                  />
+                </View>
+              </View>
+
+              {transactions.length > HISTORY_PREVIEW && (
+                <Pressable
+                  onPress={() => {
+                    Haptics.selectionAsync().catch(() => {});
+                    router.push('/loyalty/history');
+                  }}
+                  style={({ pressed }) => [styles.seeAllBtn, pressed && { opacity: 0.85 }]}
+                >
+                  <Text style={styles.seeAllText}>
+                    Vezi tot istoricul ({transactions.length})
+                  </Text>
+                  <Ionicons name="arrow-forward" size={16} color={Colors.primary} />
+                </Pressable>
+              )}
+            </>
+          )}
         </ScrollView>
       )}
     </SafeAreaView>
@@ -195,7 +255,7 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: {
     paddingHorizontal: Spacing.base,
-    paddingBottom: Spacing['3xl'],
+    paddingBottom: Spacing['3xl'] * 2,
     paddingTop: Spacing.sm,
   },
 
@@ -267,6 +327,54 @@ const styles = StyleSheet.create({
   },
   progressWrap: {
     marginTop: Spacing.lg,
+  },
+
+  /* Segmented tab bar */
+  tabBarSticky: {
+    backgroundColor: Colors.background,
+    // Bleed past the scroll content's horizontal padding so the sticky
+    // background spans the full width when pinned to the top.
+    marginHorizontal: -Spacing.base,
+    paddingHorizontal: Spacing.base,
+    paddingBottom: Spacing.md,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#E4EAF2',
+    borderRadius: Radius.full,
+    padding: 4,
+    gap: 4,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 9,
+    alignItems: 'center',
+    borderRadius: Radius.full,
+  },
+  tabActive: {
+    backgroundColor: Colors.gradientStart,
+    ...Shadows.sm,
+  },
+  tabLabel: {
+    ...Typography.captionSemiBold,
+    color: Colors.textSecondary,
+  },
+  tabLabelActive: {
+    color: Colors.white,
+  },
+
+  seeAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    borderRadius: Radius.lg,
+    backgroundColor: '#EAF1FB',
+  },
+  seeAllText: {
+    ...Typography.captionSemiBold,
+    color: Colors.primary,
   },
 
   /* Section titles */

@@ -39,9 +39,9 @@ export default function WelcomeScreen() {
               color={Colors.indigo}
             />
             <FeatureItem
-              icon="cart"
-              title="Magazin Profesional"
-              description="Produse și echipamente de calitate"
+              icon="people"
+              title="Comunitate Activă"
+              description="Conectează-te cu frizeri și pasionați"
               color={Colors.gradientStart}
             />
           </GlassCard>

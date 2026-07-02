@@ -173,6 +173,8 @@ export default function ResetPasswordScreen() {
                         placeholder="Minim 6 caractere"
                         placeholderTextColor={Colors.textTertiary}
                         secureTextEntry={!showPassword}
+                        autoCapitalize="none"
+                        autoCorrect={false}
                         autoComplete="password-new"
                         returnKeyType="next"
                         onSubmitEditing={() => confirmPasswordRef.current?.focus()}
@@ -237,6 +239,9 @@ export default function ResetPasswordScreen() {
                         placeholder="Repetă parola"
                         placeholderTextColor={Colors.textTertiary}
                         secureTextEntry={!showConfirmPassword}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        autoComplete="password-new"
                         returnKeyType="done"
                         onSubmitEditing={handleSubmit(onSubmit)}
                         onFocus={() => setFocusedField("confirmPassword")}

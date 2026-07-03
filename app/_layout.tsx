@@ -1,9 +1,10 @@
 import "../global.css";
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { setAudioModeAsync } from 'expo-audio';
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { AppState, Platform, View, Image, ActivityIndicator, StyleSheet, Linking } from "react-native";
+import { useVideoPlayer, VideoView } from "expo-video";
 import { QueryClient, QueryClientProvider, focusManager } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { LinearGradient } from "expo-linear-gradient";
@@ -48,6 +49,32 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+function StartupVideo({ onFinish }: { onFinish: () => void }) {
+  const player = useVideoPlayer(
+    require("@/assets/videos/tapzi-logo-animation.mp4"),
+    (p) => {
+      p.loop = false;
+      p.play();
+    }
+  );
+
+  useEffect(() => {
+    const subscription = player.addListener("playToEnd", onFinish);
+    return () => subscription.remove();
+  }, [player, onFinish]);
+
+  return (
+    <View style={styles.loadingContainer}>
+      <VideoView
+        style={StyleSheet.absoluteFill}
+        player={player}
+        contentFit="cover"
+        nativeControls={false}
+      />
+    </View>
+  );
+}
 
 function LoadingScreen() {
   const blob1Progress = useSharedValue(0);
@@ -287,6 +314,8 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  const [showIntro, setShowIntro] = useState(true);
+
   // Wire TanStack Query's focusManager to AppState so refetchOnWindowFocus
   // actually fires when the user returns to the app on React Native.
   // (refetchOnWindowFocus is a no-op in RN without this.)
@@ -339,6 +368,14 @@ export default function RootLayout() {
 
   if (!fontsLoaded && !fontError) {
     return null;
+  }
+
+  if (showIntro) {
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <StartupVideo onFinish={() => setShowIntro(false)} />
+      </GestureHandlerRootView>
+    );
   }
 
   return (

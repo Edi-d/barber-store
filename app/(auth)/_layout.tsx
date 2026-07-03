@@ -6,7 +6,7 @@ export default function AuthLayout() {
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: "#F0F4F8" },
-        animation: "fade",
+        animation: "slide_from_right",
       }}
     />
   );

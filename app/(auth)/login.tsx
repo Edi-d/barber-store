@@ -84,6 +84,15 @@ export default function LoginScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
+            {/* Back Button */}
+            <Pressable
+              style={styles.backButton}
+              onPress={() => router.back()}
+              hitSlop={8}
+            >
+              <Ionicons name="chevron-back" size={24} color={Colors.text} />
+            </Pressable>
+
             {/* Logo */}
             <View style={styles.logoContainer}>
               <Image
@@ -348,14 +357,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     paddingBottom: Spacing["3xl"],
   },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.white,
+    marginBottom: Spacing.lg,
+  },
   logoContainer: {
     alignItems: "center",
     marginBottom: Spacing["2xl"],
   },
   logo: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
+    width: 150,
+    height: 52,
   },
   card: {
     marginHorizontal: 0,

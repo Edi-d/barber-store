@@ -91,6 +91,15 @@ export default function SignUpScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
+            {/* Back Button */}
+            <Pressable
+              style={styles.backButton}
+              onPress={() => router.back()}
+              hitSlop={8}
+            >
+              <Ionicons name="chevron-back" size={24} color={Colors.text} />
+            </Pressable>
+
             {/* Logo */}
             <View style={styles.logoContainer}>
               <Image
@@ -427,6 +436,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing["2xl"],
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.white,
+    marginBottom: Spacing.lg,
   },
   logoContainer: {
     alignItems: "center",

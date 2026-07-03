@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -28,6 +28,8 @@ const TABS: { key: LoyaltyTab; label: string }[] = [
 
 export default function LoyaltyScreen() {
   const session = useAuthStore((s) => s.session);
+  const { from } = useLocalSearchParams<{ from?: string }>();
+  const showBackBtn = from === 'profile';
   const { data: xp, isLoading } = useLoyaltyProfile();
   const [activeTab, setActiveTab] = useState<LoyaltyTab>('beneficii');
   const HISTORY_PREVIEW = 3;
@@ -50,11 +52,15 @@ export default function LoyaltyScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={backSafely} hitSlop={10}>
-          <View style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={22} color={Colors.text} />
-          </View>
-        </Pressable>
+        {showBackBtn ? (
+          <Pressable onPress={backSafely} hitSlop={10}>
+            <View style={styles.backBtn}>
+              <Ionicons name="chevron-back" size={22} color={Colors.text} />
+            </View>
+          </Pressable>
+        ) : (
+          <View style={{ width: 36 }} />
+        )}
         <Text style={styles.headerTitle}>Punctele mele</Text>
         <View style={{ width: 36 }} />
       </View>

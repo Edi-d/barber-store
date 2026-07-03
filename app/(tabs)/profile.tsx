@@ -75,7 +75,7 @@ export default function ProfileScreen() {
     {
       icon: 'trophy',
       label: 'Punctele mele',
-      onPress: () => router.push('/loyalty'),
+      onPress: () => router.push('/loyalty?from=profile'),
       badge: loyaltyProfile?.balance ?? undefined,
       iconColor: '#F5A623',
       iconBgColor: 'rgba(245,166,35,0.1)',
@@ -139,7 +139,7 @@ export default function ProfileScreen() {
               <View style={s.headerRight}>
                 {loyaltyProfile && loyaltyProfile.balance > 0 && (
                   <Pressable
-                    onPress={() => router.push('/loyalty')}
+                    onPress={() => router.push('/loyalty?from=profile')}
                     className="active:opacity-70"
                   >
                     <PointsBadge

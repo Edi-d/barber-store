@@ -679,7 +679,7 @@ export default function DiscoverScreen() {
 
   const handleSheetChange = useCallback((idx: number) => {
     setSheetIndex(idx);
-    if (idx < 1) {
+    if (idx < 0) {
       setSelectedSalon(null);
     }
   }, []);

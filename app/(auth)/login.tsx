@@ -12,7 +12,7 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Link, router } from "expo-router";
+import { Link, router, Stack } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
 import { useAuthStore } from "@/stores/authStore";
 import { Ionicons } from "@expo/vector-icons";
@@ -73,6 +73,7 @@ export default function LoginScreen() {
 
   return (
     <AuthBackground>
+      <Stack.Screen options={{ gestureEnabled: false }} />
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}

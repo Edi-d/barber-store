@@ -545,7 +545,7 @@ export type OrderWithItems = Order & {
 
 // ── Salon & Appointments types ──
 
-export type SalonType = 'barbershop' | 'coafor';
+export type SalonType = 'barbershop' | 'coafor' | 'manichiura' | 'masaj' | 'beauty';
 
 export interface Salon {
   id: string;
@@ -675,6 +675,7 @@ export interface SalonReview {
   id: string;
   user_id: string;
   salon_id: string;
+  barber_id: string | null;
   rating: number;
   comment: string | null;
   photo_urls: string[];
@@ -710,6 +711,7 @@ export interface SalonPhoto {
 
 export type SalonReviewWithAuthor = SalonReview & {
   profile: Pick<Profile, 'username' | 'display_name' | 'avatar_url'>;
+  barber?: Pick<Barber, 'name'> | null;
 };
 
 // ── Social / discovery types added by migrations 039-050 ──

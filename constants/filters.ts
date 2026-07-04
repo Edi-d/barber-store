@@ -5,12 +5,32 @@ import type {
   AvailabilityOption,
   SortOption,
 } from '@/types/filters';
+import type { SalonType } from '@/types/database';
 
 export interface OptionItem<T> {
   value: T;
   label: string;
   disabled?: boolean;
 }
+
+// Single source of truth for salon type labels — matches the categories the
+// barber (owner) app and web app let a salon be tagged with.
+export const SALON_TYPE_LABELS: Record<SalonType, string> = {
+  barbershop: 'Barbershop',
+  coafor: 'Coafor',
+  manichiura: 'Manichiură',
+  masaj: 'Masaj',
+  beauty: 'Beauty',
+};
+
+export const SALON_TYPE_OPTIONS: { value: SalonType | null; label: string }[] = [
+  { value: null, label: 'Toate' },
+  { value: 'barbershop', label: SALON_TYPE_LABELS.barbershop },
+  { value: 'coafor', label: SALON_TYPE_LABELS.coafor },
+  { value: 'manichiura', label: SALON_TYPE_LABELS.manichiura },
+  { value: 'masaj', label: SALON_TYPE_LABELS.masaj },
+  { value: 'beauty', label: SALON_TYPE_LABELS.beauty },
+];
 
 export const DISTANCE_OPTIONS: OptionItem<DistanceOption>[] = [
   { value: 1, label: '1 km' },
@@ -47,11 +67,14 @@ export interface AmenityItem {
 }
 
 export const AMENITY_OPTIONS: AmenityItem[] = [
+  { key: 'wifi', label: 'WiFi' },
   { key: 'parcare', label: 'Parcare' },
-  { key: 'wifi', label: 'Wifi' },
-  { key: 'card', label: 'Card' },
-  { key: 'accesibil', label: 'Accesibil' },
-  { key: 'rezervare_online', label: 'Rezervare online' },
+  { key: 'cafea', label: 'Cafea' },
+  { key: 'ac', label: 'Aer condiționat' },
+  { key: 'muzica', label: 'Muzică' },
+  { key: 'tv', label: 'TV' },
+  { key: 'card_bancar', label: 'Card bancar' },
+  { key: 'programare_online', label: 'Programare online' },
 ];
 
 // Bounds pentru slider preț (în lei, nu cenți, pt display).

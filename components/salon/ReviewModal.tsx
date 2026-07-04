@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
@@ -25,9 +26,14 @@ interface ReviewModalProps {
   onSubmit: (review: {
     rating: number;
     comment: string;
-    photos?: Array<{ base64: string; mimeType: string }>;
+    existingPhotoUrls: string[];
+    newPhotos?: Array<{ base64: string; mimeType: string }>;
   }) => Promise<void>;
   salonName: string;
+  barberName?: string;
+  initialRating?: number;
+  initialComment?: string;
+  initialPhotoUrls?: string[];
 }
 
 const STAR_COUNT = 5;
@@ -36,23 +42,47 @@ const AMBER = '#f59e0b';
 const STAR_LABELS = ['', 'Slab', 'Ok', 'Bun', 'Foarte bun', 'Excelent'];
 const MAX_PHOTOS = 5;
 
+// uri is always a displayable URI (local file for new picks, remote URL for
+// already-uploaded photos). Only new picks carry base64/mimeType — existing
+// remote photos pass through untouched on submit instead of re-uploading.
+type PhotoItem = { uri: string; base64?: string; mimeType?: string };
+
 export function ReviewModal({
   visible,
   onClose,
   onSubmit,
   salonName,
+  barberName,
+  initialRating = 0,
+  initialComment = '',
+  initialPhotoUrls = [],
 }: ReviewModalProps) {
-  const [rating, setRating] = useState(0);
-  const [comment, setComment] = useState('');
-  const [photos, setPhotos] = useState<Array<{ uri: string; base64: string; mimeType: string }>>([]);
+  const [rating, setRating] = useState(initialRating);
+  const [comment, setComment] = useState(initialComment);
+  const [photos, setPhotos] = useState<PhotoItem[]>(
+    initialPhotoUrls.map((url) => ({ uri: url }))
+  );
   const [loading, setLoading] = useState(false);
 
+  // Re-sync editable state whenever the modal is (re)opened, so switching
+  // between "write" and "edit" contexts (or reopening after a submit) shows
+  // the right starting point instead of stale state from the previous open.
+  useEffect(() => {
+    if (visible) {
+      setRating(initialRating);
+      setComment(initialComment);
+      setPhotos(initialPhotoUrls.map((url) => ({ uri: url })));
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
+
   const resetState = useCallback(() => {
-    setRating(0);
-    setComment('');
-    setPhotos([]);
+    setRating(initialRating);
+    setComment(initialComment);
+    setPhotos(initialPhotoUrls.map((url) => ({ uri: url })));
     setLoading(false);
-  }, []);
+  }, [initialRating, initialComment, initialPhotoUrls]);
 
   const handleClose = useCallback(() => {
     resetState();
@@ -95,14 +125,20 @@ export function ReviewModal({
 
     setLoading(true);
     try {
-      const review: { rating: number; comment: string; photos?: Array<{ base64: string; mimeType: string }> } = {
+      const existingPhotoUrls = photos.filter((p) => !p.base64).map((p) => p.uri);
+      const newPhotos = photos.filter((p) => p.base64) as Array<{
+        uri: string;
+        base64: string;
+        mimeType: string;
+      }>;
+      await onSubmit({
         rating,
         comment: comment.trim(),
-      };
-      if (photos.length > 0) {
-        review.photos = photos.map((p) => ({ base64: p.base64, mimeType: p.mimeType }));
-      }
-      await onSubmit(review);
+        existingPhotoUrls,
+        newPhotos: newPhotos.length > 0
+          ? newPhotos.map((p) => ({ base64: p.base64, mimeType: p.mimeType }))
+          : undefined,
+      });
       resetState();
       onClose();
     } catch {
@@ -121,8 +157,8 @@ export function ReviewModal({
       presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}
       onRequestClose={handleClose}
     >
-      <StatusBar style="light" />
-      <View style={styles.container}>
+      <StatusBar style="dark" />
+      <SafeAreaView style={styles.container} edges={['top']}>
         <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -140,7 +176,7 @@ export function ReviewModal({
               </View>
               <View style={styles.flex}>
                 <Text style={styles.headerTitle} numberOfLines={1}>
-                  Lasă o recenzie
+                  {barberName ? `Recenzie pentru ${barberName}` : 'Lasă o recenzie'}
                 </Text>
                 <Text style={styles.headerSubtitle} numberOfLines={1}>
                   {salonName}
@@ -255,7 +291,7 @@ export function ReviewModal({
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }

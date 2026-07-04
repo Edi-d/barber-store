@@ -30,6 +30,8 @@ import {
   AVAILABILITY_OPTIONS,
   SORT_OPTIONS,
   AMENITY_OPTIONS,
+  SALON_TYPE_OPTIONS,
+  SALON_TYPE_LABELS,
   PRICE_RANGE_MIN_LEI,
   PRICE_RANGE_MAX_LEI,
   PRICE_RANGE_STEP_LEI,
@@ -48,13 +50,6 @@ import {
   formatAmenities,
   formatSort,
 } from './filters/formatValue';
-import type { SalonType } from '@/types/database';
-
-const SALON_TYPE_OPTIONS: { value: SalonType | null; label: string }[] = [
-  { value: null, label: 'Toate' },
-  { value: 'barbershop', label: 'Barbershop' },
-  { value: 'coafor', label: 'Coafor' },
-];
 
 export interface FiltersSheetHandle {
   open: () => void;
@@ -194,7 +189,7 @@ export const FiltersSheet = forwardRef<FiltersSheetHandle, Props>(function Filte
       <BottomSheetScrollView contentContainerStyle={styles.body}>
         <AccordionRow
           label="Tip salon"
-          value={draft.salonType == null ? 'Toate' : draft.salonType === 'barbershop' ? 'Barbershop' : 'Coafor'}
+          value={draft.salonType == null ? 'Toate' : SALON_TYPE_LABELS[draft.salonType]}
           isSet={draft.salonType != null}
           expanded={expanded === 'salonType'}
           onToggle={() => handleToggle('salonType')}

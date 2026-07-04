@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ActivityIndicator, Alert, Image } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { fetchVoucherTiers, convertPointsToVoucher } from '@/lib/loyalty';
 import { VOUCHER_TIER_CONFIG } from '@/constants/loyalty';
@@ -14,6 +13,13 @@ const VOUCHER_ACCENTS: Record<number, string> = {
   3000:  '#6366F1', // indigo — premium
   6000:  '#7C3AED', // purple — exclusive
   10000: '#F5A623', // gold — legendary
+};
+
+const VOUCHER_ICONS: Record<number, any> = {
+  1000: require('@/assets/vouchers/voucher-1k.png'),
+  3000: require('@/assets/vouchers/voucher-3k.png'),
+  6000: require('@/assets/vouchers/voucher-6k.png'),
+  10000: require('@/assets/vouchers/voucher-10k.png'),
 };
 
 function getAccent(tierPoints: number): string {
@@ -84,7 +90,11 @@ export function VoucherConversionSection({ currentBalance }: Props) {
             <View style={styles.card}>
               {/* Icon circle */}
               <View style={[styles.iconCircle, { backgroundColor: iconBg }]}>
-                <Ionicons name="gift-outline" size={22} color={accent} />
+                <Image
+                  source={VOUCHER_ICONS[t.tier_points] ?? VOUCHER_ICONS[1000]}
+                  style={styles.iconImage}
+                  resizeMode="cover"
+                />
               </View>
 
               {/* Text column */}
@@ -139,10 +149,15 @@ const styles = StyleSheet.create({
   iconCircle: {
     width: 44,
     height: 44,
-    ...Bubble.radiiSm,
+    borderRadius: Radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
+    overflow: 'hidden',
+  },
+  iconImage: {
+    width: '100%',
+    height: '100%',
   },
   textCol: {
     flex: 1,

@@ -27,9 +27,9 @@ export default function WelcomeScreen() {
           {/* Features Card */}
           <GlassCard style={styles.featuresCard}>
             <FeatureItem
-              icon="videocam"
-              title="Cursuri Video"
-              description="Lecții premium de la experți"
+              icon="calendar"
+              title="Programări Online"
+              description="Rezervă rapid la salonul preferat"
               color={Colors.gradientStart}
             />
             <FeatureItem
@@ -48,7 +48,7 @@ export default function WelcomeScreen() {
 
           {/* Auth Buttons */}
           <View style={styles.buttonsContainer}>
-            <Link href="/(auth)/signup" asChild>
+            <Link href="/(auth)/login" asChild>
               <Pressable style={styles.primaryButtonOuter}>
                 <LinearGradient
                   colors={[Colors.gradientStart, Colors.gradientEnd]}
@@ -57,16 +57,16 @@ export default function WelcomeScreen() {
                   style={styles.primaryButton}
                 >
                   <Text style={[Typography.button, { color: "#fff" }]}>
-                    Începe Acum
+                    Conectare
                   </Text>
                 </LinearGradient>
               </Pressable>
             </Link>
 
-            <Link href="/(auth)/login" asChild>
+            <Link href="/(auth)/signup" asChild>
               <Pressable style={styles.outlineButton}>
                 <Text style={[Typography.button, { color: Colors.gradientStart }]}>
-                  Am deja cont
+                  Creează cont
                 </Text>
               </Pressable>
             </Link>

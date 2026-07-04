@@ -1,8 +1,10 @@
 import { View, Text, Image, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontFamily, Bubble, Spacing } from '@/constants/theme';
+import { SALON_TYPE_LABELS } from '@/constants/filters';
 import { timeAgo } from '@/lib/utils';
 import type { SearchProfile, SearchSalon, SearchPost } from '@/hooks/useSearch';
+import type { SalonType } from '@/types/database';
 
 const AVATAR_SIZE = 44;
 const ACCENT = '#0A66C2';
@@ -42,7 +44,7 @@ function LetterSquircleAvatar({ name }: { name: string }) {
 
 function SalonItem({ salon, onPress }: { salon: SearchSalon; onPress: () => void }) {
   const typeLabel = (salon.salon_types ?? [])
-    .map((t) => (t === 'barbershop' ? 'Barbershop' : 'Coafor'))
+    .map((t) => SALON_TYPE_LABELS[t as SalonType] ?? t)
     .join(' / ');
 
   const hasType = typeLabel.length > 0;

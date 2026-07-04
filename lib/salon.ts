@@ -150,12 +150,47 @@ export async function fetchSalonReviews(
 ): Promise<SalonReviewWithAuthor[]> {
   const { data, error } = await supabase
     .from("salon_reviews")
-    .select("*, profile:profiles(username, display_name, avatar_url)")
+    .select("*, profile:profiles(username, display_name, avatar_url), barber:barbers(name)")
     .eq("salon_id", salonId)
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error) throw error;
   return data as SalonReviewWithAuthor[];
+}
+
+// Fetch reviews for a specific barber only (not the whole salon feed)
+export async function fetchBarberReviews(
+  barberId: string,
+  limit: number = 5
+): Promise<SalonReviewWithAuthor[]> {
+  const { data, error } = await supabase
+    .from("salon_reviews")
+    .select("*, profile:profiles(username, display_name, avatar_url)")
+    .eq("barber_id", barberId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data as SalonReviewWithAuthor[];
+}
+
+// A client can only review a salon (or a specific barber at that salon) after
+// having at least one completed appointment there. Appointments don't carry
+// salon_id directly, so we join through barbers.salon_id.
+export async function hasCompletedAppointment(
+  userId: string,
+  salonId: string,
+  barberId?: string | null
+): Promise<boolean> {
+  let query = supabase
+    .from("appointments")
+    .select("id, barbers!inner(salon_id)", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("status", "completed")
+    .eq("barbers.salon_id", salonId);
+  if (barberId) query = query.eq("barber_id", barberId);
+  const { count, error } = await query;
+  if (error) throw error;
+  return (count ?? 0) > 0;
 }
 
 /**
@@ -187,6 +222,7 @@ export async function uploadReviewPhotos(
 export async function submitReview(params: {
   userId: string;
   salonId: string;
+  barberId?: string | null;
   rating: number;
   comment?: string;
   photoUrls?: string[];
@@ -197,11 +233,12 @@ export async function submitReview(params: {
       {
         user_id: params.userId,
         salon_id: params.salonId,
+        barber_id: params.barberId ?? null,
         rating: params.rating,
         comment: params.comment || null,
         photo_urls: params.photoUrls ?? [],
       },
-      { onConflict: "user_id,salon_id" }
+      { onConflict: "user_id,salon_id,barber_id_norm" }
     )
     .select()
     .single();
@@ -242,15 +279,21 @@ export async function toggleFavorite(userId: string, salonId: string, currentlyF
   }
 }
 
-// Amenity config
+// Amenity config — keys match the owner app's amenity editor (salons.amenities).
+// whisky/reviste are legacy keys with no editor toggle anymore, kept only so
+// old salons that still have them set render something instead of nothing.
 export const AMENITY_CONFIG: Record<string, { label: string; icon: string }> = {
-  parking: { label: "Parcare", icon: "car-outline" },
-  pets: { label: "Animale", icon: "paw-outline" },
-  card: { label: "Card", icon: "card-outline" },
-  cash: { label: "Cash", icon: "cash-outline" },
-  wifi: { label: "Wi-Fi", icon: "wifi-outline" },
+  wifi: { label: "WiFi", icon: "wifi-outline" },
+  parcare: { label: "Parcare", icon: "location-outline" },
+  cafea: { label: "Cafea", icon: "cafe-outline" },
   ac: { label: "Aer condiționat", icon: "snow-outline" },
-  coffee: { label: "Cafea", icon: "cafe-outline" },
+  muzica: { label: "Muzică", icon: "musical-notes-outline" },
+  tv: { label: "TV", icon: "tv-outline" },
+  card_bancar: { label: "Card bancar", icon: "card-outline" },
+  programare_online: { label: "Programare online", icon: "globe-outline" },
+  // Legacy keys (no editor toggle, display-only)
+  whisky: { label: "Whisky", icon: "wine-outline" },
+  reviste: { label: "Reviste", icon: "newspaper-outline" },
 };
 
 // Service category display order

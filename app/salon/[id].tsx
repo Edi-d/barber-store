@@ -33,6 +33,7 @@ import {
   toggleFavorite,
   uploadReviewPhotos,
   submitReview,
+  hasCompletedAppointment,
   AMENITY_CONFIG,
   SERVICE_CATEGORY_ORDER,
   getTodayScheduleText,
@@ -233,8 +234,20 @@ export default function SalonDetailScreen() {
 
   const userReview = useMemo(() => {
     if (!session || !reviews) return null;
-    return reviews.find((r) => r.user_id === session.user.id) ?? null;
+    return (
+      reviews.find((r) => r.user_id === session.user.id && !r.barber_id) ?? null
+    );
   }, [reviews, session]);
+
+  // A client can only leave a NEW salon review after a completed appointment
+  // there; editing an existing review is always allowed.
+  const { data: hasCompletedVisit } = useQuery({
+    queryKey: ["salon-can-review", id, session?.user.id],
+    queryFn: () => hasCompletedAppointment(session!.user.id, id!),
+    enabled: !!id && !!session,
+  });
+
+  const canReview = !!userReview || !!hasCompletedVisit;
 
   // ── Review submit ──
 
@@ -242,20 +255,21 @@ export default function SalonDetailScreen() {
     async (review: {
       rating: number;
       comment: string;
-      photos?: Array<{ base64: string; mimeType: string }>;
+      existingPhotoUrls: string[];
+      newPhotos?: Array<{ base64: string; mimeType: string }>;
     }) => {
       if (!session?.user || !id) return;
       try {
-        let photoUrls: string[] = [];
-        if (review.photos && review.photos.length > 0) {
-          photoUrls = await uploadReviewPhotos(session.user.id, review.photos);
+        let uploadedUrls: string[] = [];
+        if (review.newPhotos && review.newPhotos.length > 0) {
+          uploadedUrls = await uploadReviewPhotos(session.user.id, review.newPhotos);
         }
         await submitReview({
           userId: session.user.id,
           salonId: id,
           rating: review.rating,
           comment: review.comment,
-          photoUrls,
+          photoUrls: [...review.existingPhotoUrls, ...uploadedUrls],
         });
         queryClient.invalidateQueries({ queryKey: ["salon-reviews", id] });
         queryClient.invalidateQueries({ queryKey: ["salon", id] });
@@ -889,18 +903,28 @@ export default function SalonDetailScreen() {
               </Text>
             </View>
 
-            {/* Right: write review button */}
+            {/* Right: write review button (only once a completed visit exists, or to edit an existing review) */}
             <View className="flex-1 items-end">
-              <Pressable
-                onPress={() => setShowReviewModal(true)}
-                className="flex-row items-center gap-1.5 px-4 py-2.5 active:opacity-80"
-                style={{ backgroundColor: "#4481EB", ...Bubble.radiiSm }}
-              >
-                <Ionicons name="create-outline" size={16} color="white" />
-                <Text className="font-semibold text-xs text-white">
-                  {userReview ? "Editează recenzia" : "Lasă o recenzie"}
+              {canReview && (
+                <Pressable
+                  onPress={() => setShowReviewModal(true)}
+                  className="flex-row items-center gap-1.5 px-4 py-2.5 active:opacity-80"
+                  style={{ backgroundColor: "#4481EB", ...Bubble.radiiSm }}
+                >
+                  <Ionicons name="create-outline" size={16} color="white" />
+                  <Text className="font-semibold text-xs text-white">
+                    {userReview ? "Editează recenzia" : "Lasă o recenzie"}
+                  </Text>
+                </Pressable>
+              )}
+              {session && !canReview && (
+                <Text
+                  className="text-xs text-right"
+                  style={{ color: "#94a3b8", maxWidth: 140 }}
+                >
+                  Poți lăsa o recenzie după o programare finalizată la acest salon.
                 </Text>
-              </Pressable>
+              )}
             </View>
           </View>
 
@@ -917,7 +941,7 @@ export default function SalonDetailScreen() {
               <Text className="text-xs mt-1" style={{ color: "#94a3b8" }}>
                 Fii primul care lasă o recenzie
               </Text>
-              {session && (
+              {session && canReview && (
                 <Pressable
                   onPress={() => setShowReviewModal(true)}
                   className="mt-4 px-4 py-2 rounded-xl active:opacity-80"
@@ -927,6 +951,11 @@ export default function SalonDetailScreen() {
                     Scrie o recenzie
                   </Text>
                 </Pressable>
+              )}
+              {session && !canReview && (
+                <Text className="text-xs mt-3 text-center" style={{ color: "#94a3b8" }}>
+                  Poți lăsa o recenzie după o programare finalizată la acest salon.
+                </Text>
               )}
             </View>
           )}
@@ -961,6 +990,7 @@ export default function SalonDetailScreen() {
                   </Text>
                   <Text className="text-[10px]" style={{ color: "#94a3b8" }}>
                     {timeAgo(review.created_at)}
+                    {review.barber?.name ? ` · pentru ${review.barber.name}` : ""}
                   </Text>
                 </View>
                 <View className="flex-row gap-0.5">
@@ -1061,6 +1091,9 @@ export default function SalonDetailScreen() {
         onClose={() => setShowReviewModal(false)}
         onSubmit={handleReviewSubmit}
         salonName={salon?.name || ""}
+        initialRating={userReview?.rating}
+        initialComment={userReview?.comment ?? undefined}
+        initialPhotoUrls={userReview?.photo_urls}
       />
 
       {/* ── D-4: Lightbox Modal ── */}

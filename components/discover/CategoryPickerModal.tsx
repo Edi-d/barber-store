@@ -25,9 +25,17 @@ import {
   Shadows,
 } from '@/constants/theme';
 
-const CATEGORY_IMAGES = {
+// Only categories with dedicated photography get an Image tile; the rest
+// fall back to an icon tile (see CATEGORY_ICONS) until assets exist.
+const CATEGORY_IMAGES: Partial<Record<SalonType, any>> = {
   barbershop: require('@/assets/category-barber.jpg'),
   coafor: require('@/assets/category-coafor.jpg'),
+};
+
+const CATEGORY_ICONS: Partial<Record<SalonType, keyof typeof Ionicons.glyphMap>> = {
+  manichiura: 'hand-left-outline',
+  masaj: 'body-outline',
+  beauty: 'sparkles-outline',
 };
 
 const CATEGORIES: {
@@ -53,6 +61,30 @@ const CATEGORIES: {
     cardBg: ['#FCEAF5', '#FFF7FC'],
     accentColor: '#E91E8C',
     glowColor: '#E91E8C',
+  },
+  {
+    type: 'manichiura',
+    title: 'Manichiură',
+    subtitle: 'Manichiură, pedichiură & unghii',
+    cardBg: ['#FDF2E9', '#FFFAF5'],
+    accentColor: '#D97706',
+    glowColor: '#D97706',
+  },
+  {
+    type: 'masaj',
+    title: 'Masaj',
+    subtitle: 'Masaj relaxant & terapeutic',
+    cardBg: ['#E8F8F1', '#F5FEFA'],
+    accentColor: '#0E9F6E',
+    glowColor: '#0E9F6E',
+  },
+  {
+    type: 'beauty',
+    title: 'Beauty',
+    subtitle: 'Cosmetică, machiaj & tratamente faciale',
+    cardBg: ['#F3E8FD', '#FAF5FF'],
+    accentColor: '#8B5CF6',
+    glowColor: '#8B5CF6',
   },
 ];
 
@@ -169,14 +201,24 @@ export function CategoryPickerModal({ visible, onClose, onSelect }: Props) {
                     end={{ x: 1, y: 1 }}
                     style={styles.cardGradient}
                   >
-                    {/* Category photo */}
-                    <View style={styles.imageWrap}>
-                      <Image
-                        source={CATEGORY_IMAGES[cat.type]}
-                        style={styles.categoryImage}
-                        resizeMode="cover"
-                      />
-                    </View>
+                    {/* Category photo (or icon tile when no photography exists yet) */}
+                    {CATEGORY_IMAGES[cat.type] ? (
+                      <View style={styles.imageWrap}>
+                        <Image
+                          source={CATEGORY_IMAGES[cat.type]}
+                          style={styles.categoryImage}
+                          resizeMode="cover"
+                        />
+                      </View>
+                    ) : (
+                      <View style={[styles.imageWrap, styles.iconTileWrap, { backgroundColor: cat.accentColor + '14' }]}>
+                        <Ionicons
+                          name={CATEGORY_ICONS[cat.type] ?? 'sparkles-outline'}
+                          size={32}
+                          color={cat.accentColor}
+                        />
+                      </View>
+                    )}
 
                     {/* Text */}
                     <View style={styles.cardTextArea}>
@@ -203,7 +245,7 @@ export function CategoryPickerModal({ visible, onClose, onSelect }: Props) {
             <Pressable
               onPress={() => handleSelect(null)}
               accessibilityRole="button"
-              accessibilityLabel="Toate saloanele. Barbershop-uri, coafoare și tot ce e între"
+              accessibilityLabel="Toate saloanele. Barber, coafor, manichiură, masaj, beauty și tot ce e între"
               accessibilityHint="Apasă pentru a vedea toate saloanele fără filtru"
               style={({ pressed }) => [
                 styles.mixtCardOuter,
@@ -225,7 +267,7 @@ export function CategoryPickerModal({ visible, onClose, onSelect }: Props) {
                 <View style={styles.mixtTextArea}>
                   <Text style={styles.mixtTitle}>Toate saloanele</Text>
                   <Text style={styles.mixtSubtitle} numberOfLines={1}>
-                    Barbershop-uri, coafoare & tot ce e între
+                    Toate categoriile, fără filtru
                   </Text>
                 </View>
               </LinearGradient>
@@ -360,6 +402,10 @@ const styles = StyleSheet.create({
   categoryImage: {
     width: '100%',
     height: '100%',
+  },
+  iconTileWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cardTextArea: {
     flex: 1,

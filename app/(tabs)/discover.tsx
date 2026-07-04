@@ -39,6 +39,7 @@ import { useDiscoverFilters } from '@/hooks/useDiscoverFilters';
 import { applyFilters, type FilterContext } from '@/lib/discover-filter';
 import type { DiscoverFilters } from '@/types/filters';
 import { FiltersSheet, type FiltersSheetHandle, type ServiceOption } from '@/components/discover/FiltersSheet';
+import { SALON_TYPE_LABELS } from '@/constants/filters';
 import SalonMarkersLayer from "@/components/discover/SalonMarkersLayer";
 import { BarberService } from '@/types/database';
 
@@ -1372,7 +1373,7 @@ export default function DiscoverScreen() {
                 {showFavoritesOnly
                   ? "Favorite"
                   : discoverFilters.salonType
-                  ? discoverFilters.salonType === "barbershop" ? "Barbershop-uri" : "Coafuri"
+                  ? SALON_TYPE_LABELS[discoverFilters.salonType]
                   : filterAvailableNow ? "Disponibile acum" : "Toate saloanele"}
                 <Text className="text-dark-400 text-sm" style={{ fontFamily: 'EuclidCircularA-Regular' }}>
                   {sortedSalons.length > 0 ? ` · ${sortedSalons.length}` : ""}

@@ -50,18 +50,42 @@ const queryClient = new QueryClient({
   },
 });
 
+// StartupVideo must NEVER be able to block app startup. Three escape hatches:
+//   1. playToEnd  — normal happy path.
+//   2. statusChange error — AVPlayer can fail to build its render pipeline on
+//      simulators with a broken CoreAudio device (error -66680), producing
+//      AVFoundationErrorDomain -11800 / -12746 and never emitting playToEnd.
+//   3. 6-second safety timeout — catches any other silent failure mode.
+// Muting the player also lets AVPlayer skip the broken audio route entirely,
+// reducing the likelihood of hitting the CoreAudio failure in the first place.
 function StartupVideo({ onFinish }: { onFinish: () => void }) {
   const player = useVideoPlayer(
     require("@/assets/videos/tapzi-logo-animation.mp4"),
     (p) => {
       p.loop = false;
+      p.muted = true;
       p.play();
     }
   );
 
   useEffect(() => {
-    const subscription = player.addListener("playToEnd", onFinish);
-    return () => subscription.remove();
+    const playToEndSub = player.addListener("playToEnd", onFinish);
+
+    const statusSub = player.addListener("statusChange", ({ status }) => {
+      if (status === "error") {
+        onFinish();
+      }
+    });
+
+    // Safety net: if neither playToEnd nor an error status fires within 6 s,
+    // dismiss the intro anyway so the user is never permanently locked out.
+    const timeout = setTimeout(onFinish, 6000);
+
+    return () => {
+      playToEndSub.remove();
+      statusSub.remove();
+      clearTimeout(timeout);
+    };
   }, [player, onFinish]);
 
   return (

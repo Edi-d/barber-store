@@ -234,7 +234,7 @@ export default function QuickOrderScreen() {
         <Feather name="arrow-left" size={20} color={colors.text} />
       </TouchableOpacity>
       <Text style={[styles.headerTitle, { color: colors.text }]}>
-        Comanda rapida
+        Comandă rapidă
       </Text>
       <View style={styles.headerSpacer} />
     </View>
@@ -300,7 +300,7 @@ export default function QuickOrderScreen() {
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder="Cauta dupa nume, brand sau SKU"
+            placeholder="Caută după nume, brand sau SKU"
             placeholderTextColor={colors.textTertiary}
             style={[styles.searchInput, { color: colors.text }]}
             autoCorrect={false}
@@ -338,7 +338,7 @@ export default function QuickOrderScreen() {
             <View style={styles.centerFill}>
               <Feather name="search" size={28} color={colors.textTertiary} />
               <Text style={[styles.emptyTitle, { color: colors.text }]}>
-                Niciun produs gasit
+                Niciun produs găsit
               </Text>
             </View>
           )
@@ -379,7 +379,7 @@ export default function QuickOrderScreen() {
                 color="#fff"
                 style={{ marginRight: 8 }}
               />
-              <Text style={styles.primaryText}>Adauga in cos</Text>
+              <Text style={styles.primaryText}>Adaugă în coș</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>

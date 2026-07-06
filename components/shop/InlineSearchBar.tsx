@@ -103,7 +103,7 @@ function InlineSearchBarInner({ value, onChangeText, onFocusChange }: Props) {
 
       <TextInput
         style={styles.input}
-        placeholder="Cauta dupa nume sau brand..."
+        placeholder="Caută după nume sau brand..."
         placeholderTextColor={Colors.textTertiary}
         value={value}
         onChangeText={handleChangeText}

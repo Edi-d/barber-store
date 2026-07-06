@@ -19,7 +19,7 @@ interface SearchBarProps {
 export function SearchBar({
   value,
   onChangeText,
-  placeholder = 'Cauta saloane, persoane, postari...',
+  placeholder = 'Caută saloane, persoane, postări...',
 }: SearchBarProps) {
   const inputRef = useRef<TextInput>(null);
 

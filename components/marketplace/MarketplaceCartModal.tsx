@@ -125,7 +125,7 @@ export function MarketplaceCartModal({
               Cosul este gol
             </Text>
             <Text style={[styles.emptyHint, { color: colors.textSecondary }]}>
-              Adauga produse din catalog pentru a le vedea aici.
+              Adaugă produse din catalog pentru a le vedea aici.
             </Text>
           </View>
         ) : (
@@ -198,7 +198,7 @@ export function MarketplaceCartModal({
                 <View style={styles.freeShipRow}>
                   <Feather name="truck" size={13} color={Brand.primary} />
                   <Text style={[styles.freeShipText, { color: colors.textSecondary }]}>
-                    Mai adauga{' '}
+                    Mai adaugă{' '}
                     <Text style={{ color: Brand.primary, fontFamily: FontFamily.semiBold }}>
                       {formatPrice(missingForFree)}
                     </Text>{' '}
@@ -222,7 +222,7 @@ export function MarketplaceCartModal({
                 <View style={styles.freeShipRow}>
                   <Feather name="check-circle" size={13} color={colors.success} />
                   <Text style={[styles.freeShipText, { color: colors.success }]}>
-                    Livrare gratuita aplicata!
+                    Livrare gratuită aplicată!
                   </Text>
                 </View>
               </View>
@@ -244,7 +244,7 @@ export function MarketplaceCartModal({
               style={[styles.cta, Bubble.radii]}
             >
               <Feather name="shopping-bag" size={18} color={Brand.white} />
-              <Text style={styles.ctaText}>Spre cos complet</Text>
+              <Text style={styles.ctaText}>Spre coș complet</Text>
               {cart.totalItems > 0 && (
                 <Text style={styles.ctaPrice}>{formatPrice(cart.totalCents)}</Text>
               )}

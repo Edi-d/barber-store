@@ -97,7 +97,7 @@ export function ChapterCard({
 
           {/* Meta line */}
           <Text style={styles.meta} numberOfLines={1}>
-            {totalCount} lectii · ~{estimatedMinutes} min
+            {totalCount} lecții · {estimatedMinutes} min
           </Text>
 
           {/* Progress section */}
@@ -130,7 +130,7 @@ export function ChapterCard({
             {isNotStarted && (
               <>
                 <View style={styles.notStartedDot} />
-                <Text style={styles.notStartedText}>Neinceput</Text>
+                <Text style={styles.notStartedText}>Neînceput</Text>
               </>
             )}
           </View>

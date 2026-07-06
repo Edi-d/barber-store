@@ -139,10 +139,10 @@ export async function convertPointsToVoucher(
   return (data ?? {}) as Record<string, unknown>;
 }
 
-/** Human-readable label for a transaction source type (Romanian, no diacritics). */
+/** Human-readable label for a transaction source type (Romanian). */
 export function transactionSourceLabel(sourceType: string): string {
   switch (sourceType) {
-    case 'appointment':         return 'Programare finalizata';
+    case 'appointment':         return 'Programare finalizată';
     case 'order':               return 'Comandă';
     case 'voucher':
     case 'voucher_convert':     return 'Voucher generat';

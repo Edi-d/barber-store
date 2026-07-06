@@ -105,7 +105,7 @@ export function TierTable({ tiers, currentQty, basePriceCents }: Props) {
       {/* Header */}
       <View style={styles.tierHeader}>
         <Feather name="trending-down" size={14} color={Brand.primary} />
-        <Text style={styles.tierTitle}>Pret pe cantitate</Text>
+        <Text style={styles.tierTitle}>Preț pe cantitate</Text>
       </View>
 
       {/* Table */}

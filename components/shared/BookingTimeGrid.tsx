@@ -378,7 +378,7 @@ export function BookingTimeGrid({
       <InlineEmptyState
         icon="calendar-outline"
         title="Alege o zi"
-        subtitle="Selecteaza o data din calendarul de mai sus pentru a vedea orele disponibile."
+        subtitle="Selectează o dată din calendarul de mai sus pentru a vedea orele disponibile."
       />
     );
   }
@@ -393,8 +393,8 @@ export function BookingTimeGrid({
     return (
       <InlineEmptyState
         icon="moon-outline"
-        title="Nicio ora disponibila"
-        subtitle="Frizerul nu lucreaza in aceasta zi sau toate orele sunt ocupate. Incearca alta data."
+        title="Nicio oră disponibilă"
+        subtitle="Frizerul nu lucrează în această zi sau toate orele sunt ocupate. Încearcă altă dată."
       />
     );
   }
@@ -406,7 +406,7 @@ export function BookingTimeGrid({
       <View ref={morningSectionRef} collapsable={false}>
         <TimeSection
           slots={morningSlots}
-          label="Dimineata"
+          label="Dimineața"
           icon="sunny-outline"
           sectionOffset={0}
           selectedTime={selectedTime}
@@ -416,7 +416,7 @@ export function BookingTimeGrid({
       <View ref={afternoonSectionRef} collapsable={false}>
         <TimeSection
           slots={afternoonSlots}
-          label="Dupa-amiaza"
+          label="După-amiaza"
           icon="partly-sunny-outline"
           sectionOffset={afternoonOffset}
           selectedTime={selectedTime}

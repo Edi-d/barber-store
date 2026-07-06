@@ -94,7 +94,7 @@ export default function FavoritesScreen() {
             Nicio favorita inca
           </Text>
           <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
-            Apasa inima de pe un produs pentru a-l salva aici.
+            Apasă inima de pe un produs pentru a-l salva aici.
           </Text>
         </View>
       ) : isLoading && products.length === 0 ? (

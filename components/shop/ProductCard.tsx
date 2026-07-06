@@ -301,7 +301,7 @@ function ProductCardInner({
                   RON
                 </Text>
               </View>
-              <Text style={styles.partnerLabel}>pret partener</Text>
+              <Text style={styles.partnerLabel}>preț partener</Text>
               {hasDiscount && (
                 <>
                   <View style={styles.retailPriceRow}>

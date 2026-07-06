@@ -46,7 +46,7 @@ export default function ProfileAbout({
       <Animated.View entering={FadeInDown.delay(0).springify()} style={styles.card}>
         <Text style={styles.cardTitle}>Biografie</Text>
         <Text style={styles.bioText}>
-          {bio?.trim() ? bio : 'Nicio biografie adaugata.'}
+          {bio?.trim() ? bio : 'Nicio biografie adăugată.'}
         </Text>
       </Animated.View>
 

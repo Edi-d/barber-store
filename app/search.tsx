@@ -80,9 +80,9 @@ function IdleState({
       {recentItems.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionTitleRow}>
-            <Text style={styles.sectionTitle}>Cautari recente</Text>
+            <Text style={styles.sectionTitle}>Căutări recente</Text>
             <Pressable onPress={onClearAll} hitSlop={8}>
-              <Text style={styles.clearAllText}>Sterge tot</Text>
+              <Text style={styles.clearAllText}>Șterge tot</Text>
             </Pressable>
           </View>
 
@@ -155,7 +155,7 @@ function IdleState({
       {trendingTopics.length === 0 && recentItems.length === 0 && (
         <View style={styles.emptyPlaceholder}>
           <Ionicons name="search-outline" size={56} color={Colors.inputBorder} />
-          <Text style={styles.emptyTitle}>Cauta orice</Text>
+          <Text style={styles.emptyTitle}>Caută orice</Text>
           <Text style={styles.emptySubtitle}>
             Saloane, frizeri, postari si mai mult
           </Text>
@@ -173,7 +173,7 @@ function NoResults({ query }: { query: string }) {
       <Ionicons name="search-outline" size={56} color={Colors.inputBorder} />
       <Text style={styles.emptyTitle}>Niciun rezultat</Text>
       <Text style={styles.emptySubtitle}>
-        Nu am gasit nimic pentru{' '}
+        Nu am găsit nimic pentru{' '}
         <Text style={{ fontFamily: FontFamily.semiBold, color: Colors.text }}>
           "{query}"
         </Text>

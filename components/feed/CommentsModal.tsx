@@ -516,23 +516,23 @@ export function CommentsModal({ visible, item, onClose }: Props) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       Alert.alert('Comentariu', undefined, [
         {
-          text: 'Editeaza',
+          text: 'Editează',
           onPress: () => {
             setEditingComment(comment);
             setEditText(comment.text);
           },
         },
         {
-          text: 'Sterge',
+          text: 'Șterge',
           style: 'destructive',
           onPress: () => {
             Alert.alert(
-              'Sterge comentariul',
-              'Esti sigur ca vrei sa stergi acest comentariu?',
+              'Șterge comentariul',
+              'Ești sigur că vrei să ștergi acest comentariu?',
               [
-                { text: 'Anuleaza', style: 'cancel' },
+                { text: 'Anulează', style: 'cancel' },
                 {
-                  text: 'Sterge',
+                  text: 'Șterge',
                   style: 'destructive',
                   onPress: () => {
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -543,7 +543,7 @@ export function CommentsModal({ visible, item, onClose }: Props) {
             );
           },
         },
-        { text: 'Anuleaza', style: 'cancel' },
+        { text: 'Anulează', style: 'cancel' },
       ]);
     },
     [deleteCommentMutation],
@@ -855,8 +855,8 @@ export function CommentsModal({ visible, item, onClose }: Props) {
                   style={[styles.input, { color: Colors.text }]}
                   placeholder={
                     replyTarget
-                      ? 'Scrie un raspuns...'
-                      : 'Adauga un comentariu...'
+                      ? 'Scrie un răspuns...'
+                      : 'Adaugă un comentariu...'
                   }
                   placeholderTextColor={Colors.textTertiary}
                   value={commentText}
@@ -1036,7 +1036,7 @@ function CommentRow({
                           { color: Colors.textSecondary },
                         ]}
                       >
-                        Anuleaza
+                        Anulează
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -1052,7 +1052,7 @@ function CommentRow({
                           { color: Brand.primary },
                         ]}
                       >
-                        Salveaza
+                        Salvează
                       </Text>
                     </TouchableOpacity>
                   </View>

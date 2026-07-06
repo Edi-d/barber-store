@@ -192,7 +192,7 @@ export function MarketplaceDrawer({
     { icon: 'award',        label: 'Branduri',          path: '/marketplace/brands' },
     { icon: 'heart',        label: 'Favorite',          path: '/marketplace/favorites' },
     { icon: 'repeat',       label: 'Lista mea',         path: '/marketplace/recurring-list' },
-    { icon: 'zap',          label: 'Comanda rapida',    path: '/marketplace/quick-order',    ownerOnly: true },
+    { icon: 'zap',          label: 'Comandă rapidă',    path: '/marketplace/quick-order',    ownerOnly: true },
     { icon: 'bar-chart-2',  label: 'Cheltuieli',        path: '/marketplace/spending',       ownerOnly: true },
     { icon: 'rotate-ccw',   label: 'Returnari',         path: null },
   ];
@@ -389,7 +389,7 @@ export function MarketplaceDrawer({
                   onPress={() => {
                     if (item.path === null) {
                       Haptics.selectionAsync().catch(() => {});
-                      Alert.alert('In curand', 'Aceasta functie va fi disponibila in curand.');
+                      Alert.alert('În curând', 'Această funcție va fi disponibilă în curând.');
                     } else {
                       navigate(item.path);
                     }

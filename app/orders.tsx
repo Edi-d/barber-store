@@ -177,7 +177,7 @@ function OrderCard({
             {order.shipping_address ? (
               <View style={styles.contactBlock}>
                 <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>
-                  Adresa
+                  Adresă
                 </Text>
                 <Text style={[styles.contactText, { color: colors.textSecondary }]}>
                   {order.shipping_address}
@@ -276,10 +276,10 @@ export default function OrdersScreen() {
               <Feather name="inbox" size={44} color={Brand.primary} />
             </View>
             <Text style={[styles.emptyTitle, { color: colors.text }]}>
-              Nicio comanda inca
+              Nicio comandă încă
             </Text>
             <Text style={[styles.emptySubtitle, { color: colors.textTertiary }]}>
-              Comenzile tale vor aparea aici dupa ce plasezi prima comanda
+              Comenzile tale vor apărea aici după ce plasezi prima comandă
             </Text>
             <TouchableOpacity
               activeOpacity={0.8}

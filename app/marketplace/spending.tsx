@@ -310,11 +310,11 @@ export default function SalonSpendingScreen() {
               <Feather name="bar-chart-2" size={36} color={colors.primary} />
             </View>
             <Text style={[styles.emptyTitle, { color: colors.text }]}>
-              Inca nu ai comenzi
+              Încă nu ai comenzi
             </Text>
             <Text style={[styles.emptyDesc, { color: colors.textTertiary }]}>
-              Aici vei vedea cheltuielile lunare si recomandari de reorder dupa ce
-              salonul plaseaza prima comanda.
+              Aici vei vedea cheltuielile lunare și recomandări de reorder după ce
+              salonul plasează prima comandă.
             </Text>
           </Animated.View>
         )}

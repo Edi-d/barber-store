@@ -116,10 +116,10 @@ export function SearchSuggestions({ query, products, visible, onSelect }: Props)
             <>
               <View style={styles.sectionHeader}>
                 <Text style={[styles.sectionTitle, { color: Colors.textTertiary }]}>
-                  Cautari recente
+                  Căutări recente
                 </Text>
                 <TouchableOpacity onPress={clearHistory} activeOpacity={0.6}>
-                  <Text style={[styles.clearBtn, { color: Colors.error }]}>Sterge istoricul</Text>
+                  <Text style={[styles.clearBtn, { color: Colors.error }]}>Șterge istoricul</Text>
                 </TouchableOpacity>
               </View>
               {recentSearches.map((item, index) => (

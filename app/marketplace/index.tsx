@@ -421,7 +421,7 @@ export default function MarketplaceHomeScreen() {
           >
             <Feather name="search" size={22} color={colors.text} />
             <Text style={[styles.headerLabel, { color: colors.textSecondary }]}>
-              CAUTA
+              CAUTĂ
             </Text>
           </TouchableOpacity>
 
@@ -442,7 +442,7 @@ export default function MarketplaceHomeScreen() {
               ) : null}
             </View>
             <Text style={[styles.headerLabel, { color: colors.textSecondary }]}>
-              COS
+              COȘ
             </Text>
           </TouchableOpacity>
         </View>
@@ -454,17 +454,17 @@ export default function MarketplaceHomeScreen() {
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.xl, gap: Spacing.md }}>
           <Feather name="cloud-off" size={48} color={colors.textTertiary} />
           <Text style={{ fontFamily: FontFamily.semiBold, fontSize: 16, color: colors.text, textAlign: 'center' }}>
-            Nu am putut incarca magazinul
+            Nu am putut încarca magazinul
           </Text>
           <Text style={{ fontFamily: FontFamily.regular, fontSize: 13, lineHeight: 19, color: colors.textTertiary, textAlign: 'center' }}>
-            {error ?? 'Verifica conexiunea la internet si incearca din nou.'}
+            {error ?? 'Verifică conexiunea la internet și încearcă din nou.'}
           </Text>
           <TouchableOpacity
             onPress={refetch}
             activeOpacity={0.85}
             style={[styles.viewAllCta, Bubble.radiiSm, { backgroundColor: colors.background, borderColor: colors.inputBorder, paddingHorizontal: Spacing.xl }]}
           >
-            <Text style={[styles.viewAllText, { color: Brand.primary }]}>REINCEARCA</Text>
+            <Text style={[styles.viewAllText, { color: Brand.primary }]}>REÎNCEARCĂ</Text>
             <Feather name="refresh-cw" size={16} color={Brand.primary} />
           </TouchableOpacity>
         </View>

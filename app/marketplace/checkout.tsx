@@ -236,9 +236,9 @@ export default function MarketplaceCheckoutScreen() {
       { key: 'name', label: 'Nume' },
       { key: 'phone', label: 'Telefon' },
       { key: 'email', label: 'Email' },
-      { key: 'address_line1', label: 'Adresa' },
-      { key: 'city', label: 'Oras' },
-      { key: 'county', label: 'Judet' },
+      { key: 'address_line1', label: 'Adresă' },
+      { key: 'city', label: 'Oraș' },
+      { key: 'county', label: 'Județ' },
       { key: 'postal', label: 'Cod postal' },
     ];
     return required.filter((r) => !form[r.key].trim()).map((r) => r.label);
@@ -253,7 +253,7 @@ export default function MarketplaceCheckoutScreen() {
     if (buyerMode === 'client' && missingFields.length > 0) {
       Alert.alert(
         'Date lipsa',
-        `Completeaza: ${missingFields.join(', ')}.`,
+        `Completează: ${missingFields.join(', ')}.`,
         [{ text: 'OK' }],
       );
       return;
@@ -306,7 +306,7 @@ export default function MarketplaceCheckoutScreen() {
         }
         router.replace(`/marketplace/order/${result.order_id}?fresh=1` as any);
       } catch (e) {
-        const msg = e instanceof Error ? e.message : 'Eroare necunoscuta';
+        const msg = e instanceof Error ? e.message : 'Eroare necunoscută';
         Alert.alert('Nu am putut plasa comanda', msg, [{ text: 'OK' }]);
       } finally {
         setSubmitting(false);
@@ -318,7 +318,7 @@ export default function MarketplaceCheckoutScreen() {
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
       if (!accessToken) {
-        throw new Error('Autentificare expirata. Reconecteaza-te.');
+        throw new Error('Autentificare expirată. Reconectează-te.');
       }
 
       const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -393,7 +393,7 @@ export default function MarketplaceCheckoutScreen() {
         const msg =
           (result?.message as string) ||
           (result?.error as string) ||
-          'Eroare necunoscuta. Incearca din nou.';
+          'Eroare necunoscută. Încearcă din nou.';
         throw new Error(msg);
       }
 
@@ -409,7 +409,7 @@ export default function MarketplaceCheckoutScreen() {
       // Navigate to order detail with fresh=1 so the OrderSuccessModal fires.
       router.replace(`/marketplace/order/${typed.order_id}?fresh=1` as any);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Eroare necunoscuta';
+      const msg = e instanceof Error ? e.message : 'Eroare necunoscută';
       Alert.alert('Nu am putut plasa comanda', msg, [{ text: 'OK' }]);
     } finally {
       setSubmitting(false);
@@ -546,7 +546,7 @@ export default function MarketplaceCheckoutScreen() {
                   hitSlop={6}
                 >
                   <Text style={{ fontFamily: FontFamily.semiBold, fontSize: 13, color: Brand.primary }}>
-                    {hasBillingDetails ? 'Modifica' : 'Configureaza'}
+                    {hasBillingDetails ? 'Modifică' : 'Configurează'}
                   </Text>
                 </Pressable>
               </View>
@@ -578,7 +578,7 @@ export default function MarketplaceCheckoutScreen() {
                 >
                   <Feather name="alert-circle" size={14} color="#F59E0B" />
                   <Text className="flex-1" style={{ fontFamily: FontFamily.regular, fontSize: 12, lineHeight: 16, color: colors.text }}>
-                    Nu ai date de facturare salvate. Adauga o entitate (firma sau persoana fizica) pentru a primi factura corecta.
+                    Nu ai date de facturare salvate. Adaugă o entitate (firmă sau persoană fizică) pentru a primi factura corectă.
                   </Text>
                 </View>
               )}
@@ -660,7 +660,7 @@ export default function MarketplaceCheckoutScreen() {
                 colors={colors}
               />
               <FormField
-                label="Adresa"
+                label="Adresă"
                 value={form.address_line1}
                 onChange={(v) => setField('address_line1', v)}
                 placeholder="Str. Principala nr. 1"
@@ -671,7 +671,7 @@ export default function MarketplaceCheckoutScreen() {
               <View className="flex-row gap-2">
                 <View style={{ flex: 1.2 }}>
                   <FormField
-                    label="Oras"
+                    label="Oraș"
                     value={form.city}
                     onChange={(v) => setField('city', v)}
                     placeholder="Bucuresti"
@@ -680,7 +680,7 @@ export default function MarketplaceCheckoutScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <FormField
-                    label="Judet"
+                    label="Județ"
                     value={form.county}
                     onChange={(v) => setField('county', v)}
                     placeholder="Ilfov"
@@ -726,7 +726,7 @@ export default function MarketplaceCheckoutScreen() {
                   {saveAddr && <Feather name="check" size={14} color="#fff" />}
                 </View>
                 <Text style={{ fontFamily: FontFamily.regular, fontSize: 13, color: colors.text }}>
-                  Salveaza aceasta adresa pentru data viitoare
+                  Salvează această adresă pentru data viitoare
                 </Text>
               </Pressable>
             </Animated.View>
@@ -747,7 +747,7 @@ export default function MarketplaceCheckoutScreen() {
                 <View className="flex-row items-center gap-2 py-2">
                   <ActivityIndicator size="small" color={Brand.primary} />
                   <Text style={{ fontFamily: FontFamily.regular, fontSize: 13, color: colors.textSecondary }}>
-                    Se incarca metodele de livrare…
+                    Se încarcă metodele de livrare…
                   </Text>
                 </View>
               ) : shippingMethods.length === 0 ? (
@@ -816,7 +816,7 @@ export default function MarketplaceCheckoutScreen() {
               style={[Bubble.radii, { backgroundColor: 'rgba(255,255,255,0.55)', borderColor: 'rgba(255,255,255,0.8)' }]}
             >
               <Text style={{ fontFamily: FontFamily.semiBold, fontSize: 16, lineHeight: 22, color: colors.text }}>
-                Metoda de plata
+                Metoda de plată
               </Text>
               {([
                 { key: 'cod', icon: 'truck', title: 'Ramburs la livrare', sub: 'Platesti curierului la primire' },
@@ -959,7 +959,7 @@ export default function MarketplaceCheckoutScreen() {
 
             {voucher_code && buyerMode === 'client' && (
               <Text className="mt-1" style={{ fontFamily: FontFamily.regular, fontSize: 12, lineHeight: 16, color: colors.textTertiary }}>
-                Voucherul este validat si aplicat la plata.
+                Voucherul este validat și aplicat la plată.
               </Text>
             )}
           </Animated.View>
@@ -1011,7 +1011,7 @@ export default function MarketplaceCheckoutScreen() {
               <>
                 <Feather name="check-circle" size={18} color="#fff" style={{ marginRight: 8 }} />
                 <Text style={{ color: '#fff', fontFamily: FontFamily.semiBold, fontSize: 16, lineHeight: 20, letterSpacing: 0.2 }}>
-                  Plaseaza comanda
+                  Plasează comanda
                 </Text>
               </>
             )}

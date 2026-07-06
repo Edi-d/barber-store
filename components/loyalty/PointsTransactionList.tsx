@@ -20,7 +20,7 @@ function iconNameForSource(source: string): keyof typeof Ionicons.glyphMap {
 
 export function PointsTransactionList({
   transactions,
-  emptyMessage = 'Inca nu ai tranzactii. Finalizeaza o programare sau plateste o comanda ca sa primesti puncte.',
+  emptyMessage = 'Încă nu ai tranzacții. Finalizează o programare sau plătește o comandă ca să primești puncte.',
 }: Props) {
   if (transactions.length === 0) {
     return (

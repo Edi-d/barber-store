@@ -62,7 +62,7 @@ export function TierProgressBar({ lifetimePoints, currentLevel, textColor }: Pro
         </Text>
         <Text style={[styles.caption, { color: captionColor }]}>
           {nextLevelConfig
-            ? ` · ${pointsToNext?.toLocaleString('ro-RO')} puncte pana la ${nextLevelConfig.title}`
+            ? ` · ${pointsToNext?.toLocaleString('ro-RO')} puncte până la ${nextLevelConfig.title}`
             : ' · Nivel maxim atins'}
         </Text>
       </View>

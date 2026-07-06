@@ -202,12 +202,12 @@ export function OrderSuccessModal({
 
           {/* Title */}
           <Text style={[styles.successTitle, { color: Colors.text }]}>
-            Comanda plasata!
+            Comandă plasată!
           </Text>
 
           {/* Message */}
           <Text style={[styles.successMessage, { color: Colors.textSecondary }]}>
-            Comanda ta a fost plasata cu succes!
+            Comanda ta a fost plasată cu succes!
           </Text>
 
           {/* Order number */}
@@ -220,7 +220,7 @@ export function OrderSuccessModal({
 
           {/* Info */}
           <Text style={[styles.infoText, { color: Colors.textTertiary }]}>
-            Vei fi notificat cand comanda isi schimba statusul
+            Vei fi notificat când comanda își schimbă statusul
           </Text>
 
           {/* Buttons */}
@@ -251,7 +251,7 @@ export function OrderSuccessModal({
             >
               <Feather name="shopping-bag" size={17} color={Colors.text} />
               <Text style={[styles.secondaryButtonText, { color: Colors.text }]}>
-                Continua cumparaturile
+                Continuă cumpărăturile
               </Text>
             </TouchableOpacity>
           </View>

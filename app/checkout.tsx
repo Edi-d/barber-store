@@ -246,7 +246,7 @@ export default function CheckoutScreen() {
             Cosul tau este gol
           </Text>
           <Text style={[styles.successMessage, { color: colors.textTertiary }]}>
-            Adauga produse inainte de a plasa comanda.
+            Adaugă produse înainte de a plasa comanda.
           </Text>
           <TouchableOpacity activeOpacity={0.8} onPress={handleGoBack} style={Shadows.glow}>
             <LinearGradient
@@ -256,7 +256,7 @@ export default function CheckoutScreen() {
               style={styles.successBtn}
             >
               <Feather name="arrow-left" size={16} color="#fff" />
-              <Text style={styles.successBtnText}>Inapoi</Text>
+              <Text style={styles.successBtnText}>Înapoi</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -281,7 +281,7 @@ export default function CheckoutScreen() {
         >
           <Feather name="arrow-left" size={20} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.navTitle, { color: colors.text }]}>Finalizeaza comanda</Text>
+        <Text style={[styles.navTitle, { color: colors.text }]}>Finalizează comanda</Text>
         <View style={styles.backButton} />
       </View>
 
@@ -394,7 +394,7 @@ export default function CheckoutScreen() {
                     required: 'Telefonul este obligatoriu',
                     pattern: {
                       value: /^[0-9+\s-]{10,}$/,
-                      message: 'Numar invalid',
+                      message: 'Număr invalid',
                     },
                   }}
                   render={({ field: { onChange, value } }) => (
@@ -489,7 +489,7 @@ export default function CheckoutScreen() {
                       },
                     ]}
                   >
-                    Livrare la adresa
+                    Livrare la adresă
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -518,7 +518,7 @@ export default function CheckoutScreen() {
                           ]}
                           value={value}
                           onChangeText={onChange}
-                          placeholder="Strada, numar, bloc, apartament"
+                          placeholder="Stradă, număr, bloc, apartament"
                           placeholderTextColor={colors.textTertiary}
                           multiline
                           numberOfLines={3}
@@ -533,7 +533,7 @@ export default function CheckoutScreen() {
 
                   <View style={styles.inputGroup}>
                     <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-                      Oras *
+                      Oraș *
                     </Text>
                     <Controller
                       control={control}
@@ -593,7 +593,7 @@ export default function CheckoutScreen() {
                     ]}
                     value={value}
                     onChangeText={onChange}
-                    placeholder="Mentiuni speciale pentru comanda ta..."
+                    placeholder="Mențiuni speciale pentru comanda ta..."
                     placeholderTextColor={colors.textTertiary}
                     multiline
                     numberOfLines={3}
@@ -610,7 +610,7 @@ export default function CheckoutScreen() {
               <View style={styles.sectionHeader}>
                 <Feather name="credit-card" size={18} color={Brand.primary} />
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                  Metoda de plata
+                  Metoda de plată
                 </Text>
               </View>
 
@@ -643,7 +643,7 @@ export default function CheckoutScreen() {
                     Card online
                   </Text>
                   <Text style={[styles.paymentSubtitle, { color: colors.textTertiary }]}>
-                    In curand
+                    În curând
                   </Text>
                 </View>
               </View>
@@ -741,7 +741,7 @@ export default function CheckoutScreen() {
                   ) : (
                     <>
                       <Feather name="check-circle" size={18} color="#fff" />
-                      <Text style={styles.submitText}>Plaseaza comanda</Text>
+                      <Text style={styles.submitText}>Plasează comanda</Text>
                     </>
                   )}
                 </LinearGradient>

@@ -86,7 +86,7 @@ export default function TutorialChapterScreen() {
         >
           <Ionicons name="chevron-back" size={22} color="#191919" />
         </Pressable>
-        <Text style={styles.errorText}>Capitolul nu a fost gasit.</Text>
+        <Text style={styles.errorText}>Capitolul nu a fost găsit.</Text>
       </View>
     );
   }
@@ -126,10 +126,10 @@ export default function TutorialChapterScreen() {
   }
 
   const ctaLabel = allComplete
-    ? 'Toate lectiile completate'
+    ? 'Toate lecțiile completate'
     : inProgress
-    ? 'Continua'
-    : 'Incepe capitolul';
+    ? 'Continuă'
+    : 'Începe capitolul';
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -175,7 +175,7 @@ export default function TutorialChapterScreen() {
           {/* Badge row */}
           <View style={styles.badgeRow}>
             <View style={styles.pill}>
-              <Text style={styles.pillText}>{totalLessons} lectii</Text>
+              <Text style={styles.pillText}>{totalLessons} lecții</Text>
             </View>
             <View style={styles.pill}>
               <Text style={styles.pillText}>
@@ -204,7 +204,7 @@ export default function TutorialChapterScreen() {
               />
             </View>
             <Text style={styles.progressSub}>
-              {completedCount} din {totalLessons} lectii completate
+              {completedCount} din {totalLessons} lecții completate
             </Text>
           </Animated.View>
         )}

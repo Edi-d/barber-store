@@ -171,7 +171,7 @@ export default function MarketplaceOrderScreen() {
         return;
       }
       if (!orderData) {
-        setError('Comanda nu a fost gasita');
+        setError('Comanda nu a fost găsită');
         setLoading(false);
         return;
       }
@@ -236,7 +236,7 @@ export default function MarketplaceOrderScreen() {
     if (cartItems.length === 0) {
       Alert.alert(
         'Produse indisponibile',
-        'Niciun produs din aceasta comanda nu mai este pe stoc.',
+        'Niciun produs din această comandă nu mai este pe stoc.',
       );
       return;
     }
@@ -315,7 +315,7 @@ export default function MarketplaceOrderScreen() {
         <View style={styles.centerFill}>
           <Feather name="alert-circle" size={44} color={colors.textTertiary} />
           <Text style={[styles.emptyTitle, { color: colors.text }]}>
-            Comanda nu a fost gasita
+            Comanda nu a fost găsită
           </Text>
           <Text style={[styles.emptyDesc, { color: colors.textTertiary }]}>
             {error ?? 'Este posibil sa fi fost stearsa sau sa nu ai acces.'}
@@ -348,10 +348,10 @@ export default function MarketplaceOrderScreen() {
             <Feather name="check" size={28} color="#fff" />
           </View>
           <Text style={[styles.successTitle, { color: colors.text }]}>
-            Comanda inregistrata!
+            Comandă înregistrată!
           </Text>
           <Text style={[styles.successDesc, { color: colors.textSecondary }]}>
-            Numar comanda
+            Număr comandă
           </Text>
           <Text style={[styles.orderNumber, { color: Brand.primary }]}>
             {order.order_number}
@@ -581,7 +581,7 @@ export default function MarketplaceOrderScreen() {
                     color="#fff"
                     style={{ marginRight: 8 }}
                   />
-                  <Text style={styles.primaryText}>Comanda din nou</Text>
+                  <Text style={styles.primaryText}>Comandă din nou</Text>
                 </>
               )}
             </LinearGradient>

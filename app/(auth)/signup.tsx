@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    ...Bubble.radiiSm,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: Colors.white,

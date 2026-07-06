@@ -1,6 +1,8 @@
 /**
  * GlassCard — frosted-glass card used exclusively in auth screens.
- * Uses BlurView on iOS and a semi-transparent white fallback on Android.
+ * Uses BlurView on both platforms; Android renders via expo-blur's bundled
+ * dimezis/BlurView (experimentalBlurMethod), the only way to get a real
+ * live blur on Android with expo-blur.
  *
  * For general content cards (appointments, orders, courses, etc.) use
  * `Card` from `@/components/ui` instead.
@@ -18,37 +20,42 @@ interface GlassCardProps {
 export function GlassCard({ children, style }: GlassCardProps) {
   const borderRadii = { ...Bubble.radiiLg };
 
-  if (Platform.OS === 'ios') {
-    return (
-      <View style={[styles.container, borderRadii, Shadows.glass, style]}>
-        <BlurView
-          intensity={60}
-          tint="light"
-          style={[styles.blur, borderRadii]}
-        >
-          <View style={styles.content}>{children}</View>
-        </BlurView>
-        <View style={[styles.accentBorder, { borderBottomLeftRadius: Bubble.radiiLg.borderBottomLeftRadius, borderBottomRightRadius: Bubble.radiiLg.borderBottomRightRadius }]} />
-      </View>
-    );
-  }
-
-  // Android fallback — faux frosted glass (no BlurView).
-  // A real blur (expo-blur's dimezisBlurView) is GPU-expensive and janky on
-  // lower-end devices, so instead we let the gradient bleed through a
-  // translucent fill and fake the "light catching the edge" with brighter
-  // top/left borders. Visually close to the iOS blur, but free and consistent.
   return (
     <View
       style={[
         styles.container,
-        styles.androidCard,
+        // Android: elevation + overflow:'hidden' on a non-uniform border
+        // radius makes the shadow draw as a hard rectangular box behind the
+        // rounded card, so clipping happens inside the BlurView instead.
+        Platform.OS === 'android' && styles.containerAndroid,
         borderRadii,
         Shadows.glass,
         style,
       ]}
     >
-      <View style={styles.content}>{children}</View>
+      <BlurView
+        intensity={60}
+        tint="light"
+        experimentalBlurMethod={
+          Platform.OS === 'android' ? 'dimezisBlurView' : undefined
+        }
+        style={[
+          styles.blur,
+          borderRadii,
+          Platform.OS === 'android' && styles.androidBlurTint,
+        ]}
+      >
+        <View style={styles.content}>{children}</View>
+      </BlurView>
+      <View
+        style={[
+          styles.accentBorder,
+          {
+            borderBottomLeftRadius: Bubble.radiiLg.borderBottomLeftRadius,
+            borderBottomRightRadius: Bubble.radiiLg.borderBottomRightRadius,
+          },
+        ]}
+      />
     </View>
   );
 }
@@ -57,25 +64,19 @@ const styles = StyleSheet.create({
   container: {
     overflow: 'hidden',
   },
+  containerAndroid: {
+    overflow: 'visible',
+  },
   blur: {
     overflow: 'hidden',
   },
+  androidBlurTint: {
+    // dimezis' Android blur renders darker/greyer than iOS's; a light wash
+    // on top keeps it reading as the same frosted-glass tint as iOS.
+    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+  },
   content: {
     padding: 24,
-  },
-  androidCard: {
-    // overflow stays 'visible': pairing overflow:'hidden' with elevation makes
-    // Android draw the elevation backing as a hard square white box behind the
-    // rounded card. borderRadius alone still clips the fill and the shadow.
-    overflow: 'visible',
-    // Translucent fill so the gradient behind shows through (the glass effect).
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
-    // Brighter top/left edges read as light hitting a frosted pane; the base
-    // border keeps the bottom/right grounded.
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
-    borderTopColor: 'rgba(255, 255, 255, 0.9)',
-    borderLeftColor: 'rgba(255, 255, 255, 0.7)',
   },
   accentBorder: {
     position: 'absolute',

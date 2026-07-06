@@ -174,7 +174,7 @@ export default function TutorialLessonScreen() {
         </View>
         <View style={styles.notFoundCenter}>
           <Ionicons name="alert-circle-outline" size={48} color="#CBD5E1" />
-          <Text style={styles.notFoundText}>Lectia nu a fost gasita.</Text>
+          <Text style={styles.notFoundText}>Lecția nu a fost găsită.</Text>
         </View>
       </SafeAreaView>
     );
@@ -264,7 +264,7 @@ export default function TutorialLessonScreen() {
             <View style={styles.emptyContent}>
               <Ionicons name="document-text-outline" size={48} color="#CBD5E1" />
               <Text style={styles.emptyContentText}>
-                Continutul lectiei va fi disponibil in curand.
+                Conținutul lecției va fi disponibil în curând.
               </Text>
             </View>
           )}

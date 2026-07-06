@@ -89,7 +89,7 @@ export default function LoyaltyScreen() {
                 <View style={styles.heroTierInfo}>
                   <View style={styles.tierNameRow}>
                     <View style={[styles.tierDot, { backgroundColor: xp.currentLevel.color }]} />
-                    <Text style={styles.heroTierLabel}>Nivelul tau</Text>
+                    <Text style={styles.heroTierLabel}>Nivelul tău</Text>
                   </View>
                   <Text style={styles.heroTierName}>{xp.currentLevel.title}</Text>
                 </View>
@@ -163,7 +163,7 @@ export default function LoyaltyScreen() {
                     <Ionicons name="star-outline" size={20} color={Colors.primary} />
                   </View>
                   <Text style={styles.howToText}>
-                    Primesti puncte automat dupa fiecare programare finalizata sau comanda platita.
+                    Primești puncte automat după fiecare programare finalizată sau comandă plătită.
                     Cu cat cheltui mai mult, cu atat avansezi mai rapid in nivele si deblochezi
                     vouchere mai valoroase.
                   </Text>
@@ -178,7 +178,7 @@ export default function LoyaltyScreen() {
               <Text style={styles.sectionTitle}>Vouchere disponibile</Text>
               <View style={styles.card}>
                 <Text style={styles.cardSub}>
-                  Converteste punctele in voucher folosibil la orice salon.
+                  Convertește punctele în voucher folosibil la orice salon.
                 </Text>
                 <View style={{ marginTop: Spacing.sm }}>
                   <VoucherConversionSection currentBalance={xp.balance} />
@@ -193,13 +193,13 @@ export default function LoyaltyScreen() {
           {/* Tab: Istoric */}
           {activeTab === 'istoric' && (
             <>
-              <Text style={styles.sectionTitle}>Istoric tranzactii</Text>
+              <Text style={styles.sectionTitle}>Istoric tranzacții</Text>
               <View style={styles.card}>
                 <View style={styles.historyHeaderRow}>
                   <View style={styles.howToIconCircle}>
                     <Ionicons name="time-outline" size={20} color={Colors.primary} />
                   </View>
-                  <Text style={styles.historyHeaderText}>Activitate recenta</Text>
+                  <Text style={styles.historyHeaderText}>Activitate recentă</Text>
                 </View>
                 <View style={{ marginTop: Spacing.md }}>
                   <PointsTransactionList

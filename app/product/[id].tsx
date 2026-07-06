@@ -142,7 +142,7 @@ export default function ProductDetailScreen() {
       <View style={s.center}>
         <Stack.Screen options={{ headerShown: false }} />
         <Ionicons name="cube-outline" size={48} color={Colors.textTertiary} />
-        <Text style={s.notFound}>Produsul nu a fost gasit</Text>
+        <Text style={s.notFound}>Produsul nu a fost găsit</Text>
       </View>
     );
   }

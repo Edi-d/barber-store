@@ -133,7 +133,7 @@ export default function ProductActions({
               style={[styles.addBtnGradient, Bubble.radiiSm]}
             >
               <Feather name="shopping-bag" size={18} color="#fff" />
-              <Text style={styles.addBtnText}>Adauga in cos</Text>
+              <Text style={styles.addBtnText}>Adaugă în coș</Text>
             </LinearGradient>
           </AnimatedPressable>
         </View>

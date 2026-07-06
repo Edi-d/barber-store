@@ -50,7 +50,7 @@ export function NewPostsBanner({ count, onPress, bannerRef }: NewPostsBannerProp
       >
         <Ionicons name="arrow-up" size={16} color="#fff" />
         <Text className="text-white font-semibold text-sm">
-          {count} {count === 1 ? "postare noua" : "postari noi"} — apasa pentru a vedea
+          {count} {count === 1 ? "postare nouă" : "postări noi"} — apasă pentru a vedea
         </Text>
       </Pressable>
     </Animated.View>

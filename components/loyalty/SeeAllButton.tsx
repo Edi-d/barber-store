@@ -2,14 +2,14 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Colors, FontFamily, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Bubble, Colors, FontFamily, Shadows, Spacing } from '@/constants/theme';
 
 interface Props {
   label: string;
   onPress: () => void;
 }
 
-/** Centered rounded-pill "see all" button used at the bottom of previewed lists.
+/** Centered rounded-bubble "see all" button used at the bottom of previewed lists.
  *  The visual pill lives on a plain View so it renders reliably; the Pressable
  *  is only the tap target + press feedback. */
 export function SeeAllButton({ label, onPress }: Props) {
@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 13,
     paddingHorizontal: 24,
-    borderRadius: Radius.full,
+    ...Bubble.radiiSm,
     backgroundColor: '#E8F3FF',
     borderWidth: 1,
     borderColor: 'rgba(10,102,194,0.20)',

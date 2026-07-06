@@ -190,7 +190,7 @@ export function FeedCard({ item, onLikeToggle, onLikeAdd, onComment, onShare, is
 
   const handleShare = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Share.share({ message: item.caption || 'Descopera acest continut pe Tapzi!' });
+    Share.share({ message: item.caption || 'Descoperă acest conținut pe Tapzi!' });
     onShare?.();
   }, [item.caption, onShare]);
 

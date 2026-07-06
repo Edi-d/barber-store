@@ -132,7 +132,7 @@ export default function MarketplaceProductDetailScreen() {
 
     const productId = Number(id);
     if (!Number.isFinite(productId)) {
-      setError('Produsul nu a fost gasit');
+      setError('Produsul nu a fost găsit');
       setLoading(false);
       return;
     }
@@ -144,7 +144,7 @@ export default function MarketplaceProductDetailScreen() {
         const result = await fetchProductDetail(productId);
         if (cancelled) return;
         if (!result) {
-          setError('Produsul nu a fost gasit');
+          setError('Produsul nu a fost găsit');
           return;
         }
         setProduct(result.product);
@@ -152,7 +152,7 @@ export default function MarketplaceProductDetailScreen() {
         setReview(result.review);
       } catch (e) {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : 'Nu am putut incarca produsul');
+        setError(e instanceof Error ? e.message : 'Nu am putut încărca produsul');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -316,10 +316,10 @@ export default function MarketplaceProductDetailScreen() {
         <View style={styles.centerFill}>
           <Feather name="alert-circle" size={44} color={colors.textTertiary} />
           <Text style={[styles.emptyTitle, { color: colors.text }]}>
-            Produsul nu a fost gasit
+            Produsul nu a fost găsit
           </Text>
           <Text style={[styles.emptyDesc, { color: colors.textTertiary }]}>
-            {error ?? 'Incearca un alt produs din catalog.'}
+            {error ?? 'Încearcă un alt produs din catalog.'}
           </Text>
           <Pressable
             onPress={handleBack}
@@ -331,7 +331,7 @@ export default function MarketplaceProductDetailScreen() {
               end={{ x: 1, y: 1 }}
               style={styles.errorBackGradient}
             >
-              <Text style={styles.errorBackText}>Inapoi</Text>
+              <Text style={styles.errorBackText}>Înapoi</Text>
             </LinearGradient>
           </Pressable>
         </View>
@@ -427,8 +427,8 @@ export default function MarketplaceProductDetailScreen() {
                 }}
               >
                 {stockNotif.subscribed
-                  ? 'Te vom anunta - apasa pentru a renunta'
-                  : 'Anunta-ma cand e disponibil'}
+                  ? 'Te vom anunța - apasă pentru a renunța'
+                  : 'Anunță-mă când e disponibil'}
               </Text>
             </Pressable>
           </View>

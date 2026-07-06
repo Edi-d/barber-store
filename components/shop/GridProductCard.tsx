@@ -134,7 +134,7 @@ function GridProductCardInner({ product, onPress }: Props) {
                 </Text>
                 <Text style={styles.priceSuffix}>RON</Text>
               </View>
-              <Text style={styles.partnerLabel}>pret partener</Text>
+              <Text style={styles.partnerLabel}>preț partener</Text>
               {hasDiscount && (
                 <View style={styles.savingsRow}>
                   <Feather name="arrow-down" size={8} color={Colors.success} />

@@ -208,7 +208,7 @@ export function PointsLevelUpModal({ visible, from, to, onDismiss }: PointsLevel
                 end={{ x: 1, y: 0 }}
                 style={[styles.ctaButton, Shadows.glow]}
               >
-                <Text style={[styles.ctaText, { color: to.textColor }]}>Continua</Text>
+                <Text style={[styles.ctaText, { color: to.textColor }]}>Continuă</Text>
               </LinearGradient>
             </Pressable>
           </Animated.View>

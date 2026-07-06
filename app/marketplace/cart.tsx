@@ -159,7 +159,7 @@ function SwipeableItem({
           className="items-center gap-1"
         >
           <Feather name="trash-2" size={20} color="#fff" />
-          <Text className="text-white text-[11px] font-semibold">Sterge</Text>
+          <Text className="text-white text-[11px] font-semibold">Șterge</Text>
         </Pressable>
       </Animated.View>
 
@@ -378,7 +378,7 @@ export default function MarketplaceCartScreen() {
             </View>
             <Text style={[styles.emptyTitle, { color: colors.text }]}>Cosul tau este gol</Text>
             <Text style={[styles.emptyHint, { color: colors.textSecondary }]}>
-              Adauga produse din catalog pentru a le vedea aici.
+              Adaugă produse din catalog pentru a le vedea aici.
             </Text>
             <TouchableOpacity
               onPress={() => router.push('/(tabs)/shop' as never)}
@@ -464,7 +464,7 @@ export default function MarketplaceCartScreen() {
                       }}
                       autoCapitalize="characters"
                       style={[styles.promoInput, { color: colors.text }]}
-                      placeholder="Adauga cod promotional"
+                      placeholder="Adaugă cod promoțional"
                       placeholderTextColor={colors.textTertiary}
                       returnKeyType="done"
                       onSubmitEditing={handleApplyVoucher}
@@ -516,7 +516,7 @@ export default function MarketplaceCartScreen() {
                       <View style={styles.freeShipRow}>
                         <Feather name="truck" size={16} color={Brand.primary} />
                         <Text style={[styles.freeShipLabel, { color: colors.text }]}>
-                          Mai adauga{' '}
+                          Mai adaugă{' '}
                           <Text style={{ color: Brand.primary, fontFamily: FontFamily.semiBold }}>
                             {formatPrice(missingFree)}
                           </Text>{' '}
@@ -539,7 +539,7 @@ export default function MarketplaceCartScreen() {
                     <View style={styles.freeShipRow}>
                       <Feather name="check-circle" size={16} color={colors.success} />
                       <Text style={[styles.freeShipLabel, { color: colors.success }]}>
-                        Livrare gratuita aplicata!
+                        Livrare gratuită aplicată!
                       </Text>
                     </View>
                   )}

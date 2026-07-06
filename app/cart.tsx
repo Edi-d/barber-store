@@ -111,7 +111,7 @@ function SwipeableCartItem({
           activeOpacity={0.7}
         >
           <Feather name="trash-2" size={20} color="#fff" />
-          <Text style={styles.deleteText}>Sterge</Text>
+          <Text style={styles.deleteText}>Șterge</Text>
         </TouchableOpacity>
       </Animated.View>
 
@@ -210,7 +210,7 @@ function DeliveryBanner({ totalPrice, bannerRef }: { totalPrice: number; bannerR
           </Text>
         ) : (
           <Text style={[styles.deliveryText, { color: Colors.textSecondary }]}>
-            Mai adauga{' '}
+            Mai adaugă{' '}
             <Text style={{ color: Brand.primary, fontFamily: Typography.captionSemiBold.fontFamily }}>
               {formatPrice(deliveryRemaining)}
             </Text>
@@ -238,7 +238,7 @@ function EmptyState({ onGoToShop }: { onGoToShop: () => void }) {
       </View>
       <Text style={[styles.emptyTitle, { color: Colors.text }]}>Cosul tau este gol</Text>
       <Text style={[styles.emptyMsg, { color: Colors.textTertiary }]}>
-        Adauga produse din catalog pentru a continua
+        Adaugă produse din catalog pentru a continua
       </Text>
       <TouchableOpacity activeOpacity={0.8} onPress={onGoToShop}>
         <LinearGradient
@@ -479,12 +479,12 @@ export default function CartScreen() {
                   style={styles.checkoutBtn}
                 >
                   <Feather name="send" size={18} color="#fff" />
-                  <Text style={styles.checkoutText}>Continua la plata</Text>
+                  <Text style={styles.checkoutText}>Continuă la plată</Text>
                 </LinearGradient>
               </TouchableOpacity>
 
               <Text style={[styles.disclaimer, { color: Colors.textTertiary }]}>
-                Comanda va fi procesata de barber-store.ro
+                Comanda va fi procesată de barber-store.ro
               </Text>
             </View>
           </BlurView>

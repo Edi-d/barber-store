@@ -43,9 +43,9 @@ const NOTIF_CFG: Record<string, { icon: string; color: string; label: string }> 
   like:                 { icon: 'heart',            color: '#E53935', label: 'a apreciat postarea ta' },
   comment:              { icon: 'chatbubble',        color: Colors.primary, label: 'a comentat la postarea ta' },
   reply:                { icon: 'arrow-undo',        color: Colors.primary, label: 'a raspuns la comentariul tau' },
-  follow:               { icon: 'person-add',        color: Colors.indigo, label: 'a inceput sa te urmareasca' },
+  follow:               { icon: 'person-add',        color: Colors.indigo, label: 'a început să te urmărească' },
   mention:              { icon: 'at',                color: '#F59E0B', label: 'te-a mentionat' },
-  live:                 { icon: 'videocam',          color: '#E53935', label: 'a inceput un live' },
+  live:                 { icon: 'videocam',          color: '#E53935', label: 'a început un live' },
   appointment_reminder: { icon: 'calendar',          color: '#2E7D32', label: 'ai o programare in curand' },
 };
 
@@ -91,10 +91,10 @@ function resolveNotificationRoute(
 
 const EMPTY_STATE: Record<FilterTab, { icon: string; title: string; subtitle: string }> = {
   toate:      { icon: 'notifications-outline',  title: 'Nicio notificare', subtitle: 'Vei fi notificat cand cineva interactioneaza cu tine.' },
-  social:     { icon: 'heart-outline',          title: 'Nicio interactiune', subtitle: 'Apar aicii aprecierile, comentariile si mentiunile tale.' },
-  urmariri:   { icon: 'people-outline',         title: 'Niciun nou urmaritor', subtitle: 'Cand cineva incepe sa te urmareasca vei fi notificat.' },
+  social:     { icon: 'heart-outline',          title: 'Nicio interacțiune', subtitle: 'Apar aici aprecierile, comentariile și mențiunile tale.' },
+  urmariri:   { icon: 'people-outline',         title: 'Niciun urmăritor nou', subtitle: 'Când cineva începe să te urmărească vei fi notificat.' },
   live:       { icon: 'videocam-outline',        title: 'Niciun live recent', subtitle: 'Vei fi notificat cand un creator porneste un live.' },
-  programari: { icon: 'calendar-outline',        title: 'Nicio programare', subtitle: 'Vei primi remindere inainte de programarile tale.' },
+  programari: { icon: 'calendar-outline',        title: 'Nicio programare', subtitle: 'Vei primi remindere înainte de programările tale.' },
 };
 
 // ─── Follow button ────────────────────────────────────────────────────────────
@@ -380,7 +380,7 @@ export function NotificationsModal({ visible, onClose }: NotificationsModalProps
         {/* Header */}
         <View style={st.header}>
           <View style={st.headerLeft}>
-            <Text style={st.title}>Notificari</Text>
+            <Text style={st.title}>Notificări</Text>
             {unreadCount > 0 && (
               <Animated.View entering={FadeIn.duration(200)}>
                 <LinearGradient

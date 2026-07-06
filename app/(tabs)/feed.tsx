@@ -250,7 +250,7 @@ function AllLivesModal({ visible, lives, onClose }: AllLivesModalProps) {
                 lineHeight: 20,
               }}
             >
-              Revino mai tarziu pentru sesiuni live
+              Revino mai târziu pentru sesiuni live
             </Text>
           </View>
         )}

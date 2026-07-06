@@ -79,7 +79,7 @@ export default function ProductBundle({
         <View>
           <Text style={[styles.title, { color: Colors.text }]}>Pachet complet</Text>
           <Text style={[styles.subtitle, { color: Colors.textTertiary }]}>
-            Cumpara impreuna si economisesti
+            Cumpără împreună și economisești
           </Text>
         </View>
       </View>
@@ -119,7 +119,7 @@ export default function ProductBundle({
         {showRetailRow && (
           <View style={styles.priceRow}>
             <Text style={[styles.priceLabel, { color: Colors.textTertiary }]}>
-              Pret individual:
+              Preț individual:
             </Text>
             <Text
               style={[
@@ -134,7 +134,7 @@ export default function ProductBundle({
 
         <View style={styles.priceRow}>
           <Text style={[styles.bundlePriceLabel, { color: Colors.text }]}>
-            Pret pachet:
+            Preț pachet:
           </Text>
           <Text style={styles.bundlePrice}>{formatPrice(bundlePriceCents)}</Text>
         </View>
@@ -171,7 +171,7 @@ export default function ProductBundle({
             style={{ marginRight: 8 }}
           />
           <Text style={[Typography.button, { color: Brand.white }]}>
-            {added ? 'Adaugat!' : 'Adauga tot in cos'}
+            {added ? 'Adaugat!' : 'Adaugă tot în coș'}
           </Text>
         </LinearGradient>
       </AnimatedPressable>

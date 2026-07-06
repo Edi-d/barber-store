@@ -165,7 +165,7 @@ export function MarketplaceSearchModal({
                   ref={inputRef}
                   value={raw}
                   onChangeText={setRaw}
-                  placeholder="Cauta produse, branduri..."
+                  placeholder="Caută produse, branduri..."
                   placeholderTextColor={colors.textTertiary}
                   style={[styles.input, { color: colors.text }]}
                   autoCorrect={false}
@@ -187,7 +187,7 @@ export function MarketplaceSearchModal({
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <Text style={[styles.cancelText, { color: Brand.primary }]}>
-                  Anuleaza
+                  Anulează
                 </Text>
               </TouchableOpacity>
             </View>
@@ -197,11 +197,11 @@ export function MarketplaceSearchModal({
               <View style={styles.empty}>
                 <Feather name="search" size={48} color={colors.textTertiary} />
                 <Text style={[styles.emptyTitle, { color: colors.text }]}>
-                  Cauta in catalog
+                  Caută în catalog
                 </Text>
                 <Text style={[styles.emptyHint, { color: colors.textSecondary }]}>
-                  Tasteaza cel putin 2 caractere pentru a vedea rezultate.
-                  {'\n'}Cauta dupa nume produs sau brand.
+                  Tastează cel puțin 2 caractere pentru a vedea rezultate.
+                  {'\n'}Caută după nume produs sau brand.
                 </Text>
               </View>
             ) : showEmptyResults ? (
@@ -211,7 +211,7 @@ export function MarketplaceSearchModal({
                   Niciun rezultat
                 </Text>
                 <Text style={[styles.emptyHint, { color: colors.textSecondary }]}>
-                  Nu am gasit produse pentru
+                  Nu am găsit produse pentru
                   {'\n'}
                   <Text style={{ fontFamily: FontFamily.semiBold }}>
                     &ldquo;{query}&rdquo;

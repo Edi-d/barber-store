@@ -64,7 +64,7 @@ export function TutorialProgress({
 
         {/* Subtitle */}
         <Text style={styles.subtitle}>
-          {completedCount} din {totalCount} lectii completate
+          {completedCount} din {totalCount} lecții completate
         </Text>
 
         {/* CTA button — only shown while there are lessons left */}
@@ -73,7 +73,7 @@ export function TutorialProgress({
             onPress={onContinue}
             style={({ pressed }) => [styles.ctaButton, pressed && styles.ctaPressed]}
           >
-            <Text style={styles.ctaText}>Continua de unde ai ramas →</Text>
+            <Text style={styles.ctaText}>Continuă de unde ai rămas →</Text>
           </Pressable>
         )}
       </LinearGradient>

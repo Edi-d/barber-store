@@ -139,25 +139,25 @@ export default function TutorialsScreen() {
                 </View>
 
                 <Text style={styles.heroSubtitle}>
-                  {completedCount} din {totalLessons} lectii completate
+                  {completedCount} din {totalLessons} lecții completate
                 </Text>
 
                 {/* CTA — only when there are incomplete lessons */}
                 {completedCount < totalLessons && (
                   <Pressable onPress={handleContinue} style={styles.heroCTA}>
                     <Text style={styles.heroCTAText}>
-                      Continua de unde ai ramas →
+                      Continuă de unde ai rămas →
                     </Text>
                   </Pressable>
                 )}
               </LinearGradient>
             </Animated.View>
 
-            {/* ─── Continua Section ─── */}
+            {/* ─── Continuă Section ─── */}
             {inProgressChapters.length > 0 && (
               <Animated.View entering={FadeInDown.duration(400).delay(200)}>
                 <View style={styles.sectionSpacing}>
-                  <SectionHeader title="Continua" icon="book-outline" />
+                  <SectionHeader title="Continuă" icon="book-outline" />
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
@@ -198,7 +198,7 @@ export default function TutorialsScreen() {
           <EmptyState
             icon="school-outline"
             title="Niciun tutorial disponibil"
-            subtitle="Revino curand"
+            subtitle="Revino curând"
             className="mx-5 mt-5"
           />
         )}
@@ -277,7 +277,7 @@ function ContinueCard({
           <View style={styles.featuredMeta}>
             <Ionicons name="book-outline" size={12} color="rgba(255,255,255,0.8)" />
             <Text style={styles.featuredMetaText}>
-              {chapter.lessons.length} lectii
+              {chapter.lessons.length} lecții
             </Text>
           </View>
 
@@ -348,7 +348,7 @@ function ChapterListCard({
               {chapter.title}
             </Text>
             <Text style={styles.listMeta} numberOfLines={1}>
-              {chapter.lessons.length} lectii · ~{totalMin} min
+              {chapter.lessons.length} lecții · {totalMin} min
             </Text>
           </View>
 
@@ -363,7 +363,7 @@ function ChapterListCard({
           ) : (
             <View style={styles.listStatusRow}>
               <View style={styles.listStatusDot} />
-              <Text style={styles.listStatusText}>Neinceput</Text>
+              <Text style={styles.listStatusText}>Neînceput</Text>
             </View>
           )}
         </View>

@@ -75,7 +75,7 @@ const STATUS_CONFIG: Record<
 const CATEGORY_LABELS: Record<TicketCategory, string> = {
   general: 'General',
   appointment: 'Programare',
-  order: 'Comanda',
+  order: 'Comandă',
   account: 'Cont',
   bug: 'Bug',
 };
@@ -174,7 +174,7 @@ function TicketCard({
               >
                 <View style={styles.adminReplyHeader}>
                   <Feather name="message-square" size={13} color={Brand.primary} />
-                  <Text style={[styles.sectionLabel, { color: Brand.primary }]}>Raspuns suport</Text>
+                  <Text style={[styles.sectionLabel, { color: Brand.primary }]}>Răspuns suport</Text>
                 </View>
                 <Text style={[styles.messageText, { color: colors.text }]}>
                   {ticket.admin_reply}
@@ -302,7 +302,7 @@ function NewTicketModal({
           <TextInput
             value={message}
             onChangeText={setMessage}
-            placeholder="Descrie problema ta..."
+            placeholder="Descrie problema ta…"
             placeholderTextColor={colors.textTertiary}
             multiline
             textAlignVertical="top"
@@ -442,7 +442,7 @@ export default function SupportScreen() {
               Niciun tichet deschis
             </Text>
             <Text style={[styles.emptySubtitle, { color: colors.textTertiary }]}>
-              Ai o problema? Trimite-ne un mesaj si te vom ajuta cat de curand.
+              Ai o problemă? Trimite-ne un mesaj și te vom ajuta cât de curând.
             </Text>
             <TouchableOpacity
               activeOpacity={0.8}

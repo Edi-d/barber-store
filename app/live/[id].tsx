@@ -236,7 +236,7 @@ function ConnectionOverlay({
           <>
             <ActivityIndicator color="#fff" size="large" />
             <Text style={s.overlayTitle}>
-              {isReconnecting ? "Reconectare..." : "Se conecteaza..."}
+              {isReconnecting ? "Reconectare..." : "Se conectează..."}
             </Text>
             {isReconnecting && (
               <Text style={s.overlaySubtitle}>
@@ -251,13 +251,13 @@ function ConnectionOverlay({
             <Feather name="wifi-off" size={44} color="rgba(255,255,255,0.5)" />
             <Text style={s.overlayTitle}>Conexiunea a esuat</Text>
             <Text style={s.overlaySubtitle}>
-              Verifica conexiunea la internet
+              Verifică conexiunea la internet
             </Text>
             <Pressable className="mt-4 px-6 py-3 rounded-xl bg-white/20 active:bg-white/30" onPress={onRetry}>
-              <Text style={s.overlayBtn}>Reincearca</Text>
+              <Text style={s.overlayBtn}>Reîncearcă</Text>
             </Pressable>
             <Pressable className="mt-2 px-6 py-3 rounded-xl active:bg-white/10" onPress={onClose}>
-              <Text style={s.overlayBtnSecondary}>Inapoi</Text>
+              <Text style={s.overlayBtnSecondary}>Înapoi</Text>
             </Pressable>
           </>
         )}
@@ -267,7 +267,7 @@ function ConnectionOverlay({
             <Feather name="video-off" size={44} color="rgba(255,255,255,0.5)" />
             <Text style={s.overlayTitle}>Streamul s-a incheiat</Text>
             <Pressable className="mt-4 px-6 py-3 rounded-xl bg-white/20 active:bg-white/30" onPress={onClose}>
-              <Text style={s.overlayBtn}>Inapoi</Text>
+              <Text style={s.overlayBtn}>Înapoi</Text>
             </Pressable>
           </>
         )}
@@ -381,7 +381,7 @@ export default function LiveViewerScreen() {
       if (cancelled) return;
 
       if (fetchErr || !data) {
-        setMetaError("Streamul nu a fost gasit");
+        setMetaError("Streamul nu a fost găsit");
         setLoadingMeta(false);
         return;
       }
@@ -537,7 +537,7 @@ export default function LiveViewerScreen() {
           {"Live streaming necesita un dev build.\nNu functioneaza in Expo Go."}
         </Text>
         <Pressable className="mt-4 px-6 py-3 rounded-xl bg-white/15 active:bg-white/25" onPress={() => router.back()}>
-          <Text style={s.overlayBtn}>Inapoi</Text>
+          <Text style={s.overlayBtn}>Înapoi</Text>
         </Pressable>
       </View>
     );
@@ -552,7 +552,7 @@ export default function LiveViewerScreen() {
       <View style={s.centerContainer}>
         <StatusBar style="light" />
         <ActivityIndicator color="#fff" size="large" />
-        <Text style={s.centerText}>Se incarca...</Text>
+        <Text style={s.centerText}>Se încarcă...</Text>
       </View>
     );
   }
@@ -568,7 +568,7 @@ export default function LiveViewerScreen() {
         <Feather name="video-off" size={48} color="rgba(255,255,255,0.5)" />
         <Text style={s.centerText}>{metaError}</Text>
         <Pressable className="mt-4 px-6 py-3 rounded-xl bg-white/15 active:bg-white/25" onPress={() => router.back()}>
-          <Text style={s.overlayBtn}>Inapoi</Text>
+          <Text style={s.overlayBtn}>Înapoi</Text>
         </Pressable>
       </View>
     );

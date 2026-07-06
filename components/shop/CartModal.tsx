@@ -153,7 +153,7 @@ function SwipeableCartItem({
             activeOpacity={0.7}
           >
             <Feather name="trash-2" size={20} color="#fff" />
-            <Text style={styles.deleteText}>Sterge</Text>
+            <Text style={styles.deleteText}>Șterge</Text>
           </TouchableOpacity>
         </Animated.View>
 
@@ -362,7 +362,7 @@ export function CartModal({
                 <View style={styles.deliveryTextRow}>
                   <Feather name="truck" size={13} color={Brand.primary} />
                   <Text style={[styles.deliveryText, { color: Colors.textSecondary }]}>
-                    Mai adauga{' '}
+                    Mai adaugă{' '}
                     <Text style={{ color: Brand.primary, fontWeight: '700' }}>
                       {formatPrice(deliveryRemaining)}
                     </Text>
@@ -396,7 +396,7 @@ export function CartModal({
                   Cosul tau este gol
                 </Text>
                 <Text style={[styles.emptyMsg, { color: Colors.textTertiary }]}>
-                  Adauga produse din catalog
+                  Adaugă produse din catalog
                 </Text>
                 <TouchableOpacity activeOpacity={0.8} onPress={closeModal}>
                   <LinearGradient
@@ -406,7 +406,7 @@ export function CartModal({
                     style={styles.emptyBtn}
                   >
                     <Feather name="arrow-left" size={16} color="#fff" />
-                    <Text style={styles.emptyBtnText}>Continua cumparaturile</Text>
+                    <Text style={styles.emptyBtnText}>Continuă cumpărăturile</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -455,7 +455,7 @@ export function CartModal({
                   </TouchableOpacity>
 
                   <Text style={[styles.disclaimer, { color: Colors.textTertiary }]}>
-                    Comanda va fi procesata de barber-store.ro
+                    Comanda va fi procesată de barber-store.ro
                   </Text>
                 </View>
               </>

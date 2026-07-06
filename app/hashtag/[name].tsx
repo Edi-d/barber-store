@@ -87,7 +87,7 @@ export default function HashtagScreen() {
       isLiked: boolean;
     }) => {
       const rateCheck = checkRateLimit('like');
-      if (!rateCheck.allowed) throw new Error('Prea multe actiuni. Incearca din nou.');
+      if (!rateCheck.allowed) throw new Error('Prea multe acțiuni. Încearcă din nou.');
       if (!session) throw new Error('Not authenticated');
 
       if (isLiked) {

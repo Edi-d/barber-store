@@ -251,7 +251,7 @@ function MarketplaceProductCardBase({ product, onPress, width }: Props) {
             disabled={outOfStock}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             accessibilityRole="button"
-            accessibilityLabel="Adauga in cos"
+            accessibilityLabel="Adaugă în coș"
           >
             <LinearGradient
               colors={[Brand.gradientStart, Brand.gradientEnd]}
@@ -260,7 +260,7 @@ function MarketplaceProductCardBase({ product, onPress, width }: Props) {
               style={styles.cta}
             >
               <Feather name="shopping-bag" size={13} color={Brand.white} />
-              <Text style={styles.ctaText}>Adauga in cos</Text>
+              <Text style={styles.ctaText}>Adaugă în coș</Text>
             </LinearGradient>
           </Pressable>
         </Animated.View>

@@ -98,7 +98,7 @@ export default function ProductDetails({
 
       {/* Price label */}
       <Text style={[styles.priceLabel, { color: Colors.textTertiary }]}>
-        PRET
+        PREȚ
       </Text>
 
       {/* Price row */}

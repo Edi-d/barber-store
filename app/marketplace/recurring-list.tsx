@@ -261,7 +261,7 @@ export default function RecurringListScreen() {
             <View style={styles.centerFill}>
               <Feather name="alert-triangle" size={32} color={colors.error} />
               <Text style={[styles.emptyTitle, { color: colors.text }]}>
-                Nu am putut incarca lista
+                Nu am putut încărca lista
               </Text>
             </View>
           ) : (
@@ -275,8 +275,8 @@ export default function RecurringListScreen() {
                 Lista ta este goala
               </Text>
               <Text style={[styles.emptyDesc, { color: colors.textTertiary }]}>
-                Adauga produse din magazin folosind butonul "Adauga in lista" de pe
-                pagina produsului. Apoi poti reumple cosul cu o singura apasare.
+                Adaugă produse din magazin folosind butonul "Adaugă în listă" de pe
+                pagina produsului. Apoi poți reîmplu cosul cu o singură apăsare.
               </Text>
               <TouchableOpacity
                 onPress={() => router.push('/(tabs)/shop' as any)}
@@ -328,7 +328,7 @@ export default function RecurringListScreen() {
                 style={{ marginRight: 8 }}
               />
               <Text style={styles.primaryText}>
-                Adauga tot in cos ({availableItems.length})
+                Adaugă tot în coș ({availableItems.length})
               </Text>
             </LinearGradient>
           </TouchableOpacity>

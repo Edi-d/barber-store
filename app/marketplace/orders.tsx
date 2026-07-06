@@ -137,14 +137,14 @@ export default function SalonOrdersScreen() {
       const items = await buildReorderItems(order.id);
       setReorderingId(null);
       if (items.length === 0) {
-        Alert.alert('Niciun produs', 'Nu am putut reconstrui aceasta comanda.');
+        Alert.alert('Niciun produs', 'Nu am putut reconstrui această comandă.');
         return;
       }
       const unavailable = items.filter((i) => !i.available);
       if (unavailable.length === items.length) {
         Alert.alert(
           'Produse indisponibile',
-          'Toate produsele din aceasta comanda nu mai sunt pe stoc.',
+          'Toate produsele din această comandă nu mai sunt pe stoc.',
         );
         return;
       }
@@ -169,11 +169,11 @@ export default function SalonOrdersScreen() {
 
       if (unavailable.length > 0) {
         Alert.alert(
-          'Cativa produse nu mai sunt disponibile',
-          `${unavailable.length} produs(e) nu mai sunt pe stoc si vor fi sarite. Continuam?`,
+          'Câțiva produse nu mai sunt disponibile',
+          `${unavailable.length} produs(e) nu mai sunt pe stoc și vor fi sărute. Continuăm?`,
           [
-            { text: 'Renunta', style: 'cancel' },
-            { text: 'Continua', onPress: proceed },
+            { text: 'Renunță', style: 'cancel' },
+            { text: 'Continuă', onPress: proceed },
           ],
         );
         return;
@@ -245,7 +245,7 @@ export default function SalonOrdersScreen() {
                   ) : (
                     <>
                       <Feather name="refresh-cw" size={14} color="#fff" />
-                      <Text style={styles.reorderText}>Comanda din nou</Text>
+                      <Text style={styles.reorderText}>Comandă din nou</Text>
                     </>
                   )}
                 </LinearGradient>
@@ -312,7 +312,7 @@ export default function SalonOrdersScreen() {
             <View style={styles.centerFill}>
               <Feather name="alert-triangle" size={32} color={colors.error} />
               <Text style={[styles.emptyTitle, { color: colors.text }]}>
-                Nu am putut incarca comenzile
+                Nu am putut încarca comenzile
               </Text>
             </View>
           ) : (
@@ -326,7 +326,7 @@ export default function SalonOrdersScreen() {
                 Inca nu ai comenzi
               </Text>
               <Text style={[styles.emptyDesc, { color: colors.textTertiary }]}>
-                Comenzile tale apar aici. Cu un singur tap, le poti repeta
+                Comenzile tale apar aici. Cu un singur tap, le poți repeta
                 instant.
               </Text>
               <TouchableOpacity

@@ -25,11 +25,11 @@ const AUTO_DISMISS_MS = 4000;
 
 const SUBTITLES: Record<string, string> = {
   appointment:         'Programare finalizata',
-  order:               'Comanda platita',
+  order:               'Comandă plătită',
   voucher:             'Voucher generat',
   reverse:             'Stornare',
   reverse_appointment: 'Stornare programare',
-  reverse_order:       'Stornare comanda',
+  reverse_order:       'Stornare comandă',
   bonus:               'Bonus primit',
   adjustment:          'Ajustare cont',
 };

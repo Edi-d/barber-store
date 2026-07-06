@@ -8,7 +8,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, BackHandler, Platform } from 'react-native';
 import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetScrollView,
@@ -88,6 +88,8 @@ export const FiltersSheet = forwardRef<FiltersSheetHandle, Props>(function Filte
   ref
 ) {
   const sheetRef = useRef<BottomSheet>(null);
+  // Tracks whether the sheet is currently open, for the Android back handler.
+  const isOpenRef = useRef(false);
   const setTabBarHidden = useUIStore((s) => s.setTabBarHidden);
   const [draft, setDraft] = useState<DiscoverFilters>(value);
   const [expanded, setExpanded] = useState<RowKey | null>('distance');
@@ -105,6 +107,7 @@ export const FiltersSheet = forwardRef<FiltersSheetHandle, Props>(function Filte
         setDraft(value);
         setExpanded('distance');
         setTabBarHidden(true);
+        isOpenRef.current = true;
         sheetRef.current?.expand();
       },
       close: () => sheetRef.current?.close(),
@@ -115,12 +118,30 @@ export const FiltersSheet = forwardRef<FiltersSheetHandle, Props>(function Filte
   const handleSheetChange = useCallback(
     (index: number) => {
       // index < 0 means sheet is closed
+      isOpenRef.current = index >= 0;
       if (index < 0) {
         setTabBarHidden(false);
       }
     },
     [setTabBarHidden]
   );
+
+  // Android: intercept the hardware back button / back-swipe while the sheet is
+  // open. The plain (non-modal) BottomSheet doesn't register a back handler, so
+  // without this the back press propagates to the navigator — popping the tab to
+  // "Acasă" while leaving the tab bar hidden (onChange never fires). Closing the
+  // sheet here triggers onChange(-1), which restores the tab bar.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (isOpenRef.current) {
+        sheetRef.current?.close();
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, []);
 
   // Safety: restore tab bar on unmount
   useEffect(() => {
@@ -291,7 +312,7 @@ export const FiltersSheet = forwardRef<FiltersSheetHandle, Props>(function Filte
         </AccordionRow>
 
         <AccordionRow
-          label="Amenities"
+          label="Facilități"
           value={formatAmenities(draft.amenities, AMENITY_OPTIONS)}
           isSet={draft.amenities.length > 0}
           expanded={expanded === 'amenities'}

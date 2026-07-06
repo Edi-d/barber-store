@@ -32,7 +32,7 @@ type Badge = {
 
 const BADGES: Badge[] = [
   { key: 'finantare', icon: 'credit-card', title: 'FINANTARE SI PLATA' },
-  { key: 'reduceri',  icon: 'percent',     title: 'REDUCERI SAPTAMANALE' },
+  { key: 'reduceri',  icon: 'percent',     title: 'REDUCERI SĂPTĂMÂNALE' },
   { key: 'livrare',   icon: 'truck',       title: 'LIVRARE IN 24 DE ORE' },
   { key: 'gama',      icon: 'package',     title: 'CEA MAI VASTA GAMA DE PRODUSE' },
 ];

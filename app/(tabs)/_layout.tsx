@@ -73,8 +73,8 @@ const TAB_CFG: Record<
     label: string;
   }
 > = {
-  feed: { icon: "home-outline", iconFocused: "home", label: "Acasa" },
-  discover: { icon: "calendar-outline", iconFocused: "calendar", label: "Programari" },
+  feed: { icon: "home-outline", iconFocused: "home", label: "Acasă" },
+  discover: { icon: "calendar-outline", iconFocused: "calendar", label: "Programări" },
   shop: { icon: "trophy-outline", iconFocused: "trophy", label: "Punctele mele" },
   profile: { icon: "person-outline", iconFocused: "person", label: "Profil" },
 };

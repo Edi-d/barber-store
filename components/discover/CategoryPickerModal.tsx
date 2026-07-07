@@ -25,11 +25,18 @@ import {
   Shadows,
 } from '@/constants/theme';
 
-// Only categories with dedicated photography get an Image tile; the rest
-// fall back to an icon tile (see CATEGORY_ICONS) until assets exist.
+// Every salon category has dedicated photography in assets/categories/*.png.
+// Any category without an image here falls back to an icon tile (CATEGORY_ICONS).
 const CATEGORY_IMAGES: Partial<Record<SalonType, any>> = {
-  barbershop: require('@/assets/category-barber.jpg'),
-  coafor: require('@/assets/category-coafor.jpg'),
+  barbershop: require('@/assets/categories/barber.png'),
+  coafor: require('@/assets/categories/coafor.png'),
+  manichiura: require('@/assets/categories/manichiura.png'),
+  masaj: require('@/assets/categories/masaj.png'),
+  beauty: require('@/assets/categories/beauty.png'),
+  epilare: require('@/assets/categories/epilare.png'),
+  gene: require('@/assets/categories/gene.png'),
+  tatuaj: require('@/assets/categories/tatuaj.png'),
+  altele: require('@/assets/categories/altele.png'),
 };
 
 const CATEGORY_ICONS: Partial<Record<SalonType, keyof typeof Ionicons.glyphMap>> = {
@@ -85,6 +92,38 @@ const CATEGORIES: {
     cardBg: ['#F3E8FD', '#FAF5FF'],
     accentColor: '#8B5CF6',
     glowColor: '#8B5CF6',
+  },
+  {
+    type: 'epilare',
+    title: 'Epilare',
+    subtitle: 'Epilare cu laser, ceară & definitivă',
+    cardBg: ['#FEE9EC', '#FFF6F7'],
+    accentColor: '#F43F5E',
+    glowColor: '#F43F5E',
+  },
+  {
+    type: 'gene',
+    title: 'Gene',
+    subtitle: 'Extensii gene, laminare & sprâncene',
+    cardBg: ['#EAECFD', '#F6F7FF'],
+    accentColor: '#6366F1',
+    glowColor: '#6366F1',
+  },
+  {
+    type: 'tatuaj',
+    title: 'Tatuaj',
+    subtitle: 'Tatuaje, piercing & body art',
+    cardBg: ['#EDF0F4', '#F8FAFC'],
+    accentColor: '#334155',
+    glowColor: '#334155',
+  },
+  {
+    type: 'altele',
+    title: 'Altele',
+    subtitle: 'Alte servicii de îngrijire & frumusețe',
+    cardBg: ['#E2F6FB', '#F2FCFE'],
+    accentColor: '#06B6D4',
+    glowColor: '#06B6D4',
   },
 ];
 

@@ -21,6 +21,10 @@ export const SALON_TYPE_LABELS: Record<SalonType, string> = {
   manichiura: 'Manichiură',
   masaj: 'Masaj',
   beauty: 'Beauty',
+  epilare: 'Epilare',
+  gene: 'Gene',
+  tatuaj: 'Tatuaj',
+  altele: 'Altele',
 };
 
 export const SALON_TYPE_OPTIONS: { value: SalonType | null; label: string }[] = [
@@ -30,6 +34,10 @@ export const SALON_TYPE_OPTIONS: { value: SalonType | null; label: string }[] = 
   { value: 'manichiura', label: SALON_TYPE_LABELS.manichiura },
   { value: 'masaj', label: SALON_TYPE_LABELS.masaj },
   { value: 'beauty', label: SALON_TYPE_LABELS.beauty },
+  { value: 'epilare', label: SALON_TYPE_LABELS.epilare },
+  { value: 'gene', label: SALON_TYPE_LABELS.gene },
+  { value: 'tatuaj', label: SALON_TYPE_LABELS.tatuaj },
+  { value: 'altele', label: SALON_TYPE_LABELS.altele },
 ];
 
 export const DISTANCE_OPTIONS: OptionItem<DistanceOption>[] = [

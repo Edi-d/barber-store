@@ -545,7 +545,16 @@ export type OrderWithItems = Order & {
 
 // ── Salon & Appointments types ──
 
-export type SalonType = 'barbershop' | 'coafor' | 'manichiura' | 'masaj' | 'beauty';
+export type SalonType =
+  | 'barbershop'
+  | 'coafor'
+  | 'manichiura'
+  | 'masaj'
+  | 'beauty'
+  | 'epilare'
+  | 'gene'
+  | 'tatuaj'
+  | 'altele';
 
 export interface Salon {
   id: string;

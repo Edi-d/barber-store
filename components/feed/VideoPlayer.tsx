@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { View, Image, Pressable, StyleSheet, Text } from 'react-native';
+import { View, Pressable, StyleSheet, Text } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEvent } from 'expo';
 import Animated, {
@@ -155,7 +156,7 @@ export function VideoPlayer({
           <Image
             source={{ uri: thumbUrl }}
             style={styles.thumb}
-            resizeMode="cover"
+            contentFit="cover"
           />
         </Animated.View>
       )}

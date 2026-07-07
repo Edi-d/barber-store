@@ -28,12 +28,12 @@
 import { memo, useCallback, useMemo } from 'react';
 import {
   Dimensions,
-  Image,
   Platform,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -173,7 +173,8 @@ function MarketplaceProductCardBase({ product, onPress, width }: Props) {
           <Image
             source={{ uri: imageUrl }}
             style={styles.image}
-            resizeMode="contain"
+            contentFit="contain"
+            transition={150}
           />
         ) : (
           <View style={[styles.image, styles.imagePlaceholder]}>

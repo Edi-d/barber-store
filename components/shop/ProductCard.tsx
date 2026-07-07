@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, View, Text, Image, Dimensions, Pressable } from 'react-native';
+import { StyleSheet, View, Text, Dimensions, Pressable } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -232,7 +233,8 @@ function ProductCardInner({
               <Image
                 source={{ uri: product.images[0] }}
                 style={[styles.image, imageLoading && styles.imageHidden]}
-                resizeMode="contain"
+                contentFit="contain"
+                transition={150}
                 onLoad={() => setImageLoading(false)}
               />
             </>

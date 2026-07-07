@@ -1,4 +1,5 @@
-import { View, Image, Text, Pressable, ImageSourcePropType, StyleSheet } from "react-native";
+import { View, Text, Pressable, ImageSourcePropType, StyleSheet } from "react-native";
+import { Image } from "@/components/ui/Image";
 import { cn, getInitials } from "@/lib/utils";
 import { AvatarSize } from "@/constants/theme";
 

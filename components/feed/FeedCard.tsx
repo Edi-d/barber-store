@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Image, Dimensions, Share } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Dimensions, Share } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import PostActionSheet from '@/components/feed/PostActionSheet';
 import { BlurView } from 'expo-blur';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -361,7 +362,8 @@ export function FeedCard({ item, onLikeToggle, onLikeAdd, onComment, onShare, is
                     <Image
                       source={{ uri: imageUri }}
                       style={styles.postImage}
-                      resizeMode="cover"
+                      contentFit="cover"
+                      transition={150}
                       onError={() => setMediaError(true)}
                     />
                   );

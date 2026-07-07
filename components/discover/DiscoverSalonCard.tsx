@@ -1,4 +1,5 @@
-import { View, Text, Image, Pressable, StyleSheet, Platform, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Platform, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { Image } from '@/components/ui/Image';
 // FlatList from gesture-handler so the horizontal carousel coordinates with the
 // @gorhom/bottom-sheet pan gesture (a plain RN FlatList gets its horizontal pan
 // swallowed by the sheet and won't scroll).
@@ -86,7 +87,7 @@ const DiscoverSalonCardInner = forwardRef<View, DiscoverSalonCardProps>(
               keyExtractor={(_, i) => String(i)}
               getItemLayout={(_, index) => ({ length: cardWidth, offset: cardWidth * index, index })}
               renderItem={({ item }) => (
-                <Image source={{ uri: item }} style={{ width: cardWidth, height: PHOTO_HEIGHT }} resizeMode="cover" />
+                <Image source={{ uri: item }} style={{ width: cardWidth, height: PHOTO_HEIGHT }} contentFit="cover" transition={150} />
               )}
             />
           ) : (

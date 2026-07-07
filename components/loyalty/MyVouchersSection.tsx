@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator, Alert, Modal } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import QRCode from 'react-native-qrcode-svg';
 import { fetchMyVouchers, type LoyaltyVoucher, type VoucherStatus } from '@/lib/loyalty';
+import { useMyVouchersRealtime, MY_VOUCHERS_QK } from '@/hooks/useMyVouchersRealtime';
 import { formatPrice } from '@/lib/utils';
 import { SeeAllButton } from '@/components/loyalty/SeeAllButton';
 import { Bubble, Shadows, FontFamily, Colors, Spacing, Radius } from '@/constants/theme';
@@ -78,6 +79,18 @@ function VoucherCard({ voucher }: { voucher: LoyaltyVoucher }) {
   const status = effectiveStatus(voucher);
   const meta = STATUS_META[status];
   const isActive = status === 'active';
+
+  // If the customer is showing the QR when the barber redeems it, realtime
+  // flips this voucher to 'used' mid-display. Close the (now stale) QR modal
+  // and confirm, so the state change is obvious from inside the modal too.
+  useEffect(() => {
+    if (!isActive && qrOpen) {
+      setQrOpen(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      const label = status === 'used' ? 'Voucher folosit' : STATUS_META[status].label;
+      Alert.alert(label, 'Voucherul a fost validat la salon.');
+    }
+  }, [isActive, qrOpen, status]);
 
   const valueText =
     voucher.value_cents != null ? formatPrice(voucher.value_cents) : `${voucher.points_spent} puncte`;
@@ -177,8 +190,11 @@ function VoucherCard({ voucher }: { voucher: LoyaltyVoucher }) {
 }
 
 export function MyVouchersSection({ userId, previewCount }: Props) {
+  // Refresh the list the moment a barber redeems a voucher (scan / manual code).
+  useMyVouchersRealtime(userId);
+
   const { data: vouchers = [], isLoading } = useQuery({
-    queryKey: ['my-vouchers', userId],
+    queryKey: userId ? MY_VOUCHERS_QK(userId) : ['my-vouchers', 'anonymous'],
     queryFn: () => (userId ? fetchMyVouchers(userId) : Promise.resolve([])),
     enabled: !!userId,
   });

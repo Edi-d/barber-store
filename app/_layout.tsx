@@ -1,3 +1,8 @@
+// MUST be first: installs Euclid Circular A as the app-wide default font on
+// <Text>/<TextInput> during the import phase, before react-native-reanimated
+// evaluates (so its Animated.Text inherits the font too). See the module for
+// why ordering matters.
+import "@/lib/setupDefaultFont";
 import "../global.css";
 import { useEffect, useCallback, useState } from "react";
 import { setAudioModeAsync } from 'expo-audio';

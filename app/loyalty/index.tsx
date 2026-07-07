@@ -9,6 +9,7 @@ import * as Haptics from 'expo-haptics';
 
 import { useAuthStore } from '@/stores/authStore';
 import { useLoyaltyProfile } from '@/hooks/useLoyaltyProfile';
+import { XP_TX_PREVIEW_QK } from '@/hooks/useXpRealtime';
 import { fetchRecentXpTransactions } from '@/lib/loyalty';
 import { TierBadge } from '@/components/loyalty/TierBadge';
 import { TierProgressBar } from '@/components/loyalty/TierProgressBar';
@@ -35,7 +36,7 @@ export default function LoyaltyScreen() {
   const HISTORY_PREVIEW = 3;
 
   const { data: transactions = [] } = useQuery({
-    queryKey: ['loyalty-transactions', session?.user.id],
+    queryKey: session?.user.id ? XP_TX_PREVIEW_QK(session.user.id) : ['loyalty-transactions', 'anonymous'],
     queryFn: () =>
       session?.user.id
         ? fetchRecentXpTransactions(session.user.id, 20)

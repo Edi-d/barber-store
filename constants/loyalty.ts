@@ -20,41 +20,41 @@ export interface LevelConfig {
 const DARK_FG = '#1E293B';
 const LIGHT_FG = '#FFFFFF';
 
-// Re-skinned to match the barber loyalty tiers (Clipper/Blade/Sharp/Maestru).
-// Levels + xp_required mirror xp_level_thresholds (migration 161); icons are now
-// the gradient badge art (see components/loyalty/TierArt.tsx), iconName is kept
-// only as a harmless fallback and is no longer rendered.
+// Barber loyalty tiers (Rookie / Pro / Elite / Icon). Levels + xp_required
+// mirror xp_level_thresholds (migration 161); badge art is the PNG icon set in
+// assets/tiers/* (see components/loyalty/TierArt.tsx). iconName is kept only as
+// a harmless fallback and is no longer rendered.
 export const LEVEL_CONFIG: Record<number, LevelConfig> = {
   1: {
     level: 1,
-    title: 'Clipper',
+    title: 'Rookie',
     xpRequired: 0,
-    color: '#8E8E93',      // gray — entry tier
+    color: '#14B8A6',      // turquoise — entry tier
     textColor: LIGHT_FG,
     iconName: 'cut',
     perks: ['Acumulezi XP la fiecare achizitie'],
   },
   2: {
     level: 2,
-    title: 'Blade',
+    title: 'Pro',
     xpRequired: 1000,
-    color: '#0A84FF',      // brand blue
+    color: '#0A84FF',      // blue
     textColor: LIGHT_FG,
     iconName: 'flash',
     perks: ['Acces la produse exclusive'],
   },
   3: {
     level: 3,
-    title: 'Sharp',
+    title: 'Elite',
     xpRequired: 3000,
-    color: '#F5A623',      // gold accent
-    textColor: DARK_FG,
+    color: '#8B5CF6',      // violet
+    textColor: LIGHT_FG,
     iconName: 'star',
     perks: ['Produse deblocate', 'Acces anticipat la produse noi'],
   },
   4: {
     level: 4,
-    title: 'Maestru',
+    title: 'Icon',
     xpRequired: 7000,
     color: '#FFD700',      // legendary gold
     textColor: DARK_FG,

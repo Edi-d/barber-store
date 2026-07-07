@@ -7,14 +7,18 @@ import { useQuery } from '@tanstack/react-query';
 
 import { useAuthStore } from '@/stores/authStore';
 import { fetchRecentXpTransactions } from '@/lib/loyalty';
+import { useXpRealtime, XP_TX_ALL_QK } from '@/hooks/useXpRealtime';
 import { PointsTransactionList } from '@/components/loyalty/PointsTransactionList';
 import { Colors, Bubble, Shadows, Typography, Spacing } from '@/constants/theme';
 
 export default function TransactionHistoryScreen() {
   const session = useAuthStore((s) => s.session);
 
+  // Live points: refresh the history the moment a new XP transaction lands.
+  useXpRealtime(session?.user.id);
+
   const { data: transactions = [], isLoading } = useQuery({
-    queryKey: ['loyalty-transactions-all', session?.user.id],
+    queryKey: session?.user.id ? XP_TX_ALL_QK(session.user.id) : ['loyalty-transactions-all', 'anonymous'],
     queryFn: () =>
       session?.user.id
         ? fetchRecentXpTransactions(session.user.id, 100)

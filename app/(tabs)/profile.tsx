@@ -132,7 +132,7 @@ export default function ProfileScreen() {
           <Animated.View entering={FadeInDown.duration(350)}>
             <View style={s.header}>
               <Image
-                source={require("@/assets/logo-text.png")}
+                source={require("@/assets/logo-text.webp")}
                 style={s.headerLogo}
                 resizeMode="contain"
               />

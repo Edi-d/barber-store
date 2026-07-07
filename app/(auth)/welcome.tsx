@@ -15,7 +15,7 @@ export default function WelcomeScreen() {
           {/* Logo & Branding */}
           <View style={styles.brandSection}>
             <Image
-              source={require("@/assets/logo-icon.png")}
+              source={require("@/assets/logo-icon.webp")}
               style={styles.logo}
               resizeMode="contain"
             />

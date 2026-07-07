@@ -4,7 +4,7 @@
 // why ordering matters.
 import "@/lib/setupDefaultFont";
 import "../global.css";
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState, useRef } from "react";
 import { setAudioModeAsync } from 'expo-audio';
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -20,6 +20,7 @@ import Animated, {
   withTiming,
   withDelay,
   Easing,
+  runOnJS,
 } from "react-native-reanimated";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
@@ -73,34 +74,64 @@ function StartupVideo({ onFinish }: { onFinish: () => void }) {
     }
   );
 
+  const videoOpacity = useSharedValue(1);
+  const finished = useRef(false);
+
+  // Hand off exactly once, whichever escape hatch fires first.
+  const finish = useCallback(() => {
+    if (finished.current) return;
+    finished.current = true;
+    onFinish();
+  }, [onFinish]);
+
+  // Happy path: the video ends on its last frame (loop === false), so hold that
+  // frame for a beat (freeze-frame) and then dissolve the video out. The View
+  // behind it is #F0F4F8 — the same colour the app and LoadingScreen render on —
+  // so once the fade completes and showIntro flips, the swap is seamless (no
+  // flash, no visible cut). Only the normal end runs the transition; error and
+  // timeout paths hand off immediately rather than fading a broken/frozen frame.
+  const playToEndTransition = useCallback(() => {
+    if (finished.current) return;
+    videoOpacity.value = withDelay(
+      350,
+      withTiming(0, { duration: 450, easing: Easing.inOut(Easing.quad) }, (done) => {
+        if (done) runOnJS(finish)();
+      })
+    );
+  }, [finish, videoOpacity]);
+
   useEffect(() => {
-    const playToEndSub = player.addListener("playToEnd", onFinish);
+    const playToEndSub = player.addListener("playToEnd", playToEndTransition);
 
     const statusSub = player.addListener("statusChange", ({ status }) => {
       if (status === "error") {
-        onFinish();
+        finish();
       }
     });
 
     // Safety net: if neither playToEnd nor an error status fires within 6 s,
     // dismiss the intro anyway so the user is never permanently locked out.
-    const timeout = setTimeout(onFinish, 6000);
+    const timeout = setTimeout(finish, 6000);
 
     return () => {
       playToEndSub.remove();
       statusSub.remove();
       clearTimeout(timeout);
     };
-  }, [player, onFinish]);
+  }, [player, playToEndTransition, finish]);
+
+  const videoStyle = useAnimatedStyle(() => ({ opacity: videoOpacity.value }));
 
   return (
     <View style={styles.loadingContainer}>
-      <VideoView
-        style={StyleSheet.absoluteFill}
-        player={player}
-        contentFit="cover"
-        nativeControls={false}
-      />
+      <Animated.View style={[StyleSheet.absoluteFill, videoStyle]}>
+        <VideoView
+          style={StyleSheet.absoluteFill}
+          player={player}
+          contentFit="cover"
+          nativeControls={false}
+        />
+      </Animated.View>
     </View>
   );
 }
@@ -187,7 +218,7 @@ function LoadingScreen() {
       {/* Logo + spinner with fade-in */}
       <Animated.View style={[styles.contentCenter, contentStyle]}>
         <Image
-          source={require("@/assets/logo-icon.png")}
+          source={require("@/assets/logo-icon.webp")}
           style={styles.loadingLogo}
           resizeMode="contain"
         />
@@ -232,7 +263,7 @@ function LoyaltyGlobalOverlays() {
 }
 
 function RootLayoutNav() {
-  const { isInitialized, initialize } = useAuthStore();
+  const isInitialized = useAuthStore((s) => s.isInitialized);
   const userId = useAuthStore((s) => s.session?.user.id ?? null);
   const router = useRouter();
 
@@ -240,10 +271,6 @@ function RootLayoutNav() {
   // matching in-app screen (e.g. /salon/<id>) instead of the web URL.
   usePushRegistration(userId);
   usePushDeepLinks();
-
-  useEffect(() => {
-    initialize();
-  }, []);
 
   useEffect(() => {
     const handleAuthUrl = async (url: string | null) => {
@@ -344,6 +371,20 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   const [showIntro, setShowIntro] = useState(true);
+
+  // Kick off auth initialization the moment the app mounts — in parallel with
+  // font loading and the intro video — instead of waiting for RootLayoutNav to
+  // mount after the video ends. By the time the intro finishes, isInitialized is
+  // almost always already true, so the LoadingScreen fallback stops appearing as
+  // a separate step between the video and the first screen. The ref guard keeps
+  // it to a single call (StrictMode double-mounts effects in dev), so we never
+  // register two onAuthStateChange listeners.
+  const didInit = useRef(false);
+  useEffect(() => {
+    if (didInit.current) return;
+    didInit.current = true;
+    void useAuthStore.getState().initialize();
+  }, []);
 
   // Wire TanStack Query's focusManager to AppState so refetchOnWindowFocus
   // actually fires when the user returns to the app on React Native.

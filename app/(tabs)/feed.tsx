@@ -768,7 +768,7 @@ export default function FeedScreen() {
           paddingVertical: 12,
         }}>
           <Image
-            source={require("@/assets/logo-text.png")}
+            source={require("@/assets/logo-text.webp")}
             style={{ width: 100, height: 32 }}
             resizeMode="contain"
           />
@@ -794,7 +794,7 @@ export default function FeedScreen() {
         }}
       >
         <Image
-          source={require("@/assets/logo-text.png")}
+          source={require("@/assets/logo-text.webp")}
           style={{ width: 100, height: 32 }}
           resizeMode="contain"
         />

@@ -16,10 +16,10 @@ const VOUCHER_ACCENTS: Record<number, string> = {
 };
 
 const VOUCHER_ICONS: Record<number, any> = {
-  1000: require('@/assets/vouchers/voucher-1k.png'),
-  3000: require('@/assets/vouchers/voucher-3k.png'),
-  6000: require('@/assets/vouchers/voucher-6k.png'),
-  10000: require('@/assets/vouchers/voucher-10k.png'),
+  1000: require('@/assets/vouchers/voucher-1k.webp'),
+  3000: require('@/assets/vouchers/voucher-3k.webp'),
+  6000: require('@/assets/vouchers/voucher-6k.webp'),
+  10000: require('@/assets/vouchers/voucher-10k.webp'),
 };
 
 function getAccent(tierPoints: number): string {

@@ -25,18 +25,18 @@ import {
   Shadows,
 } from '@/constants/theme';
 
-// Every salon category has dedicated photography in assets/categories/*.png.
+// Every salon category has dedicated photography in assets/categories/*.webp.
 // Any category without an image here falls back to an icon tile (CATEGORY_ICONS).
 const CATEGORY_IMAGES: Partial<Record<SalonType, any>> = {
-  barbershop: require('@/assets/categories/barber.png'),
-  coafor: require('@/assets/categories/coafor.png'),
-  manichiura: require('@/assets/categories/manichiura.png'),
-  masaj: require('@/assets/categories/masaj.png'),
-  beauty: require('@/assets/categories/beauty.png'),
-  epilare: require('@/assets/categories/epilare.png'),
-  gene: require('@/assets/categories/gene.png'),
-  tatuaj: require('@/assets/categories/tatuaj.png'),
-  altele: require('@/assets/categories/altele.png'),
+  barbershop: require('@/assets/categories/barber.webp'),
+  coafor: require('@/assets/categories/coafor.webp'),
+  manichiura: require('@/assets/categories/manichiura.webp'),
+  masaj: require('@/assets/categories/masaj.webp'),
+  beauty: require('@/assets/categories/beauty.webp'),
+  epilare: require('@/assets/categories/epilare.webp'),
+  gene: require('@/assets/categories/gene.webp'),
+  tatuaj: require('@/assets/categories/tatuaj.webp'),
+  altele: require('@/assets/categories/altele.webp'),
 };
 
 const CATEGORY_ICONS: Partial<Record<SalonType, keyof typeof Ionicons.glyphMap>> = {
@@ -170,7 +170,7 @@ export function CategoryPickerModal({ visible, onClose, onSelect }: Props) {
           {/* Logo */}
           <View style={styles.logoRow}>
             <Image
-              source={require('@/assets/logo-text.png')}
+              source={require('@/assets/logo-text.webp')}
               style={styles.logo}
               resizeMode="contain"
               accessibilityLabel="tapzi"

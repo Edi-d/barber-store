@@ -1114,7 +1114,7 @@ export default function DiscoverScreen() {
                   onPress={() => router.push({ pathname: "/tryon" as any, params: { salonType: discoverFilters.salonType || "barbershop" } })}
                 >
                   <Text style={{ fontFamily: "EuclidCircularA-Bold", fontSize: 14, lineHeight: 18, color: "#555" }}>Frizură</Text>
-                  <Image source={require('@/assets/ai-icon.png')} style={{ width: 24, height: 24, marginTop: -3 }} resizeMode="contain" />
+                  <Image source={require('@/assets/ai-icon.webp')} style={{ width: 24, height: 24, marginTop: -3 }} resizeMode="contain" />
                 </Pressable>
                 <Pressable
                   style={{

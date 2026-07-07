@@ -115,7 +115,7 @@ export default function ConfirmEmailScreen() {
             {/* Logo */}
             <View style={styles.logoContainer}>
               <Image
-                source={require("@/assets/logo-icon.png")}
+                source={require("@/assets/logo-icon.webp")}
                 style={styles.logo}
                 resizeMode="contain"
               />

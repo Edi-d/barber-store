@@ -245,7 +245,7 @@ export function FeedCard({ item, onLikeToggle, onLikeAdd, onComment, onShare, is
   const isVerified = item.author?.role === 'creator' || item.author?.role === 'admin';
 
   return (
-    <View style={[styles.cardShadow, Shadows.sm]}>
+    <View style={[styles.cardShadow, Shadows.md]}>
       <BlurView intensity={50} tint="light" style={styles.card}>
         {/* ─── Author row ─── */}
         <View style={styles.authorRow}>
@@ -507,15 +507,15 @@ function LikeParticle({
 const styles = StyleSheet.create({
   cardShadow: {
     marginHorizontal: Spacing.lg,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.base,
     ...Bubble.radii,
   },
   card: {
     ...Bubble.radii,
     ...Bubble.accent,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.6)',
-    backgroundColor: 'rgba(255,255,255,0.5)',
+    borderColor: 'rgba(255,255,255,0.7)',
+    backgroundColor: 'rgba(255,255,255,0.85)',
     overflow: 'hidden',
   },
   /* ─── Author ─── */

@@ -115,7 +115,7 @@ export default function CoursesScreen() {
                 <Ionicons name="chevron-back" size={22} color="#191919" />
               </Pressable>
               <Image
-                source={require("@/assets/logo-text.png")}
+                source={require("@/assets/logo-text.webp")}
                 style={{ width: 100, height: 32 }}
                 resizeMode="contain"
               />

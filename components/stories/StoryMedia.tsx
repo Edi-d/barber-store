@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import {
-  Image,
   StyleSheet,
   ActivityIndicator,
   View,
   Text,
 } from "react-native";
+import { Image } from '@/components/ui/Image';
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEvent, useEventListener } from "expo";
 
@@ -182,7 +182,7 @@ export function StoryMedia({
       ) : (
         <Image
           source={{ uri }}
-          resizeMode="contain"
+          contentFit="contain"
           style={StyleSheet.absoluteFill}
           onLoad={handleImageLoad}
           onError={handleImageError}

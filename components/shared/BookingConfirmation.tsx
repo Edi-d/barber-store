@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import Animated, {
   FadeInDown,
   FadeInRight,
@@ -67,7 +68,7 @@ function BarberRow({ barber, role }: { barber: Barber; role?: string }) {
     <Animated.View entering={FadeInRight.delay(100).duration(250)} style={styles.row}>
       <View style={styles.avatarWrap}>
         {barber.avatar_url ? (
-          <Image source={{ uri: barber.avatar_url }} style={styles.avatar} resizeMode="cover" />
+          <Image source={{ uri: barber.avatar_url }} style={styles.avatar} contentFit="cover" />
         ) : (
           <View style={[styles.avatar, styles.avatarFallback]}>
             <Ionicons name="person" size={22} color={Colors.primary} />

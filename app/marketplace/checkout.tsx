@@ -22,7 +22,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   KeyboardAvoidingView,
   Linking,
   Platform,
@@ -33,6 +32,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -775,7 +775,7 @@ export default function MarketplaceCheckoutScreen() {
                         <Image
                           source={{ uri: m.picture_url }}
                           style={{ width: 36, height: 36, borderRadius: 8 }}
-                          resizeMode="contain"
+                          contentFit="contain"
                         />
                       ) : (
                         <Feather name="truck" size={18} color={active ? Brand.primary : colors.textSecondary} />

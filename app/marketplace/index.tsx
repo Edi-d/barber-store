@@ -22,7 +22,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
-  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -34,6 +33,7 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -527,7 +527,7 @@ export default function MarketplaceHomeScreen() {
                   <Image
                     source={slide.image}
                     style={styles.heroImage}
-                    resizeMode="cover"
+                    contentFit="cover"
                   />
                 </Pressable>
               </View>
@@ -825,7 +825,7 @@ function CategoryTile({
           <Image
             source={{ uri: category.image_url }}
             style={styles.categoryTileImage}
-            resizeMode="cover"
+            contentFit="cover"
           />
         ) : (
           <View style={[styles.categoryTileImage, styles.categoryIconFallback, { backgroundColor: tint }]}>
@@ -870,7 +870,7 @@ function BrandChip({
           <Image
             source={{ uri: brand.logo_url }}
             style={styles.brandLogo}
-            resizeMode="contain"
+            contentFit="contain"
           />
         ) : (
           <Text style={[styles.brandName, { color: colors.text }]} numberOfLines={2}>
@@ -899,7 +899,7 @@ function PromoCard({
 }) {
   const inner = (
     <View style={[styles.promoCardClip, Bubble.radii, { overflow: 'hidden' }]}>
-      <Image source={image} resizeMode="cover" style={styles.promoCardImage} />
+      <Image source={image} contentFit="cover" style={styles.promoCardImage} />
     </View>
   );
   if (onPress) {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, Pressable, Image, View, Platform } from 'react-native';
+import { StyleSheet, Text, Pressable, View, Platform } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Animated, {

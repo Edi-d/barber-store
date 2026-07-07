@@ -8,9 +8,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Image,
   StyleSheet,
 } from "react-native";
+import { Image } from '@/components/ui/Image';
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { useAuthStore } from "@/stores/authStore";
@@ -113,7 +113,7 @@ export default function VerifyOtpScreen() {
               <Image
                 source={require("@/assets/logo-icon.webp")}
                 style={styles.logo}
-                resizeMode="contain"
+                contentFit="contain"
               />
             </View>
 

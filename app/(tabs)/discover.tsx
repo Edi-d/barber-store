@@ -6,7 +6,6 @@ import {
   Pressable,
   TextInput,
   ActivityIndicator,
-  Image,
   Keyboard,
   Modal,
   Platform,
@@ -14,6 +13,7 @@ import {
   Linking,
   useWindowDimensions,
 } from "react-native";
+import { Image } from '@/components/ui/Image';
 import { useTutorialContext } from "@/components/tutorial/TutorialProvider";
 import { useTutorialStore } from "@/stores/tutorialStore";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -920,7 +920,7 @@ export default function DiscoverScreen() {
                   >
                     <View className="w-9 h-9 rounded-lg overflow-hidden bg-primary-50 mr-3">
                       {salon.avatar_url ? (
-                        <Image source={{ uri: salon.avatar_url }} className="w-full h-full" resizeMode="cover" />
+                        <Image source={{ uri: salon.avatar_url }} className="w-full h-full" contentFit="cover" />
                       ) : (
                         <View className="w-full h-full items-center justify-center">
                           <Ionicons name="cut" size={16} color="#0a85f4" />
@@ -1004,7 +1004,7 @@ export default function DiscoverScreen() {
                   <View className="flex-row items-center p-4">
                     <View className="w-14 h-14 overflow-hidden bg-dark-200 mr-3" style={bubbleRadiiSm}>
                       {selectedSalon.avatar_url ? (
-                        <Image source={{ uri: selectedSalon.avatar_url }} className="w-full h-full" resizeMode="cover" />
+                        <Image source={{ uri: selectedSalon.avatar_url }} className="w-full h-full" contentFit="cover" />
                       ) : (
                         <View className="w-full h-full items-center justify-center bg-primary-50">
                           <Ionicons name="cut" size={22} color="#0a85f4" />
@@ -1114,7 +1114,7 @@ export default function DiscoverScreen() {
                   onPress={() => router.push({ pathname: "/tryon" as any, params: { salonType: discoverFilters.salonType || "barbershop" } })}
                 >
                   <Text style={{ fontFamily: "EuclidCircularA-Bold", fontSize: 14, lineHeight: 18, color: "#555" }}>Frizură</Text>
-                  <Image source={require('@/assets/ai-icon.webp')} style={{ width: 24, height: 24, marginTop: -3 }} resizeMode="contain" />
+                  <Image source={require('@/assets/ai-icon.webp')} style={{ width: 24, height: 24, marginTop: -3 }} contentFit="contain" />
                 </Pressable>
                 <Pressable
                   style={{
@@ -1229,7 +1229,7 @@ export default function DiscoverScreen() {
                     >
                       <View className="h-[85px] bg-dark-200 relative">
                         {salon.cover_url || salon.avatar_url ? (
-                          <Image source={{ uri: salon.cover_url || salon.avatar_url! }} className="w-full h-full" resizeMode="cover" />
+                          <Image source={{ uri: salon.cover_url || salon.avatar_url! }} className="w-full h-full" contentFit="cover" />
                         ) : (
                           <View className="w-full h-full items-center justify-center bg-primary-50">
                             <Ionicons name="cut" size={22} color="#0a85f4" />
@@ -1304,7 +1304,7 @@ export default function DiscoverScreen() {
                     >
                       <View className="h-[75px] bg-dark-200 relative">
                         {salon.cover_url || salon.avatar_url ? (
-                          <Image source={{ uri: salon.cover_url || salon.avatar_url! }} className="w-full h-full" resizeMode="cover" />
+                          <Image source={{ uri: salon.cover_url || salon.avatar_url! }} className="w-full h-full" contentFit="cover" />
                         ) : (
                           <View className="w-full h-full items-center justify-center bg-primary-50">
                             <Ionicons name="cut" size={20} color="#0a85f4" />

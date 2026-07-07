@@ -7,9 +7,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Image,
   StyleSheet,
 } from "react-native";
+import { Image } from '@/components/ui/Image';
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
@@ -107,7 +107,7 @@ export default function ResetPasswordScreen() {
               <Image
                 source={require("@/assets/logo-icon.webp")}
                 style={styles.logo}
-                resizeMode="contain"
+                contentFit="contain"
               />
             </View>
 

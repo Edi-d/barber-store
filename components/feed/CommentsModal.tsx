@@ -8,11 +8,11 @@ import {
   Platform,
   Dimensions,
   FlatList,
-  Image,
   ActivityIndicator,
   Alert,
   Modal,
 } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import { router } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';

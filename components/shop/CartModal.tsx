@@ -5,9 +5,9 @@ import {
   Text,
   TouchableOpacity,
   FlatList,
-  Image,
   Dimensions,
 } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -166,7 +166,7 @@ function SwipeableCartItem({
                 <Image
                   source={{ uri: item.product.image_url }}
                   style={styles.itemImage}
-                  resizeMode="contain"
+                  contentFit="contain"
                 />
               ) : (
                 <View style={[styles.itemImage, styles.itemImagePlaceholder]}>

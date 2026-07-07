@@ -15,7 +15,8 @@
  *   - Min 44px touch targets on action buttons.
  */
 
-import { View, Text, Pressable, Image } from "react-native";
+import { View, Text, Pressable } from "react-native";
+import { Image } from '@/components/ui/Image';
 import Animated, {
   FadeInDown,
   ZoomIn,

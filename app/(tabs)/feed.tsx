@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useTutorialContext } from "@/components/tutorial/TutorialProvider";
-import { View, FlatList, RefreshControl, Text, Pressable, ScrollView, Image, Modal, useWindowDimensions, ViewToken } from "react-native";
+import { View, FlatList, RefreshControl, Text, Pressable, ScrollView, Modal, useWindowDimensions, ViewToken } from "react-native";
+import { Image } from '@/components/ui/Image';
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useInfiniteQuery, useMutation, useQueryClient, useQuery, InfiniteData } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -73,7 +74,7 @@ function ModalLiveCard({ live, onClose }: { live: LiveWithHost; onClose: () => v
         <Image
           source={{ uri: live.cover_url }}
           style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, width: "100%", height: "100%" }}
-          resizeMode="cover"
+          contentFit="cover"
         />
       ) : (
         <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "#E8F3FF", alignItems: "center", justifyContent: "center" }}>
@@ -770,7 +771,7 @@ export default function FeedScreen() {
           <Image
             source={require("@/assets/logo-text.webp")}
             style={{ width: 100, height: 32 }}
-            resizeMode="contain"
+            contentFit="contain"
           />
         </View>
         <ScrollView showsVerticalScrollIndicator={false}>
@@ -796,7 +797,7 @@ export default function FeedScreen() {
         <Image
           source={require("@/assets/logo-text.webp")}
           style={{ width: 100, height: 32 }}
-          resizeMode="contain"
+          contentFit="contain"
         />
           <View style={{ flexDirection: "row", gap: 8 }}>
             {/* Content search screen */}

@@ -1,5 +1,6 @@
 import { memo } from 'react';
-import { Dimensions, Image, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, StyleSheet, Text, View } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import { Feather } from '@expo/vector-icons';
 
 import { Brand, Bubble, Colors, Spacing, Typography } from '@/constants/theme';
@@ -36,7 +37,7 @@ function MiniProductCardInner({ product }: Props) {
           <Image
             source={{ uri: product.images[0] }}
             style={styles.img}
-            resizeMode="contain"
+            contentFit="contain"
           />
         ) : (
           <View style={styles.imgPlaceholder}>

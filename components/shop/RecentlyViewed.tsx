@@ -3,10 +3,10 @@ import {
   StyleSheet,
   View,
   Text,
-  Image,
   ScrollView,
   Pressable,
 } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -68,7 +68,7 @@ export function RecentlyViewed({ products, delay = 0, onPress }: Props) {
                 <Image
                   source={{ uri: product.images[0] }}
                   style={styles.image}
-                  resizeMode="contain"
+                  contentFit="contain"
                 />
               ) : (
                 <View style={[styles.image, styles.imagePlaceholder]}>

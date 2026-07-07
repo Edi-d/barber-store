@@ -16,13 +16,13 @@ import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -77,7 +77,7 @@ function BrandCard({
           <Image
             source={{ uri: brand.logo_url }}
             style={styles.logo}
-            resizeMode="contain"
+            contentFit="contain"
           />
         ) : (
           <View style={styles.initialCircle}>

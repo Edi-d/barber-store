@@ -4,7 +4,8 @@
  * (one shared fetch) and delegates opening upward via onOpen(index) rather than
  * owning the viewer itself. Renders nothing when there are no stories.
  */
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image } from '@/components/ui/Image';
 
 import { useShopStories } from '@/hooks/use-shop-stories';
 import { Brand, FontFamily, Spacing } from '@/constants/theme';
@@ -34,7 +35,7 @@ export function ShopStoriesRail({
           {/* Brand-primary ring around the circular thumbnail */}
           <View style={styles.ring}>
             <View style={styles.thumbClip}>
-              <Image source={{ uri: s.imageUrl }} style={styles.thumb} resizeMode="cover" />
+              <Image source={{ uri: s.imageUrl }} style={styles.thumb} contentFit="cover" />
             </View>
           </View>
           <Text style={styles.caption} numberOfLines={1}>

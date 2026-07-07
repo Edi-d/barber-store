@@ -5,7 +5,6 @@ import {
   Text,
   TouchableOpacity,
   Pressable,
-  Image,
   ActivityIndicator,
   Dimensions,
   Modal,
@@ -13,6 +12,7 @@ import {
   FlatList,
   RefreshControl,
 } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';

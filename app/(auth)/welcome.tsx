@@ -1,4 +1,5 @@
-import { View, Text, Image, Pressable, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet } from "react-native";
+import { Image } from '@/components/ui/Image';
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Link } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -17,7 +18,7 @@ export default function WelcomeScreen() {
             <Image
               source={require("@/assets/logo-icon.webp")}
               style={styles.logo}
-              resizeMode="contain"
+              contentFit="contain"
             />
             <Text style={[Typography.caption, styles.tagline]}>
               Învață arta frizuriei de la cei mai buni

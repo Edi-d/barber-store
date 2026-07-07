@@ -7,8 +7,8 @@ import {
   Alert,
   StyleSheet,
   ActivityIndicator,
-  Image,
 } from "react-native";
+import { Image } from '@/components/ui/Image';
 import { getInitials } from "@/lib/utils";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";

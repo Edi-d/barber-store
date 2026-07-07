@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, Image, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import Animated, {
   FadeInDown,
   useAnimatedStyle,
@@ -105,7 +106,7 @@ export default function ProductBundle({
                   <Image
                     source={{ uri: product.image }}
                     style={styles.thumbnailImage}
-                    resizeMode="contain"
+                    contentFit="contain"
                   />
                 ) : null}
               </View>

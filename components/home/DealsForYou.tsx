@@ -3,10 +3,10 @@ import {
   View,
   Text,
   ScrollView,
-  Image,
   Pressable,
   StyleSheet,
 } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -95,7 +95,7 @@ function DealCard({
           <Image
             source={{ uri: product.images[0] }}
             style={styles.image}
-            resizeMode="contain"
+            contentFit="contain"
           />
           <View style={styles.discountBadge}>
             <Text style={styles.discountText}>-{discountPct}%</Text>

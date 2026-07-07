@@ -11,13 +11,13 @@
 import { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -159,7 +159,7 @@ function CategoryGridTile({
           <Image
             source={{ uri: category.image_url }}
             style={styles.tileImage}
-            resizeMode="cover"
+            contentFit="cover"
           />
         ) : (
           <View style={[styles.tileImage, styles.tileIconFallback, { backgroundColor: tint }]}>

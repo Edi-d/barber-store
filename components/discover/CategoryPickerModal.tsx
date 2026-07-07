@@ -5,10 +5,10 @@ import {
   Pressable,
   Modal,
   StyleSheet,
-  Image,
   ScrollView,
   Platform,
 } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -172,7 +172,7 @@ export function CategoryPickerModal({ visible, onClose, onSelect }: Props) {
             <Image
               source={require('@/assets/logo-text.webp')}
               style={styles.logo}
-              resizeMode="contain"
+              contentFit="contain"
               accessibilityLabel="tapzi"
               accessibilityRole="image"
             />
@@ -246,7 +246,7 @@ export function CategoryPickerModal({ visible, onClose, onSelect }: Props) {
                         <Image
                           source={CATEGORY_IMAGES[cat.type]}
                           style={styles.categoryImage}
-                          resizeMode="cover"
+                          contentFit="cover"
                         />
                       </View>
                     ) : (

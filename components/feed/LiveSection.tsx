@@ -1,5 +1,6 @@
 import { useRef, useEffect } from "react";
-import { View, Text, ScrollView, Pressable, Image, Dimensions } from "react-native";
+import { View, Text, ScrollView, Pressable, Dimensions } from "react-native";
+import { Image } from '@/components/ui/Image';
 import { Ionicons } from "@expo/vector-icons";
 import { Avatar, Badge } from "@/components/ui";
 import { LiveWithHost } from "@/types/database";
@@ -208,7 +209,7 @@ function LiveCard({ live }: { live: LiveWithHost }) {
         <Image
           source={{ uri: live.cover_url }}
           className="absolute inset-0 w-full h-full"
-          resizeMode="cover"
+          contentFit="cover"
         />
       ) : (
         <View className="absolute inset-0 bg-primary-100 items-center justify-center">

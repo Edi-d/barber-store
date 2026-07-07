@@ -5,7 +5,6 @@ import {
   Text,
   ScrollView,
   Pressable,
-  Image,
   ActivityIndicator,
   Dimensions,
   Share,
@@ -14,6 +13,7 @@ import {
   FlatList,
   Modal,
 } from "react-native";
+import { Image } from '@/components/ui/Image';
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -335,7 +335,7 @@ export default function SalonDetailScreen() {
                   <Image
                     source={{ uri: item.photo_url }}
                     style={{ width: SCREEN_WIDTH, height: GALLERY_HEIGHT }}
-                    resizeMode="cover"
+                    contentFit="cover"
                   />
                 </Pressable>
               )}
@@ -802,7 +802,7 @@ export default function SalonDetailScreen() {
                         <Image
                           source={{ uri: avatar }}
                           className="w-full h-full"
-                          resizeMode="cover"
+                          contentFit="cover"
                         />
                       ) : (
                         <View className="w-full h-full items-center justify-center bg-[#E8F3FF]">
@@ -974,7 +974,7 @@ export default function SalonDetailScreen() {
                     <Image
                       source={{ uri: review.profile.avatar_url }}
                       className="w-full h-full"
-                      resizeMode="cover"
+                      contentFit="cover"
                     />
                   ) : (
                     <Text className="text-primary-600 font-bold text-xs">
@@ -1108,7 +1108,7 @@ export default function SalonDetailScreen() {
             <Image
               source={{ uri: lightboxPhoto }}
               style={{ width: SCREEN_WIDTH, height: SCREEN_WIDTH }}
-              resizeMode="contain"
+              contentFit="contain"
             />
           ) : null}
           <Pressable

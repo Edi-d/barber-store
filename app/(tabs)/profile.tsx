@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from "react";
-import { View, ScrollView, Pressable, RefreshControl, ActivityIndicator, StyleSheet, Image } from "react-native";
+import { View, ScrollView, Pressable, RefreshControl, ActivityIndicator, StyleSheet } from "react-native";
+import { Image } from '@/components/ui/Image';
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -134,7 +135,7 @@ export default function ProfileScreen() {
               <Image
                 source={require("@/assets/logo-text.webp")}
                 style={s.headerLogo}
-                resizeMode="contain"
+                contentFit="contain"
               />
               <View style={s.headerRight}>
                 {loyaltyProfile && loyaltyProfile.balance > 0 && (

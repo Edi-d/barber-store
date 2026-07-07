@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { View, Text, Image, Pressable, StyleSheet, Platform } from "react-native";
+import { View, Text, Pressable, StyleSheet, Platform } from "react-native";
+import { Image } from '@/components/ui/Image';
 import Animated, {
   FadeInDown,
   useSharedValue,
@@ -171,7 +172,7 @@ export function BarberCard({ barber, isSelected, onSelect, index, role }: Barber
                 <Image
                   source={{ uri: avatarUrl }}
                   style={styles.avatarImage}
-                  resizeMode="cover"
+                  contentFit="cover"
                 />
               ) : (
                 <View style={styles.avatarFallback}>

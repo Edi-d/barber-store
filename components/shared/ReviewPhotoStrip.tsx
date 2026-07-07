@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { View, Image, Pressable, ScrollView } from "react-native";
+import { View, Pressable, ScrollView } from "react-native";
+import { Image } from '@/components/ui/Image';
 import ImageView from "react-native-image-viewing";
 
 interface ReviewPhotoStripProps {
@@ -23,7 +24,7 @@ export function ReviewPhotoStrip({ photos }: ReviewPhotoStripProps) {
       <Image
         source={{ uri }}
         style={{ width: 96, height: 96, borderRadius: 12 }}
-        resizeMode="cover"
+        contentFit="cover"
       />
     </Pressable>
   );

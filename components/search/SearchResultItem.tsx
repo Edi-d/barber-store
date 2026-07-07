@@ -1,4 +1,5 @@
-import { View, Text, Image, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontFamily, Bubble, Spacing } from '@/constants/theme';
 import { SALON_TYPE_LABELS } from '@/constants/filters';
@@ -60,7 +61,7 @@ function SalonItem({ salon, onPress }: { salon: SearchSalon; onPress: () => void
     >
       {salon.avatar_url ? (
         <View style={styles.squareAvatar}>
-          <Image source={{ uri: salon.avatar_url }} style={styles.squareAvatarImg} resizeMode="cover" />
+          <Image source={{ uri: salon.avatar_url }} style={styles.squareAvatarImg} contentFit="cover" />
         </View>
       ) : (
         <LetterSquircleAvatar name={salon.name} />
@@ -105,7 +106,7 @@ function PersonItem({ profile, onPress }: { profile: SearchProfile; onPress: () 
     >
       <View style={[styles.circleAvatar, !profile.avatar_url && { alignItems: 'center', justifyContent: 'center' }]}>
         {profile.avatar_url ? (
-          <Image source={{ uri: profile.avatar_url }} style={styles.circleAvatarImg} resizeMode="cover" />
+          <Image source={{ uri: profile.avatar_url }} style={styles.circleAvatarImg} contentFit="cover" />
         ) : (() => {
           const palette = AVATAR_COLORS[hashString(displayName) % AVATAR_COLORS.length];
           return (
@@ -154,7 +155,7 @@ function PostItem({ post, onPress }: { post: SearchPost; onPress: () => void }) 
     >
       {thumbUri ? (
         <View style={styles.squareAvatar}>
-          <Image source={{ uri: thumbUri }} style={styles.squareAvatarImg} resizeMode="cover" />
+          <Image source={{ uri: thumbUri }} style={styles.squareAvatarImg} contentFit="cover" />
           {videoOverlay}
         </View>
       ) : (

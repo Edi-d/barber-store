@@ -1,4 +1,5 @@
-import { View, Text, Pressable, Image, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet } from "react-native";
+import { Image } from '@/components/ui/Image';
 import { Ionicons } from "@expo/vector-icons";
 import { SalonWithDistance } from "@/lib/discover";
 import { SkeletonPulse } from "@/components/ui/SkeletonPulse";
@@ -22,7 +23,7 @@ export function SalonCard({ salon, onPress, variant = "default" }: SalonCardProp
         {/* Cover */}
         <View className="h-24 rounded-xl bg-dark-200 overflow-hidden mb-2">
           {salon.avatar_url ? (
-            <Image source={{ uri: salon.avatar_url }} className="w-full h-full" resizeMode="cover" />
+            <Image source={{ uri: salon.avatar_url }} className="w-full h-full" contentFit="cover" />
           ) : (
             <View className="w-full h-full items-center justify-center bg-primary-100">
               <Ionicons name="cut" size={28} color="#0a85f4" />
@@ -79,7 +80,7 @@ export function SalonCard({ salon, onPress, variant = "default" }: SalonCardProp
         {/* Avatar */}
         <View className="w-16 h-16 rounded-2xl overflow-hidden bg-dark-200 mr-4">
           {salon.avatar_url ? (
-            <Image source={{ uri: salon.avatar_url }} className="w-full h-full" resizeMode="cover" />
+            <Image source={{ uri: salon.avatar_url }} className="w-full h-full" contentFit="cover" />
           ) : (
             <View className="w-full h-full items-center justify-center bg-primary-100">
               <Ionicons name="cut" size={26} color="#0a85f4" />

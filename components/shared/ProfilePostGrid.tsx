@@ -1,4 +1,5 @@
-import { View, Text, Pressable, Image, Dimensions, StyleSheet } from 'react-native';
+import { View, Text, Pressable, Dimensions, StyleSheet } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography } from '@/constants/theme';
@@ -63,7 +64,7 @@ export default function ProfilePostGrid({ posts, onPostPress }: ProfilePostGridP
                 <Image
                   source={{ uri: imageUri }}
                   style={styles.image}
-                  resizeMode="cover"
+                  contentFit="cover"
                 />
               ) : (
                 /* Graceful placeholder: light bg + camera icon */

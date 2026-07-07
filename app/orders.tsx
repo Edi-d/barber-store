@@ -5,13 +5,13 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Image,
   LayoutAnimation,
   Platform,
   UIManager,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import Animated, { FadeInDown, Easing } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -137,7 +137,7 @@ function OrderCard({
                   <Image
                     source={{ uri: item.product.image_url }}
                     style={styles.itemImage}
-                    resizeMode="contain"
+                    contentFit="contain"
                   />
                 ) : (
                   <View style={[styles.itemImage, styles.itemImagePlaceholder]}>

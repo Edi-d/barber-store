@@ -22,10 +22,10 @@ import {
   ActivityIndicator,
   StyleSheet,
   Platform,
-  Image,
   TouchableOpacity,
   Pressable,
 } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
@@ -172,7 +172,7 @@ function SwipeableItem({
               <Image
                 source={{ uri: item.image_url }}
                 style={styles.itemImage}
-                resizeMode="cover"
+                contentFit="cover"
               />
             ) : (
               <View style={[styles.itemImage, styles.itemImagePlaceholder]}>

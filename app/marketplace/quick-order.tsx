@@ -10,7 +10,6 @@ import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Platform,
   Pressable,
   StyleSheet,
@@ -19,6 +18,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -144,7 +144,7 @@ export default function QuickOrderScreen() {
               <Image
                 source={{ uri: image }}
                 style={styles.rowImage as any}
-                resizeMode="contain"
+                contentFit="contain"
               />
             ) : (
               <View style={[styles.rowImage, styles.rowImagePlaceholder]}>

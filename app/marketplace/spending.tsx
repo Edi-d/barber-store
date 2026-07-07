@@ -9,7 +9,6 @@
 import { useCallback } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Platform,
   Pressable,
   RefreshControl,
@@ -19,6 +18,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -213,7 +213,7 @@ export default function SalonSpendingScreen() {
                   <Image
                     source={{ uri: s.image_url }}
                     style={styles.reorderImg}
-                    resizeMode="contain"
+                    contentFit="contain"
                   />
                 ) : (
                   <View style={[styles.reorderImg, styles.reorderImgPh]}>

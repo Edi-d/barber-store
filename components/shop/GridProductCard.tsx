@@ -1,13 +1,13 @@
 import { memo } from 'react';
 import {
   Dimensions,
-  Image,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -71,7 +71,7 @@ function GridProductCardInner({ product, onPress }: Props) {
             <Image
               source={{ uri: product.images[0] }}
               style={styles.img}
-              resizeMode="contain"
+              contentFit="contain"
             />
           ) : (
             <View style={[styles.img, styles.imgPlaceholder]}>

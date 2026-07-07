@@ -8,7 +8,8 @@ import { useEffect, useCallback, useState, useRef } from "react";
 import { setAudioModeAsync } from 'expo-audio';
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { AppState, Platform, View, Image, ActivityIndicator, StyleSheet, Linking } from "react-native";
+import { AppState, Platform, View, ActivityIndicator, StyleSheet, Linking } from "react-native";
+import { Image } from '@/components/ui/Image';
 import { useVideoPlayer, VideoView } from "expo-video";
 import { QueryClient, QueryClientProvider, focusManager } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -220,7 +221,7 @@ function LoadingScreen() {
         <Image
           source={require("@/assets/logo-icon.webp")}
           style={styles.loadingLogo}
-          resizeMode="contain"
+          contentFit="contain"
         />
         <ActivityIndicator
           size="large"

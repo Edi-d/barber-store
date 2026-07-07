@@ -3,13 +3,13 @@ import {
   View,
   Text,
   Pressable,
-  Image,
   Dimensions,
   StyleSheet,
   FlatList,
   ScrollView,
   Share,
 } from "react-native";
+import { Image } from '@/components/ui/Image';
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams } from "expo-router";
@@ -725,7 +725,7 @@ export default function TryOnScreen() {
               <Image
                 source={{ uri: selfieUri }}
                 style={styles.selfieImage}
-                resizeMode="cover"
+                contentFit="cover"
               />
             )}
             <Animated.View style={[styles.generatingOverlay, overlayAnimStyle]} />

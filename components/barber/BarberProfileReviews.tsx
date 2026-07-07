@@ -1,4 +1,5 @@
-import { View, Text, Image, Pressable } from "react-native";
+import { View, Text, Pressable } from "react-native";
+import { Image } from '@/components/ui/Image';
 import { Ionicons } from "@expo/vector-icons";
 import { SalonReviewWithAuthor } from "@/types/database";
 import { getInitials, timeAgo } from "@/lib/utils";
@@ -123,7 +124,7 @@ export function BarberProfileReviews({
                 <Image
                   source={{ uri: review.profile.avatar_url }}
                   className="w-full h-full"
-                  resizeMode="cover"
+                  contentFit="cover"
                 />
               ) : (
                 <Text className="text-primary-600 font-bold text-xs">

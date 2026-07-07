@@ -11,13 +11,13 @@ import {
   FlatList,
   Pressable,
   ActivityIndicator,
-  Image,
   Share,
   Platform,
   KeyboardAvoidingView,
   StyleSheet,
   Animated as RNAnimated,
 } from "react-native";
+import { Image } from '@/components/ui/Image';
 import * as Haptics from "expo-haptics";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

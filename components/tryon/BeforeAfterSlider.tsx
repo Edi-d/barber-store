@@ -1,5 +1,6 @@
 import React, { useCallback, useRef } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   clamp,
@@ -128,7 +129,7 @@ export default function BeforeAfterSlider({
         <Image
           source={{ uri: afterUri }}
           style={[styles.image, { width, height }]}
-          resizeMode="cover"
+          contentFit="cover"
         />
 
         {/* Before image — clipped from left */}
@@ -136,7 +137,7 @@ export default function BeforeAfterSlider({
           <Image
             source={{ uri: beforeUri }}
             style={[styles.image, { width, height }]}
-            resizeMode="cover"
+            contentFit="cover"
           />
         </Animated.View>
 

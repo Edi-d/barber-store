@@ -1,4 +1,5 @@
-import { View, Text, Image } from "react-native";
+import { View, Text } from "react-native";
+import { Image } from '@/components/ui/Image';
 import { Ionicons } from "@expo/vector-icons";
 import { Barber } from "@/types/database";
 import { getInitials, barberRoleLabel } from "@/lib/utils";
@@ -45,7 +46,7 @@ export function BarberProfileHeader({ barber, role }: BarberProfileHeaderProps) 
           <Image
             source={{ uri: avatarUrl }}
             style={{ width: "100%", height: "100%" }}
-            resizeMode="cover"
+            contentFit="cover"
           />
         ) : (
           <View

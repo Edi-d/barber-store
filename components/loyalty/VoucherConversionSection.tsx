@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ActivityIndicator, Alert, Image } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { fetchVoucherTiers, convertPointsToVoucher } from '@/lib/loyalty';
@@ -93,7 +94,7 @@ export function VoucherConversionSection({ currentBalance }: Props) {
                 <Image
                   source={VOUCHER_ICONS[t.tier_points] ?? VOUCHER_ICONS[1000]}
                   style={styles.iconImage}
-                  resizeMode="cover"
+                  contentFit="cover"
                 />
               </View>
 

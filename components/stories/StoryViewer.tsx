@@ -3,11 +3,11 @@ import {
   StyleSheet,
   View,
   Text,
-  Image,
   Modal,
   Pressable,
   useWindowDimensions,
 } from "react-native";
+import { Image } from '@/components/ui/Image';
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {

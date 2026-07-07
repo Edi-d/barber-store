@@ -16,10 +16,10 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Image,
   Pressable,
   ScrollView,
 } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -144,7 +144,7 @@ export function MarketplaceCartModal({
                     <Image
                       source={{ uri: item.image_url }}
                       style={styles.itemImage}
-                      resizeMode="cover"
+                      contentFit="cover"
                     />
                   ) : (
                     <View style={[styles.itemImage, { backgroundColor: colors.backgroundSecondary, alignItems: 'center', justifyContent: 'center' }]}>

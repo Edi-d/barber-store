@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Image } from "react-native";
+import { Image } from '@/components/ui/Image';
 
 import { TIER_IMAGE, type TierArtKey } from "@/constants/tier-art";
 
@@ -22,7 +22,7 @@ function TierArtInner({ tier, size = 40 }: Props) {
     <Image
       source={TIER_IMAGE[tier]}
       style={{ width: size, height: size }}
-      resizeMode="contain"
+      contentFit="contain"
     />
   );
 }

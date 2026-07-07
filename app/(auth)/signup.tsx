@@ -7,11 +7,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Image,
   StyleSheet,
   Alert,
   Linking,
 } from "react-native";
+import { Image } from '@/components/ui/Image';
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Link, router, Stack } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
@@ -106,7 +106,7 @@ export default function SignUpScreen() {
               <Image
                 source={require("@/assets/logo-icon.webp")}
                 style={styles.logo}
-                resizeMode="contain"
+                contentFit="contain"
               />
             </View>
 

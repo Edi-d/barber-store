@@ -15,7 +15,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
-  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -26,6 +25,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -238,7 +238,7 @@ export function MarketplaceSearchModal({
                     ]}
                   >
                     {item.image_url ? (
-                      <Image source={{ uri: item.image_url }} style={styles.thumb} resizeMode="contain" />
+                      <Image source={{ uri: item.image_url }} style={styles.thumb} contentFit="contain" />
                     ) : (
                       <View style={[styles.thumb, styles.thumbPlaceholder]}>
                         <Feather

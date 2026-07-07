@@ -1,4 +1,5 @@
-import { View, Text, ScrollView, Image, Pressable, ActivityIndicator, Alert } from "react-native";
+import { View, Text, ScrollView, Pressable, ActivityIndicator, Alert } from "react-native";
+import { Image } from '@/components/ui/Image';
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -136,7 +137,7 @@ export default function CourseDetailScreen() {
             <Image
               source={{ uri: course.cover_url }}
               className="w-full h-56"
-              resizeMode="cover"
+              contentFit="cover"
             />
           ) : (
             <View className="w-full h-56 bg-primary-100 items-center justify-center">

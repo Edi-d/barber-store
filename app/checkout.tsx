@@ -6,10 +6,10 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  Image,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import { useTutorialContext } from '@/components/tutorial/TutorialProvider';
 import { useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -314,7 +314,7 @@ export default function CheckoutScreen() {
                     <Image
                       source={{ uri: item.product.image_url }}
                       style={styles.orderItemImage}
-                      resizeMode="contain"
+                      contentFit="contain"
                     />
                   ) : (
                     <View style={[styles.orderItemImage, styles.orderItemPlaceholder]}>

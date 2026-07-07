@@ -1,4 +1,5 @@
-import { View, Text, Pressable, Image, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -134,7 +135,7 @@ export function ProfileHeader({
             <Image
               source={{ uri: profile.avatar_url }}
               style={s.avatar}
-              resizeMode="cover"
+              contentFit="cover"
             />
           ) : (
             <View style={[s.avatar, s.avatarFallback]}>

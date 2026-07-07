@@ -2,11 +2,11 @@ import React, { useCallback, useRef, useState } from 'react';
 import {
   Dimensions,
   FlatList,
-  Image,
   StyleSheet,
   View,
   ViewToken,
 } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import Animated, {
   Easing,
   FadeIn,
@@ -74,7 +74,7 @@ function ProductHero({
         <Image
           source={{ uri: item }}
           style={styles.image}
-          resizeMode="contain"
+          contentFit="contain"
         />
       </View>
     ),

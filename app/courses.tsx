@@ -4,13 +4,13 @@ import {
   Text,
   RefreshControl,
   Pressable,
-  Image,
   ScrollView,
   ActivityIndicator,
   StyleSheet,
   Platform,
   Dimensions,
 } from "react-native";
+import { Image } from '@/components/ui/Image';
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
@@ -117,7 +117,7 @@ export default function CoursesScreen() {
               <Image
                 source={require("@/assets/logo-text.webp")}
                 style={{ width: 100, height: 32 }}
-                resizeMode="contain"
+                contentFit="contain"
               />
               <Text style={styles.headerTitle}>Cursuri</Text>
             </View>
@@ -237,7 +237,7 @@ function FeaturedCard({
           <Image
             source={{ uri: course.cover_url }}
             style={styles.featuredImage}
-            resizeMode="cover"
+            contentFit="cover"
           />
         ) : (
           <View style={[styles.featuredImage, styles.featuredPlaceholder]}>
@@ -322,7 +322,7 @@ function CourseListCard({
           <Image
             source={{ uri: course.cover_url }}
             style={styles.listThumb}
-            resizeMode="cover"
+            contentFit="cover"
           />
         ) : (
           <View style={[styles.listThumb, styles.listThumbPlaceholder]}>

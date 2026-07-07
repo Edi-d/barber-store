@@ -15,7 +15,6 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Image,
   Modal,
   Pressable,
   StyleSheet,
@@ -26,6 +25,7 @@ import {
   useWindowDimensions,
   type GestureResponderEvent,
 } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -145,7 +145,7 @@ export function ShopStoriesViewer({
               key={current.id}
               source={{ uri: current.imageUrl }}
               style={StyleSheet.absoluteFill}
-              resizeMode="cover"
+              contentFit="cover"
               onLoad={() => setImageLoaded(true)}
             />
           </View>

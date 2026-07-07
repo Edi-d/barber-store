@@ -3,10 +3,10 @@ import {
   View,
   Text,
   ScrollView,
-  Image,
   Pressable,
   StyleSheet,
 } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import Animated, {
   FadeInDown,
   useSharedValue,
@@ -112,7 +112,7 @@ function RelatedCard({
           <Image
             source={{ uri: product.image }}
             style={styles.image}
-            resizeMode="contain"
+            contentFit="contain"
           />
         ) : null}
         {hasDiscount && discountPct > 0 && (

@@ -5,7 +5,6 @@ import {
   Modal,
   Pressable,
   TextInput,
-  Image,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -13,6 +12,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { Image } from '@/components/ui/Image';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -249,7 +249,7 @@ export function ReviewModal({
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
                 {photos.map((p, i) => (
                   <View key={`${p.uri}-${i}`} style={styles.photoTileWrap}>
-                    <Image source={{ uri: p.uri }} style={styles.photoTile} resizeMode="cover" />
+                    <Image source={{ uri: p.uri }} style={styles.photoTile} contentFit="cover" />
                     <Pressable onPress={() => handleRemovePhoto(i)} style={styles.removePhotoButton} hitSlop={8}>
                       <View style={styles.removePhotoCircle}>
                         <Ionicons name="close" size={12} color="#fff" />

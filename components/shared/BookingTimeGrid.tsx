@@ -20,6 +20,15 @@ import { TimeSlot } from '@/lib/booking';
 // Props
 // ---------------------------------------------------------------------------
 
+/** A specific "why this day has no slot" notice, rendered in place of the grid. */
+export interface UnavailableNotice {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  subtitle: string;
+  /** Optional call-to-action, e.g. jump to the next available day. */
+  action?: { label: string; onPress: () => void };
+}
+
 export interface BookingTimeGridProps {
   timeSlots: TimeSlot[] | undefined;
   selectedTime: string | null;
@@ -32,6 +41,11 @@ export interface BookingTimeGridProps {
   isError?: boolean;
   /** Called when the user taps "Reîncearcă" in the error state. */
   onRetry?: () => void;
+  /**
+   * When set, the selected day has no bookable slot (vacation / salon closed /
+   * fully booked). Renders this notice instead of a grid of struck-through times.
+   */
+  unavailable?: UnavailableNotice | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -298,9 +312,10 @@ interface EmptyStateProps {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
   subtitle: string;
+  action?: { label: string; onPress: () => void };
 }
 
-function InlineEmptyState({ icon, title, subtitle }: EmptyStateProps) {
+function InlineEmptyState({ icon, title, subtitle, action }: EmptyStateProps) {
   const floatY = useSharedValue(0);
 
   useEffect(() => {
@@ -328,6 +343,18 @@ function InlineEmptyState({ icon, title, subtitle }: EmptyStateProps) {
       </Animated.View>
       <Text style={styles.emptyTitle}>{title}</Text>
       <Text style={styles.emptySubtitle}>{subtitle}</Text>
+      {action && (
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            action.onPress();
+          }}
+          style={styles.emptyActionButton}
+        >
+          <Ionicons name="arrow-forward" size={16} color={Colors.white} />
+          <Text style={styles.emptyActionText}>{action.label}</Text>
+        </Pressable>
+      )}
     </Animated.View>
   );
 }
@@ -346,6 +373,7 @@ export function BookingTimeGrid({
   afternoonSectionRef,
   isError = false,
   onRetry,
+  unavailable = null,
 }: BookingTimeGridProps) {
   const morningSlots = useMemo(
     () => (timeSlots ?? []).filter((s) => parseInt(s.time.split(':')[0], 10) < 12),
@@ -388,7 +416,20 @@ export function BookingTimeGrid({
     return <LoadingState />;
   }
 
-  // --- No slots at all (day off / fully booked) ---
+  // --- Day has no bookable slot: show the specific reason (vacation / salon
+  //     closed / fully booked) instead of a grid of struck-through times. ---
+  if (unavailable) {
+    return (
+      <InlineEmptyState
+        icon={unavailable.icon}
+        title={unavailable.title}
+        subtitle={unavailable.subtitle}
+        action={unavailable.action}
+      />
+    );
+  }
+
+  // --- No slots at all (fallback safety net; normally covered by `unavailable`) ---
   if (!timeSlots || timeSlots.length === 0) {
     return (
       <InlineEmptyState
@@ -587,5 +628,20 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  emptyActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    ...Bubble.radii,
+    backgroundColor: Colors.primary,
+    ...Platform.select({ ios: Shadows.sm, android: { elevation: 2 } }),
+  },
+  emptyActionText: {
+    ...Typography.captionSemiBold,
+    color: Colors.white,
   },
 });

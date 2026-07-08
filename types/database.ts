@@ -821,11 +821,14 @@ export interface XpVoucherTier {
 
 /**
  * One busy range returned by get_barber_busy_intervals.
- * Both fields are ISO-8601 timestamptz strings.
+ * busy_start / busy_end are ISO-8601 timestamptz strings.
+ * reason is null for appointment slots, or the break's reason_type
+ * ('lunch' | 'vacation' | 'training' | 'personal' | 'other') for break occurrences.
  */
 export interface BusyInterval {
   busy_start: string;
   busy_end: string;
+  reason: string | null;
 }
 
 /**

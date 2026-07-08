@@ -12,7 +12,22 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Colors, Bubble, Shadows } from '@/constants/theme';
-import { getNext14Days, formatCalendarDay } from '@/lib/booking';
+import { getNext14Days, formatCalendarDay, DayStatus } from '@/lib/booking';
+
+// ---------------------------------------------------------------------------
+// Per-status presentation (label under the date + how the card is treated)
+// ---------------------------------------------------------------------------
+
+const STATUS_META: Record<
+  DayStatus,
+  { label: string; color: string; disabled: boolean; muted: boolean }
+> = {
+  available:    { label: '',             color: '#94a3b8', disabled: false, muted: false },
+  salon_closed: { label: 'Închis',       color: '#94a3b8', disabled: true,  muted: true },
+  vacation:     { label: 'Concediu',     color: '#B45309', disabled: false, muted: true },
+  unavailable:  { label: 'Indisponibil', color: '#94a3b8', disabled: false, muted: true },
+  fully_booked: { label: 'Ocupat',       color: '#94a3b8', disabled: false, muted: true },
+};
 
 // ---------------------------------------------------------------------------
 // Types
@@ -28,6 +43,13 @@ interface BookingDatePickerProps {
    * Pass an explicit array (possibly empty) once the schedule is known.
    */
   disabledDays?: number[];
+  /**
+   * Per-date status keyed by `date.toDateString()`. When provided it drives the
+   * label + styling of each day (closed / vacation / fully-booked). Takes
+   * precedence over `disabledDays`. Closed days are non-tappable; vacation and
+   * fully-booked days stay tappable so tapping surfaces the detail message.
+   */
+  dayStatuses?: Map<string, DayStatus>;
 }
 
 // ---------------------------------------------------------------------------
@@ -61,12 +83,14 @@ interface DateCardProps {
   index: number;
   isSelected: boolean;
   isToday: boolean;
-  isDisabled: boolean;
+  status: DayStatus;
   onPress: (date: Date) => void;
 }
 
-function DateCard({ date, index, isSelected, isToday, isDisabled, onPress }: DateCardProps) {
+function DateCard({ date, index, isSelected, isToday, status, onPress }: DateCardProps) {
   const { dayName, dayNumber, monthName } = formatCalendarDay(date);
+  const meta = STATUS_META[status];
+  const isDisabled = meta.disabled;
 
   // 0 → unselected, 1 → selected
   const progress = useSharedValue(isSelected ? 1 : 0);
@@ -169,10 +193,18 @@ function DateCard({ date, index, isSelected, isToday, isDisabled, onPress }: Dat
     ? styles.cardBorderToday
     : styles.cardBorderDefault;
 
+  // Show the status label only when unavailable and not currently selected
+  // (selected keeps the clean highlighted look).
+  const showStatusLabel = meta.label !== '' && !isSelected;
+
   return (
     <Animated.View
       entering={FadeInRight.delay(index * 40).springify().damping(18).stiffness(200)}
-      style={[styles.cardWrapper, isDisabled && styles.cardDisabledWrapper]}
+      style={[
+        styles.cardWrapper,
+        isDisabled && styles.cardDisabledWrapper,
+        !isDisabled && meta.muted && !isSelected && styles.cardMutedWrapper,
+      ]}
     >
       {/* Glow layer */}
       <Animated.View
@@ -197,16 +229,23 @@ function DateCard({ date, index, isSelected, isToday, isDisabled, onPress }: Dat
             {monthName}
           </Animated.Text>
 
-          {/* Today pulse dot */}
-          {isToday && (
-            <Animated.View
-              style={[
-                styles.todayDot,
-                isSelected ? styles.todayDotSelected : styles.todayDotDefault,
-                dotStyle,
-              ]}
-            />
-          )}
+          {/* Status label ("Închis" / "Concediu" / "Ocupat") — fixed-height row
+              so available and unavailable cards stay the same height. */}
+          <View style={styles.statusRow}>
+            {showStatusLabel ? (
+              <Text style={[styles.statusLabel, { color: meta.color }]} numberOfLines={1}>
+                {meta.label}
+              </Text>
+            ) : isToday ? (
+              <Animated.View
+                style={[
+                  styles.todayDot,
+                  isSelected ? styles.todayDotSelected : styles.todayDotDefault,
+                  dotStyle,
+                ]}
+              />
+            ) : null}
+          </View>
         </Animated.View>
       </Pressable>
     </Animated.View>
@@ -221,26 +260,39 @@ export function BookingDatePicker({
   selectedDate,
   onSelectDate,
   disabledDays,
+  dayStatuses,
 }: BookingDatePickerProps) {
   const scrollRef = useRef<ScrollView>(null);
   const days = getNext14Days();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Scroll the selected card into the center of the visible area when a date
-  // is pressed. We know each card's offset from index + fixed sizes.
+  // Center a given card index in a ~375px viewport.
+  const scrollToIndex = useCallback((index: number) => {
+    const cardCenter = H_PADDING + index * (CARD_WIDTH + CARD_GAP) + CARD_WIDTH / 2;
+    const targetX = cardCenter - 375 / 2; // approximate screen center
+    scrollRef.current?.scrollTo({ x: Math.max(0, targetX), animated: true });
+  }, []);
+
+  // Scroll the selected card into view when a date is pressed.
   const handleSelectDate = useCallback(
     (date: Date, index: number) => {
       onSelectDate(date);
-
-      // Compute the x-offset that centers this card in a ~375px viewport.
-      // ScrollView.scrollTo is called imperatively after the animation starts.
-      const cardCenter = H_PADDING + index * (CARD_WIDTH + CARD_GAP) + CARD_WIDTH / 2;
-      const targetX = cardCenter - 375 / 2; // approximate screen center
-      scrollRef.current?.scrollTo({ x: Math.max(0, targetX), animated: true });
+      scrollToIndex(index);
     },
-    [onSelectDate],
+    [onSelectDate, scrollToIndex],
   );
+
+  // Also reveal the selection when it changes programmatically (e.g. the
+  // "next available day" button jumps to an off-screen date).
+  useEffect(() => {
+    if (!selectedDate) return;
+    const index = days.findIndex((d) => d.toDateString() === selectedDate.toDateString());
+    if (index >= 0) scrollToIndex(index);
+    // `days` is a fresh array each render but stable in content; only the
+    // selected date should re-trigger the scroll.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate, scrollToIndex]);
 
   return (
     <View style={styles.container}>
@@ -260,7 +312,14 @@ export function BookingDatePicker({
             selectedDate !== null &&
             selectedDate.toDateString() === day.toDateString();
           const isToday = day.toDateString() === today.toDateString();
-          const isDisabled = disabledDays != null && disabledDays.includes(day.getDay());
+
+          // Prefer the precise per-date status; fall back to the weekday-level
+          // disabledDays while the per-day statuses are still loading.
+          const status: DayStatus =
+            dayStatuses?.get(day.toDateString()) ??
+            (disabledDays != null && disabledDays.includes(day.getDay())
+              ? 'salon_closed'
+              : 'available');
 
           return (
             <DateCard
@@ -269,7 +328,7 @@ export function BookingDatePicker({
               index={index}
               isSelected={isSelected}
               isToday={isToday}
-              isDisabled={isDisabled}
+              status={status}
               onPress={(d) => handleSelectDate(d, index)}
             />
           );
@@ -313,6 +372,11 @@ const styles = StyleSheet.create({
   },
   cardDisabledWrapper: {
     opacity: 0.3,
+  },
+  // Tappable-but-unavailable (vacation / fully-booked): dimmed, still pressable
+  // so tapping reveals the detail message.
+  cardMutedWrapper: {
+    opacity: 0.55,
   },
 
   // Glow halo — absolutely positioned behind the card
@@ -363,12 +427,25 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
 
+  // Fixed-height row under the month for the status label / today dot, so cards
+  // keep a uniform height whether or not they carry a label.
+  statusRow: {
+    height: 12,
+    marginTop: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusLabel: {
+    fontFamily: 'EuclidCircularA-SemiBold',
+    fontSize: 9,
+    lineHeight: 11,
+  },
+
   // Today indicator dot
   todayDot: {
     width: 4,
     height: 4,
     borderRadius: 2,
-    marginTop: 4,
   },
   todayDotDefault: {
     backgroundColor: Colors.gradientStart,

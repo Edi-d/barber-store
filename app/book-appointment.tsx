@@ -16,7 +16,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/authStore";
 import { Barber, BarberService } from "@/types/database";
 import { formatPrice } from "@/lib/utils";
-import { generateTimeSlots, getNext14Days, formatCalendarDay, findFirstAvailableDate, findSoonestAvailableBarber } from "@/lib/booking";
+import { generateTimeSlots, getNext14Days, formatCalendarDay, findFirstAvailableDate, findNextAvailableDateAfter, findSoonestAvailableBarber, DaySlots, DayStatus, DayUnavailableReason } from "@/lib/booking";
 import {
   fetchSalonExtendedHours,
   surchargedTotalCents,
@@ -37,7 +37,7 @@ import { BarberCard } from "@/components/shared/BarberCard";
 import { AnyBarberCard } from "@/components/shared/AnyBarberCard";
 import { ServiceCard } from "@/components/shared/ServiceCard";
 import { BookingDatePicker } from "@/components/shared/BookingDatePicker";
-import { BookingTimeGrid } from "@/components/shared/BookingTimeGrid";
+import { BookingTimeGrid, UnavailableNotice } from "@/components/shared/BookingTimeGrid";
 import { BookingConfirmation } from "@/components/shared/BookingConfirmation";
 import { BookingSuccess, BookingSuccessResult } from "@/components/shared/BookingSuccess";
 import { BookingFloatingBar } from "@/components/shared/BookingFloatingBar";
@@ -261,7 +261,7 @@ export default function BookAppointmentScreen() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: timeSlots, isLoading: slotsLoading, isError: slotsError, refetch: refetchSlots } = useQuery({
+  const { data: daySlots, isLoading: slotsLoading, isError: slotsError, refetch: refetchSlots } = useQuery({
     queryKey: [
       "time-slots",
       selectedBarber?.id,
@@ -269,7 +269,9 @@ export default function BookAppointmentScreen() {
       totalDurationMin,
     ],
     queryFn: async () => {
-      if (!selectedBarber || !selectedDate || totalDurationMin === 0) return [];
+      if (!selectedBarber || !selectedDate || totalDurationMin === 0) {
+        return { slots: [], unavailableReason: null } as DaySlots;
+      }
       return generateTimeSlots(
         selectedBarber.id,
         selectedDate,
@@ -280,6 +282,8 @@ export default function BookAppointmentScreen() {
     enabled: !!selectedBarber && !!selectedDate && totalDurationMin > 0,
     staleTime: 30_000, // Override global 5-min staleTime — slots go stale quickly
   });
+
+  const timeSlots = daySlots?.slots;
 
   // ── Extended-hours surcharge (preview only; RPC is authoritative) ──────────
   // The chosen slot is "extended" when generateTimeSlots tagged it so (start at/
@@ -314,6 +318,92 @@ export default function BookAppointmentScreen() {
     enabled: !!selectedBarber && totalDurationMin > 0,
     staleTime: 2 * 60 * 1000, // 2 minutes
   });
+
+  // First bookable day strictly AFTER the selected (unavailable) one — searched
+  // beyond the 14-day strip if needed so we can always offer a concrete next day.
+  const { data: nextAvailableDate } = useQuery({
+    queryKey: [
+      "next-available-after",
+      selectedBarber?.id,
+      selectedDate?.toISOString(),
+      totalDurationMin,
+    ],
+    queryFn: () =>
+      findNextAvailableDateAfter(
+        selectedBarber!.id,
+        totalDurationMin,
+        selectedBarber!.salon_id,
+        selectedDate!
+      ),
+    enabled:
+      !!selectedBarber &&
+      !!selectedDate &&
+      totalDurationMin > 0 &&
+      !!daySlots?.unavailableReason,
+    staleTime: 60_000,
+  });
+
+  // Build the "why this day has no slot" notice shown in place of the time grid.
+  // Vacation surfaces the barber's name + a button jumping to the next bookable
+  // day; salon-closed and fully-booked get their own copy.
+  const dayUnavailable = useMemo<UnavailableNotice | null>(() => {
+    const reason = daySlots?.unavailableReason;
+    if (!reason || !selectedDate) return null;
+
+    const barberName = selectedBarber?.name ?? "Frizerul";
+
+    // The reason line; the concrete next-available day is offered as a button
+    // (see `action`) so it's always actionable, not just informational.
+    const reasonText: Record<DayUnavailableReason, string> = {
+      salon_closed: "Salonul este închis în această zi.",
+      vacation: `${barberName} este în concediu în această zi.`,
+      unavailable: `${barberName} nu este disponibil în această zi.`,
+      fully_booked: "Toate orele sunt ocupate în această zi.",
+    };
+    const titles: Record<DayUnavailableReason, string> = {
+      salon_closed: "Salon închis",
+      vacation: `${barberName} este în concediu`,
+      unavailable: `${barberName} este indisponibil`,
+      fully_booked: "Nicio oră disponibilă",
+    };
+    const icons: Record<DayUnavailableReason, UnavailableNotice["icon"]> = {
+      salon_closed: "moon-outline",
+      vacation: "airplane-outline",
+      unavailable: "airplane-outline",
+      fully_booked: "moon-outline",
+    };
+
+    const action = nextAvailableDate
+      ? {
+          label: `Vezi ${nextAvailableDate.toLocaleDateString("ro-RO", {
+            weekday: "short",
+            day: "numeric",
+            month: "short",
+          })}`,
+          onPress: () => {
+            setSelectedDate(nextAvailableDate);
+            setSelectedTime(null);
+          },
+        }
+      : undefined;
+
+    return {
+      icon: icons[reason],
+      title: titles[reason],
+      subtitle: action ? reasonText[reason] : `${reasonText[reason]} Alege altă dată din calendar.`,
+      action,
+    };
+  }, [daySlots, selectedDate, selectedBarber, nextAvailableDate]);
+
+  // Per-date status map for the calendar strip (closed / vacation / booked).
+  const dayStatuses = useMemo(() => {
+    if (!firstAvailableData?.days) return undefined;
+    const map = new Map<string, DayStatus>();
+    for (const d of firstAvailableData.days) {
+      map.set(d.date.toDateString(), d.status);
+    }
+    return map;
+  }, [firstAvailableData]);
 
   // Auto-select first available date when entering step 3
   useEffect(() => {
@@ -953,6 +1043,7 @@ export default function BookAppointmentScreen() {
                   setSelectedTime(null);
                 }}
                 disabledDays={firstAvailableData?.offDays}
+                dayStatuses={dayStatuses}
               />
             </View>
 
@@ -970,6 +1061,7 @@ export default function BookAppointmentScreen() {
                 afternoonSectionRef={timeAfternoonRef}
                 isError={slotsError}
                 onRetry={refetchSlots}
+                unavailable={dayUnavailable}
               />
             </View>
           </View>

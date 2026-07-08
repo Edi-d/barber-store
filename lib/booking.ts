@@ -37,6 +37,41 @@ export interface TimeSlot {
   extended?: boolean;
 }
 
+/**
+ * Why a selected day has no bookable slot:
+ *   • salon_closed — the barber/salon does not work this weekday at all
+ *     (no resolved working hours). These weekdays are also greyed in the strip.
+ *   • vacation     — break(s) cover the whole working window and at least one is
+ *     a `vacation` break (barber on holiday).
+ *   • unavailable  — break(s) cover the whole working window but none is a
+ *     vacation (e.g. training / personal all-day block).
+ *   • fully_booked — the barber works this day but every slot is taken/past
+ *     (blocked by appointments, not a full-day break).
+ */
+export type DayUnavailableReason =
+  | "salon_closed"
+  | "vacation"
+  | "unavailable"
+  | "fully_booked";
+
+/** Per-day availability status for the calendar strip. */
+export type DayStatus = "available" | DayUnavailableReason;
+
+export interface DayAvailabilityInfo {
+  date: Date;
+  status: DayStatus;
+}
+
+/**
+ * Result of resolving a single day's slots. `unavailableReason` is null when at
+ * least one slot is bookable; otherwise it explains why none are, so callers can
+ * show a specific message instead of a grid of struck-through times.
+ */
+export interface DaySlots {
+  slots: TimeSlot[];
+  unavailableReason: DayUnavailableReason | null;
+}
+
 // ─── Internal helpers ────────────────────────────────────────────────────────
 
 // `normal_end_time` is the pre-extension close; when set, slots starting at/after
@@ -239,27 +274,88 @@ function computeSlotsForDay(
   return slots;
 }
 
+/**
+ * Classify a day that has working hours but no bookable slot.
+ *
+ * The distinction we care about is "the barber is off all day" (a full-day
+ * break — vacation/training/personal) vs "the barber works but is fully booked"
+ * (blocked by appointments). We detect the former by testing whether the *break*
+ * intervals alone cover the whole working window — robust to how the break is
+ * stored (exact window, midnight-to-midnight, or a multi-day range), and to
+ * several breaks stitched together. A break is any busy interval carrying a
+ * non-null `reason`; appointments carry `reason === null`.
+ *
+ * Returns "vacation" when a covering break is a holiday, "unavailable" for any
+ * other full-day block, and "fully_booked" when breaks don't cover the day
+ * (so appointments are what's filling it).
+ *
+ * Note: if the `reason` column isn't populated yet (RPC not returning it), every
+ * interval looks like an appointment and this degrades to "fully_booked" — the
+ * caller still shows the next available date, just with generic copy.
+ */
+function classifyNoSlotDay(
+  date: Date,
+  dayHours: DayHours,
+  busyIntervals: BusyInterval[]
+): Exclude<DayUnavailableReason, "salon_closed"> {
+  const [sh, sm] = parseTime(dayHours.start_time);
+  const [eh, em] = parseTime(dayHours.end_time);
+  const workStart = new Date(date);
+  workStart.setHours(sh, sm, 0, 0);
+  const workEnd = new Date(date);
+  workEnd.setHours(eh, em, 0, 0);
+  const ws = workStart.getTime();
+  const we = workEnd.getTime();
+
+  // Break intervals that overlap the working window, sorted by start.
+  const breaks = busyIntervals
+    .filter((b) => b.reason != null)
+    .map((b) => ({
+      s: new Date(b.busy_start).getTime(),
+      e: new Date(b.busy_end).getTime(),
+      reason: b.reason,
+    }))
+    .filter((b) => b.e > ws && b.s < we)
+    .sort((a, b) => a.s - b.s);
+
+  // Sweep to test whether the union of breaks covers [ws, we] with no gap.
+  let cursor = ws;
+  for (const b of breaks) {
+    if (b.s > cursor) break; // gap before this break → not fully covered
+    if (b.e > cursor) cursor = b.e;
+    if (cursor >= we) break;
+  }
+  const coveredByBreaks = cursor >= we;
+
+  if (coveredByBreaks) {
+    const hasVacation = breaks.some((b) => b.reason === "vacation");
+    return hasVacation ? "vacation" : "unavailable";
+  }
+  return "fully_booked";
+}
+
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 /**
- * Generate available time slots for a barber on a specific date.
+ * Generate the time slots for a barber on a specific date, plus a reason when
+ * none are bookable.
  *
  * Uses the get_barber_busy_intervals RPC for a [startOfDay, endOfDay] window
- * so that RLS-hidden appointments and barber breaks are both included.
- * Throws on any network or RPC error.
+ * so that RLS-hidden appointments and barber breaks (incl. their reason) are
+ * both included. Throws on any network or RPC error.
  */
 export async function generateTimeSlots(
   barberId: string,
   date: Date,
   serviceDurationMin: number,
   salonId?: string | null
-): Promise<TimeSlot[]> {
+): Promise<DaySlots> {
   const schedule = await resolveSchedule(barberId, salonId);
   const dayHours = schedule.get(date.getDay());
 
   if (!dayHours) {
-    // Barber/salon doesn't work this day
-    return [];
+    // Barber/salon doesn't work this weekday at all.
+    return { slots: [], unavailableReason: "salon_closed" };
   }
 
   const startOfDay = new Date(date);
@@ -268,8 +364,14 @@ export async function generateTimeSlots(
   endOfDay.setHours(23, 59, 59, 999);
 
   const busyIntervals = await fetchBusyIntervals(barberId, startOfDay, endOfDay);
+  const slots = computeSlotsForDay(date, dayHours, busyIntervals, serviceDurationMin, new Date());
 
-  return computeSlotsForDay(date, dayHours, busyIntervals, serviceDurationMin, new Date());
+  if (slots.some((s) => s.available)) {
+    return { slots, unavailableReason: null };
+  }
+
+  // No bookable slot — explain why (full-day break vs fully booked).
+  return { slots, unavailableReason: classifyNoSlotDay(date, dayHours, busyIntervals) };
 }
 
 /**
@@ -319,12 +421,14 @@ export function formatCalendarDay(date: Date): {
  *   date    — first day with a free slot, or null if none found
  *   offDays — day-of-week numbers (0–6) that are always off for this barber
  *             (undefined when still loading; pass as-is to BookingDatePicker)
+ *   days    — per-day status for each of the next 14 days, so the calendar strip
+ *             can mark closed / vacation / fully-booked days individually
  */
 export async function findFirstAvailableDate(
   barberId: string,
   serviceDurationMin: number,
   salonId?: string | null
-): Promise<{ date: Date | null; offDays: number[] }> {
+): Promise<{ date: Date | null; offDays: number[]; days: DayAvailabilityInfo[] }> {
   const days = getNext14Days();
   const now = new Date();
 
@@ -337,7 +441,14 @@ export async function findFirstAvailableDate(
     if (!scheduleMap.has(d)) offDays.push(d);
   }
 
-  if (scheduleMap.size === 0) return { date: null, offDays };
+  // Barber has no working days at all — every day is salon_closed.
+  if (scheduleMap.size === 0) {
+    return {
+      date: null,
+      offDays,
+      days: days.map((date) => ({ date, status: "salon_closed" as DayStatus })),
+    };
+  }
 
   // 2. Fetch busy intervals for the entire 14-day window in one RPC call
   const windowStart = new Date(days[0]);
@@ -347,19 +458,65 @@ export async function findFirstAvailableDate(
 
   const busyIntervals = await fetchBusyIntervals(barberId, windowStart, windowEnd);
 
-  const offSet = new Set(offDays);
-
-  for (const day of days) {
-    if (offSet.has(day.getDay())) continue;
-
+  // 3. Classify every day (single pass) and pick the first available one.
+  let firstDate: Date | null = null;
+  const dayInfos: DayAvailabilityInfo[] = days.map((day) => {
     const dayHours = scheduleMap.get(day.getDay());
-    if (!dayHours) continue;
+    if (!dayHours) return { date: day, status: "salon_closed" };
 
     const slots = computeSlotsForDay(day, dayHours, busyIntervals, serviceDurationMin, now);
-    if (slots.some((s) => s.available)) return { date: day, offDays };
+    if (slots.some((s) => s.available)) {
+      if (!firstDate) firstDate = day;
+      return { date: day, status: "available" };
+    }
+    return { date: day, status: classifyNoSlotDay(day, dayHours, busyIntervals) };
+  });
+
+  return { date: firstDate, offDays, days: dayInfos };
+}
+
+/**
+ * Find the first bookable date strictly AFTER `afterDate`, scanning forward up
+ * to `horizonDays`. Used to always offer a concrete "next available day" when
+ * the selected day has no slot — including when the next opening falls beyond
+ * the 14-day strip (e.g. a long vacation). The scan window stays under the RPC's
+ * 60-day cap. Returns null only if the barber has no opening in the horizon.
+ */
+export async function findNextAvailableDateAfter(
+  barberId: string,
+  serviceDurationMin: number,
+  salonId: string | null | undefined,
+  afterDate: Date,
+  horizonDays = 45
+): Promise<Date | null> {
+  const now = new Date();
+  const scheduleMap = await resolveSchedule(barberId, salonId);
+  if (scheduleMap.size === 0) return null;
+
+  // Candidate days: afterDate+1 … afterDate+horizonDays (midnight-normalised).
+  const base = new Date(afterDate);
+  base.setHours(0, 0, 0, 0);
+  const candidates: Date[] = [];
+  for (let i = 1; i <= horizonDays; i++) {
+    const d = new Date(base);
+    d.setDate(base.getDate() + i);
+    candidates.push(d);
   }
 
-  return { date: null, offDays };
+  const windowStart = new Date(candidates[0]);
+  windowStart.setHours(0, 0, 0, 0);
+  const windowEnd = new Date(candidates[candidates.length - 1]);
+  windowEnd.setHours(23, 59, 59, 999);
+
+  const busyIntervals = await fetchBusyIntervals(barberId, windowStart, windowEnd);
+
+  for (const day of candidates) {
+    const dayHours = scheduleMap.get(day.getDay());
+    if (!dayHours) continue;
+    const slots = computeSlotsForDay(day, dayHours, busyIntervals, serviceDurationMin, now);
+    if (slots.some((s) => s.available)) return day;
+  }
+  return null;
 }
 
 /**

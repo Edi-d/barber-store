@@ -365,6 +365,8 @@ All are SECURITY DEFINER, GRANT TO authenticated, gated by `is_salon_member` (ow
    - Slot range does NOT intersect any busy interval (`slotStart < busy_end && slotEnd > busy_start`)
    - Slot start is not in the past (today only)
 
+`generateTimeSlots` returns `{ slots, unavailableReason }`. When no slot is bookable, `unavailableReason` explains why so the UI can show a specific message: `salon_closed` (no working hours that weekday), `vacation` (a `vacation` break — carried on the busy interval's `reason`, migration 153 — covers the whole working window), or `fully_booked`. The vacation message surfaces the barber name + the next bookable day.
+
 **First-available-date (`findFirstAvailableDate`):** Two queries (schedule + busy intervals for 14-day window), computed client-side without N sequential calls.
 
 **Time format:** DB returns `"HH:MM:SS"` for TIME columns; UI strips seconds (`time.slice(0,5)`). Comparisons use integer minutes-of-day. `day_of_week = 0` = Sunday (matches JS `Date.getDay()`).

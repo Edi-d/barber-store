@@ -32,6 +32,9 @@ export type Salon = {
   phone: string | null;
   avatar_url: string | null;
   cover_url: string | null;
+  // CSS-style object-position focal point for the cover image, e.g. "50% 30%".
+  // Null = default center.
+  cover_position: string | null;
   description: string | null;
   bio: string | null;
   specialties: string[] | null;
@@ -67,6 +70,9 @@ export type BarberService = {
   description: string | null;
   duration_min: number;
   price_cents: number;
+  // Optional per-service extended-hours price (cents). Replaces base price +
+  // day-level surcharge for a slot inside the "program prelungit" window.
+  price_cents_extended: number | null;
   currency: string;
   category: string;
   active: boolean;

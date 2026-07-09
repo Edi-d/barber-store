@@ -279,7 +279,7 @@ export function BookingConfirmation({
       {/* ------------------------------------------------------------------ */}
       {/* Total bar                                                            */}
       {/* ------------------------------------------------------------------ */}
-      {surchargeCents > 0 && (
+      {surchargeCents !== 0 && (
         <Animated.View
           entering={FadeInRight.delay(460).duration(250)}
           style={styles.surchargeRow}
@@ -288,7 +288,7 @@ export function BookingConfirmation({
             Program extins {surchargeLabel ? `(${surchargeLabel})` : ''}
           </Text>
           <Text style={styles.surchargeValue}>
-            +{formatPrice(surchargeCents, currency)}
+            {surchargeCents > 0 ? '+' : '−'}{formatPrice(Math.abs(surchargeCents), currency)}
           </Text>
         </Animated.View>
       )}

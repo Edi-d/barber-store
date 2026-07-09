@@ -107,6 +107,61 @@ export function surchargedTotalCents(
   return Math.round(baseCents * (1 + ext.surcharge_percent / 100));
 }
 
+/**
+ * Price (in cents) a service charges while the salon is in its extended-hours
+ * window. An explicit price_cents_extended (> 0) REPLACES the base price and the
+ * day-level surcharge for that service; null/0 falls back to the base price so
+ * the normal surcharge flow applies. Kept dependency-free so it mirrors the web
+ * (lib/extended-hours.extendedServicePriceCents) and the book_appointment RPC.
+ */
+export function extendedServicePriceCents(
+  baseCents: number,
+  priceCentsExtended: number | null | undefined
+): number {
+  return priceCentsExtended != null && priceCentsExtended > 0
+    ? priceCentsExtended
+    : baseCents;
+}
+
+/** Minimal service shape needed to price an extended-window booking. */
+type PriceableService = { price_cents: number; price_cents_extended?: number | null };
+
+/**
+ * Final booking total (in cents) for the chosen slot — the customer-facing
+ * preview that must match what book_appointment charges.
+ *
+ *  - Non-extended slot (or no extension): plain sum of base prices. Mobile
+ *    booking totals never apply happy-hour (neither does the RPC).
+ *  - Extended slot: a service with an explicit extended price (> 0) is charged
+ *    that amount verbatim (replaces base + surcharge); every other service goes
+ *    through the day-level surcharge. To match the RPC bit-for-bit the percent
+ *    surcharge is rounded PER SERVICE, and a fixed surcharge is added ONCE to the
+ *    first surcharged service (dropped entirely when every selected service used
+ *    an explicit extended price).
+ */
+export function finalBookingTotalCents(
+  services: PriceableService[],
+  ext: SalonExtendedHours | null | undefined,
+  extendedSlot: boolean
+): number {
+  const base = services.reduce((sum, s) => sum + s.price_cents, 0);
+  if (!extendedSlot || !ext) return base;
+
+  let total = 0;
+  let fixedApplied = false;
+  for (const s of services) {
+    if (s.price_cents_extended != null && s.price_cents_extended > 0) {
+      total += s.price_cents_extended; // explicit extended price, verbatim
+    } else if (ext.surcharge_type === "percent") {
+      total += Math.round(s.price_cents * (1 + ext.surcharge_percent / 100));
+    } else {
+      total += s.price_cents + (fixedApplied ? 0 : ext.surcharge_value_cents);
+      fixedApplied = true;
+    }
+  }
+  return total;
+}
+
 /** Short surcharge label, e.g. "+20%" or "+15 RON". */
 export function surchargeLabel(ext: SalonExtendedHours): string {
   if (ext.surcharge_type === "fixed") {

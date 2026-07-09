@@ -186,6 +186,17 @@ export function AppointmentCard({
       ? [item.service]
       : [];
 
+  // Booked for a dependent (a child / other person the user manages)? Only those
+  // rows carry managed_by_profile_id and are readable here (RLS), so its presence
+  // is enough to show a "Pentru {name}" pill. The account holder stayed the contact.
+  const dependentName =
+    item.salon_client?.managed_by_profile_id
+      ? [item.salon_client.first_name, item.salon_client.last_name]
+          .filter(Boolean)
+          .join(" ")
+          .trim() || "copil"
+      : null;
+
   return (
     <Animated.View
       entering={FadeInDown.delay(index * 70)
@@ -271,6 +282,21 @@ export function AppointmentCard({
             {/* Status badge */}
             <StatusBadge status={item.status as keyof typeof STATUS_CONFIG} />
           </View>
+
+          {/* ── "Pentru {name}" pill — booked for a dependent ─────────────── */}
+          {dependentName ? (
+            <View className="flex-row mt-3">
+              <View
+                className="flex-row items-center gap-1 px-2 py-1"
+                style={[Bubble.radiiSm, { backgroundColor: "rgba(180,83,9,0.10)" }]}
+              >
+                <Ionicons name="happy-outline" size={12} color="#B45309" />
+                <Text style={{ fontSize: 11, fontFamily: "EuclidCircularA-SemiBold", color: "#B45309" }}>
+                  Pentru {dependentName}
+                </Text>
+              </View>
+            </View>
+          ) : null}
 
           {/* ── 2. Services ───────────────────────────────────────────────── */}
           <View className="mt-3">

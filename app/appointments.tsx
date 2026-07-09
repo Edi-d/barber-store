@@ -206,7 +206,8 @@ export default function AppointmentsScreen() {
           *,
           barber:barbers(*),
           service:barber_services(*),
-          services:appointment_services(*, service:barber_services(*))
+          services:appointment_services(*, service:barber_services(*)),
+          salon_client:salon_clients(first_name, last_name, managed_by_profile_id)
         `
         )
         .eq("user_id", session.user.id)

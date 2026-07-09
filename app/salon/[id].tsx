@@ -40,6 +40,7 @@ import {
   getWeekSchedule,
 } from "@/lib/salon";
 import { fetchSalonExtendedHours } from "@/lib/extended-hours";
+import { parseCoverPosition } from "@/lib/cover-position";
 import { CountdownTimer } from "@/components/shared/CountdownTimer";
 import { ReviewModal } from "@/components/salon/ReviewModal";
 import { ReviewPhotoStrip } from "@/components/shared/ReviewPhotoStrip";
@@ -197,6 +198,13 @@ export default function SalonDetailScreen() {
     return [];
   }, [photos, salon]);
 
+  // Owner-chosen focal point for the cover image. Only applies to the cover
+  // fallback tile (id "cover") — real salon_photos have no per-photo position.
+  const coverContentPosition = useMemo(
+    () => parseCoverPosition(salon?.cover_position),
+    [salon?.cover_position]
+  );
+
   const distance = useMemo(() => {
     if (!latitude || !longitude || !salon?.latitude || !salon?.longitude) return null;
     return getDistanceKm(latitude, longitude, salon.latitude, salon.longitude);
@@ -336,6 +344,7 @@ export default function SalonDetailScreen() {
                     source={{ uri: item.photo_url }}
                     style={{ width: SCREEN_WIDTH, height: GALLERY_HEIGHT }}
                     contentFit="cover"
+                    contentPosition={item.id === "cover" ? coverContentPosition : undefined}
                   />
                 </Pressable>
               )}

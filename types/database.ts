@@ -565,6 +565,9 @@ export interface Salon {
   phone: string | null;
   avatar_url: string | null;
   cover_url: string | null;
+  // CSS-style object-position focal point for the cover image, e.g. "50% 30%".
+  // Null = default center. Set by the salon owner in the business app.
+  cover_position: string | null;
   bio: string | null;
   specialties: string[] | null;
   latitude: number | null;
@@ -587,6 +590,11 @@ export interface BarberService {
   description: string | null;
   duration_min: number;
   price_cents: number;
+  // Optional per-service price (in cents) that applies only while the salon is
+  // in its extended-hours ("program prelungit") window. When set (> 0) for a
+  // slot in that window it REPLACES the base price and the day-level surcharge
+  // for that service. Null = no special extended price (falls back to price_cents).
+  price_cents_extended: number | null;
   currency: string;
   category: string | null;
   active: boolean;
@@ -650,6 +658,15 @@ export type AppointmentWithDetails = Appointment & {
   barber: Barber;
   service: BarberService;
   services?: AppointmentServiceWithDetails[];
+  // Present only when the booking was made for a dependent (a child / other
+  // person the account holder manages). managed_by_profile_id is set for those
+  // rows; a normal self-booking's own CRM row is not readable here (RLS), so
+  // this stays null/undefined and no "Pentru {name}" pill is shown.
+  salon_client?: {
+    first_name: string | null;
+    last_name: string | null;
+    managed_by_profile_id: string | null;
+  } | null;
 };
 
 export interface BarberAvailability {

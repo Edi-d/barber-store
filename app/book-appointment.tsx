@@ -19,7 +19,7 @@ import { formatPrice } from "@/lib/utils";
 import { generateTimeSlots, getNext14Days, formatCalendarDay, findFirstAvailableDate, findNextAvailableDateAfter, findSoonestAvailableBarber, DaySlots, DayStatus, DayUnavailableReason } from "@/lib/booking";
 import {
   fetchSalonExtendedHours,
-  surchargedTotalCents,
+  finalBookingTotalCents,
   surchargeLabel,
   extensionCoversService,
 } from "@/lib/extended-hours";
@@ -39,6 +39,7 @@ import { ServiceCard } from "@/components/shared/ServiceCard";
 import { BookingDatePicker } from "@/components/shared/BookingDatePicker";
 import { BookingTimeGrid, UnavailableNotice } from "@/components/shared/BookingTimeGrid";
 import { BookingConfirmation } from "@/components/shared/BookingConfirmation";
+import { BookingForSelector, type BookingFor, type Dependent } from "@/components/shared/BookingForSelector";
 import { BookingSuccess, BookingSuccessResult } from "@/components/shared/BookingSuccess";
 import { BookingFloatingBar } from "@/components/shared/BookingFloatingBar";
 
@@ -70,6 +71,10 @@ export default function BookAppointmentScreen() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
+  // Who the appointment is for: the account holder (default), a saved dependent,
+  // or a new child added inline. Reset whenever the salon changes (dependents
+  // are per-salon). See BookingForSelector.
+  const [bookingFor, setBookingFor] = useState<BookingFor>({ kind: "self" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAddingCalendar, setIsAddingCalendar] = useState(false);
   const [calendarEventAdded, setCalendarEventAdded] = useState(false);
@@ -261,6 +266,32 @@ export default function BookAppointmentScreen() {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Dependents (children / others the signed-in user manages) at THIS salon, for
+  // the "Pentru cine?" selector. Readable via the salon_clients_read_own_dependents
+  // RLS policy (managed_by_profile_id = auth.uid()). Per-salon, so keyed on the
+  // effective salon.
+  const { data: dependents } = useQuery({
+    queryKey: ["salon-dependents", effectiveSalonId ?? "none", session?.user.id ?? "anon"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("salon_clients")
+        .select("id, first_name, last_name")
+        .eq("salon_id", effectiveSalonId!)
+        .eq("managed_by_profile_id", session!.user.id)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as Dependent[];
+    },
+    enabled: !!effectiveSalonId && !!session,
+    staleTime: 60_000,
+  });
+
+  // Dependents are per-salon; if the salon changes (e.g. cross-salon "anyone
+  // available" lands on a barber in a different salon) reset the "for whom" pick.
+  useEffect(() => {
+    setBookingFor({ kind: "self" });
+  }, [effectiveSalonId]);
+
   const { data: daySlots, isLoading: slotsLoading, isError: slotsError, refetch: refetchSlots } = useQuery({
     queryKey: [
       "time-slots",
@@ -299,17 +330,30 @@ export default function BookAppointmentScreen() {
     return timeSlots.find((s) => s.time === selectedTime)?.extended === true;
   }, [selectedTime, timeSlots]);
 
-  const surchargeCents = useMemo(() => {
-    if (!isExtendedSlot || !selectedExtension) return 0;
-    return surchargedTotalCents(totalPriceCents, selectedExtension) - totalPriceCents;
-  }, [isExtendedSlot, selectedExtension, totalPriceCents]);
+  // Final charged total for the chosen slot. In an extended window a service's
+  // explicit extended price REPLACES its base price + surcharge; the rest are
+  // surcharged. Mirrors the book_appointment RPC exactly (per-service rounding)
+  // so the preview matches what gets charged. `surchargeCents` is just the
+  // delta over base, shown as a single "Program extins" line.
+  const effectiveTotalCents = useMemo(() => {
+    if (!isExtendedSlot || !selectedExtension) return totalPriceCents;
+    return finalBookingTotalCents(selectedServices, selectedExtension, true);
+  }, [isExtendedSlot, selectedExtension, selectedServices, totalPriceCents]);
+
+  const surchargeCents = effectiveTotalCents - totalPriceCents;
+
+  // At least one selected service is charged its explicit extended price, so the
+  // delta over base isn't a plain percent/fixed surcharge — suppress the "+20%"
+  // style label in the summary to avoid implying it.
+  const usesExtendedServicePrice = useMemo(() => {
+    if (!isExtendedSlot) return false;
+    return selectedServices.some((s) => (s.price_cents_extended ?? 0) > 0);
+  }, [isExtendedSlot, selectedServices]);
 
   const extendedServiceBlocked = useMemo(() => {
     if (!isExtendedSlot || !selectedExtension) return false;
     return selectedServices.some((s) => !extensionCoversService(selectedExtension, s.id));
   }, [isExtendedSlot, selectedExtension, selectedServices]);
-
-  const effectiveTotalCents = totalPriceCents + surchargeCents;
 
   // Find first available date (checks schedule + appointments)
   const { data: firstAvailableData } = useQuery({
@@ -584,6 +628,16 @@ export default function BookAppointmentScreen() {
     )
       return;
 
+    // "Adaugă copil" chosen but no name typed — validate before we hold a slot.
+    if (bookingFor.kind === "new_child" && bookingFor.name.trim().length === 0) {
+      Alert.alert(
+        "Nume lipsă",
+        "Adaugă numele copilului pentru care faci programarea.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
     // Re-entrancy guard: synchronously block double-tap before any await
     if (submittingRef.current) return;
     submittingRef.current = true;
@@ -594,16 +648,59 @@ export default function BookAppointmentScreen() {
       const scheduledAt = new Date(selectedDate);
       scheduledAt.setHours(hours, minutes, 0, 0);
 
-      const { data: rpcData, error: rpcError } = await supabase.rpc("book_appointment", {
+      // Base args resolve against both the legacy 4-arg book_appointment and the
+      // extended 7-arg one (migration 156), so a plain self-booking keeps working
+      // even if that migration hasn't shipped yet. Only send the "book for" args
+      // when actually booking for a dependent — that path genuinely needs the new
+      // function.
+      const rpcArgs: Record<string, unknown> = {
         p_barber_id: selectedBarber.id,
         p_service_ids: selectedServices.map((s) => s.id),
         p_scheduled_at: scheduledAt.toISOString(),
         p_notes: notes.trim() || null,
-      });
+      };
+      if (bookingFor.kind !== "self") {
+        rpcArgs.p_booking_for = bookingFor.kind;
+        rpcArgs.p_dependent_client_id =
+          bookingFor.kind === "dependent" ? bookingFor.clientId : null;
+        rpcArgs.p_child_name =
+          bookingFor.kind === "new_child" ? bookingFor.name.trim() : null;
+      }
+
+      const { data: rpcData, error: rpcError } = await supabase.rpc(
+        "book_appointment",
+        rpcArgs
+      );
 
       if (rpcError) {
         const code = rpcError.code ?? "";
         const msg = rpcError.message ?? "";
+
+        // Log the real cause — the generic fallback below hides it otherwise.
+        console.error("[book] book_appointment failed", {
+          code,
+          message: msg,
+          details: (rpcError as { details?: string }).details,
+          hint: (rpcError as { hint?: string }).hint,
+          bookingFor: bookingFor.kind,
+        });
+
+        // PGRST202 — PostgREST can't find a function matching the args we sent.
+        // For a dependent booking this means the extended 7-arg book_appointment
+        // (migration 156) isn't deployed yet (or the schema cache is stale). Give
+        // a clear signal instead of the generic "try again".
+        if (
+          code === "PGRST202" ||
+          msg.includes("Could not find the function") ||
+          msg.includes("schema cache")
+        ) {
+          Alert.alert(
+            "Indisponibil temporar",
+            "Programarea pentru altă persoană nu este disponibilă momentan. Încearcă „Pentru mine” sau revino mai târziu.",
+            [{ text: "OK" }]
+          );
+          return;
+        }
 
         // 23P01 — any exclusion constraint violation → slot conflict class
         if (code === "23P01") {
@@ -619,8 +716,17 @@ export default function BookAppointmentScreen() {
           return;
         }
 
-        // 42501 — not authenticated
+        // 42501 — not authenticated OR a dependent that isn't the caller's
         if (code === "42501") {
+          if (msg.includes("dependent_not_owned")) {
+            setBookingFor({ kind: "self" });
+            Alert.alert(
+              "Persoană indisponibilă",
+              "Nu am putut confirma persoana pentru care faci programarea. Am selectat „Pentru mine”. Verifică și încearcă din nou.",
+              [{ text: "OK" }]
+            );
+            return;
+          }
           Alert.alert("Sesiune expirată", "Te rugăm să te autentifici din nou.", [{ text: "OK" }]);
           return;
         }
@@ -657,6 +763,14 @@ export default function BookAppointmentScreen() {
             Alert.alert(
               "Servicii indisponibile",
               "Unul sau mai multe servicii alese nu sunt disponibile la acest frizer. Alege din nou.",
+              [{ text: "OK" }]
+            );
+            return;
+          }
+          if (msg.includes("child_name_required")) {
+            Alert.alert(
+              "Nume lipsă",
+              "Adaugă numele copilului pentru care faci programarea.",
               [{ text: "OK" }]
             );
             return;
@@ -786,6 +900,7 @@ export default function BookAppointmentScreen() {
             setSelectedDate(null);
             setSelectedTime(null);
             setNotes("");
+            setBookingFor({ kind: "self" });
             setCalendarEventAdded(false);
             setIsAddingCalendar(false);
             // Reset flow control refs so a fresh manual booking starts clean
@@ -1023,6 +1138,8 @@ export default function BookAppointmentScreen() {
                   <Text style={[Typography.small, { color: "#B45309", marginTop: 2 }]}>
                     {extendedServiceBlocked
                       ? "Unele servicii nu sunt disponibile în programul extins"
+                      : usesExtendedServicePrice
+                      ? "Program extins · preț special"
                       : `Program extins · supliment ${surchargeLabel(selectedExtension)}`}
                   </Text>
                 )}
@@ -1070,6 +1187,11 @@ export default function BookAppointmentScreen() {
         {/* ── Step 4: Confirmation (animated) ── */}
         {step === 4 && selectedBarber && selectedDate && selectedTime && (
           <View style={styles.stepContent}>
+            <BookingForSelector
+              dependents={dependents ?? []}
+              value={bookingFor}
+              onChange={setBookingFor}
+            />
             <BookingConfirmation
               barber={selectedBarber}
               services={selectedServices}
@@ -1090,7 +1212,9 @@ export default function BookAppointmentScreen() {
               confirmBtnRef={confirmBtnRef}
               surchargeCents={surchargeCents}
               surchargeLabel={
-                selectedExtension ? surchargeLabel(selectedExtension) : undefined
+                usesExtendedServicePrice || !selectedExtension
+                  ? undefined
+                  : surchargeLabel(selectedExtension)
               }
             />
           </View>

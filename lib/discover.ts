@@ -8,6 +8,10 @@ export interface SalonWithDistance extends Salon {
   happy_hour_discount: number | null;
   happy_hour_ends_at: string | null;
   is_available_now: boolean;
+  // True when the salon is currently open (within today's hours / a barber is
+  // scheduled now / extended window) — regardless of whether a slot is free.
+  // A salon can be open (is_open_now) but not bookable (is_available_now).
+  is_open_now: boolean;
   // True when the salon is currently inside its enabled after-close extended
   // window (past the normal close, before the extended close) today.
   extended_open_now: boolean;
@@ -147,6 +151,36 @@ function checkExtendedOpenNow(
   return ext > end && cur >= end && cur < ext;
 }
 
+// Whether the salon is currently open — a barber is scheduled now, OR we're
+// inside today's published hours, OR inside the extended window. This is the
+// superset of is_available_now (which additionally requires a free slot); use it
+// to tell "closed" apart from "open but fully booked".
+function checkOpenNow(
+  availability: { barber_id: string; day_of_week: number; start_time: string; end_time: string; is_available: boolean }[],
+  salonHoursToday: { start: string; end: string } | null,
+  extendedOpenNow: boolean
+): boolean {
+  if (extendedOpenNow) return true;
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
+
+  const barberOpen = availability.some(
+    (a) =>
+      a.day_of_week === dayOfWeek &&
+      a.is_available &&
+      currentTime >= a.start_time &&
+      currentTime < a.end_time
+  );
+  if (barberOpen) return true;
+
+  return (
+    salonHoursToday != null &&
+    currentTime >= salonHoursToday.start &&
+    currentTime < salonHoursToday.end
+  );
+}
+
 // Enrich salons with computed fields from real DB data
 export function enrichSalons(
   salons: Salon[],
@@ -181,6 +215,8 @@ export function enrichSalons(
 
       const hh = activeHappyHours.get(salon.id);
       const availability = availabilityMap.get(salon.id) ?? [];
+      const salonHoursToday = salonHoursTodayMap.get(salon.id) ?? null;
+      const extendedOpen = checkExtendedOpenNow(salonHoursToday, extendedTodayMap.get(salon.id));
 
       return {
         ...salon,
@@ -190,8 +226,9 @@ export function enrichSalons(
         has_happy_hour: !!hh,
         happy_hour_discount: hh?.discount_percent ?? null,
         happy_hour_ends_at: hh?.ends_at ?? null,
-        is_available_now: checkAvailableNow(availability, barberAppointments, salonHoursTodayMap.get(salon.id) ?? null),
-        extended_open_now: checkExtendedOpenNow(salonHoursTodayMap.get(salon.id) ?? null, extendedTodayMap.get(salon.id)),
+        is_available_now: checkAvailableNow(availability, barberAppointments, salonHoursToday),
+        is_open_now: checkOpenNow(availability, salonHoursToday, extendedOpen),
+        extended_open_now: extendedOpen,
         price_range_label: formatPriceRange(priceRangeMap.get(salon.id), salon.avg_price_cents),
       };
     });

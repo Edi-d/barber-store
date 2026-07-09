@@ -28,11 +28,29 @@ const hex = (h) => [
   parseInt(h.slice(5, 7), 16),
 ];
 
-// [fillRGB, borderRGB] per state
+// Per state: fill, border, and whether the emerald "available now" dot is baked
+// in. The dot lives inside the icon (not a separate CircleLayer) so it takes part
+// in symbol collision — otherwise a hidden pin would leave an orphan dot behind.
 const VARIANTS = {
-  "salon-pin-default": [hex("#ffffff"), hex("#e2e8f0")], // white fill, grey border
-  "salon-pin-available": [hex("#ffffff"), hex("#7cc4ff")], // white fill, blue border
-  "salon-pin-selected": [hex("#0a85f4"), hex("#0a85f4")], // blue fill, blue border
+  "salon-pin-default": { fill: hex("#ffffff"), border: hex("#e2e8f0"), dot: false }, // white fill, grey border
+  "salon-pin-available": { fill: hex("#ffffff"), border: hex("#7cc4ff"), dot: true }, // white fill, blue border + dot
+  "salon-pin-selected": { fill: hex("#0a85f4"), border: hex("#0a85f4"), dot: false }, // blue fill, blue border
+  "salon-pin-selected-available": { fill: hex("#0a85f4"), border: hex("#0a85f4"), dot: true }, // blue fill + dot
+  // Cluster bubble: same squircle as the pins, but a white rim so a group reads
+  // differently from a (blue-bordered) selected single pin. Scaled up at runtime
+  // via iconSize; the count is drawn as the symbol's text.
+  "salon-cluster": { fill: hex("#0a85f4"), border: hex("#ffffff"), dot: false }, // blue fill, white border
+};
+
+// Emerald availability dot, matching the old CircleLayer (radius 5, 2px white
+// ring, offset +13/-13 screen pts from the bubble centre). Scaled to image px.
+const DOT = {
+  cx: SIZE / 2 + 13 * SCALE,
+  cy: SIZE / 2 - 13 * SCALE,
+  rFill: 5 * SCALE,
+  rOuter: 7 * SCALE, // fill + 2px ring
+  fill: hex("#10b981"), // emerald-500
+  ring: hex("#ffffff"),
 };
 
 // Is point (x,y) inside a rounded rect [0,w]x[0,h] with the given corner radii?
@@ -44,7 +62,7 @@ function insideRRect(x, y, w, h, r) {
   return x >= 0 && x <= w && y >= 0 && y <= h;
 }
 
-function buildRGBA(fill, border) {
+function buildRGBA(fill, border, dot) {
   const w = SIZE;
   const h = SIZE;
   const SS = 4; // 4x4 supersample for anti-aliasing
@@ -86,6 +104,45 @@ function buildRGBA(fill, border) {
       buf[idx + 3] = Math.round(alpha * 255);
     }
   }
+
+  // Overlay the emerald "available now" dot on top of the finished bubble.
+  if (dot) {
+    const SS = 4; // supersample for a smooth edge, like the bubble above
+    const discCoverage = (px, py, r) => {
+      let hit = 0;
+      for (let sy = 0; sy < SS; sy++) {
+        for (let sx = 0; sx < SS; sx++) {
+          const x = px + (sx + 0.5) / SS;
+          const y = py + (sy + 0.5) / SS;
+          if (Math.hypot(x - DOT.cx, y - DOT.cy) <= r) hit++;
+        }
+      }
+      return hit / (SS * SS);
+    };
+    const x0 = Math.max(0, Math.floor(DOT.cx - DOT.rOuter - 1));
+    const x1 = Math.min(w, Math.ceil(DOT.cx + DOT.rOuter + 1));
+    const y0 = Math.max(0, Math.floor(DOT.cy - DOT.rOuter - 1));
+    const y1 = Math.min(h, Math.ceil(DOT.cy + DOT.rOuter + 1));
+    for (let j = y0; j < y1; j++) {
+      for (let i = x0; i < x1; i++) {
+        const outerCov = discCoverage(i, j, DOT.rOuter);
+        if (outerCov <= 0) continue;
+        const innerCov = discCoverage(i, j, DOT.rFill);
+        const ringCov = Math.max(outerCov - innerCov, 0);
+        const dotA = outerCov;
+        const dr = (DOT.fill[0] * innerCov + DOT.ring[0] * ringCov) / dotA;
+        const dg = (DOT.fill[1] * innerCov + DOT.ring[1] * ringCov) / dotA;
+        const db = (DOT.fill[2] * innerCov + DOT.ring[2] * ringCov) / dotA;
+        const idx = (j * w + i) * 4;
+        // Composite the (opaque) dot over the bubble underneath it.
+        buf[idx] = Math.round(dr * dotA + buf[idx] * (1 - dotA));
+        buf[idx + 1] = Math.round(dg * dotA + buf[idx + 1] * (1 - dotA));
+        buf[idx + 2] = Math.round(db * dotA + buf[idx + 2] * (1 - dotA));
+        buf[idx + 3] = Math.max(buf[idx + 3], Math.round(dotA * 255));
+      }
+    }
+  }
+
   return buf;
 }
 
@@ -130,8 +187,8 @@ function encodePNG(rgba, w, h) {
 
 const outDir = path.join(__dirname, "..", "assets", "markers");
 fs.mkdirSync(outDir, { recursive: true });
-for (const [name, [fill, border]] of Object.entries(VARIANTS)) {
-  const rgba = buildRGBA(fill, border);
+for (const [name, { fill, border, dot }] of Object.entries(VARIANTS)) {
+  const rgba = buildRGBA(fill, border, dot);
   const png = encodePNG(rgba, SIZE, SIZE);
   const file = path.join(outDir, `${name}.png`);
   fs.writeFileSync(file, png);

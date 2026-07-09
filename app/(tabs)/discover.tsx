@@ -799,6 +799,15 @@ export default function DiscoverScreen() {
               salons={sortedSalons}
               selectedId={selectedSalon?.id ?? null}
               onSelect={handleMarkerPress}
+              onClusterPress={(coordinate, expansionZoom) =>
+                focusCamera(coordinate, {
+                  // Nudge just past the split zoom so the cluster actually breaks apart.
+                  zoomLevel: Math.min(expansionZoom + 0.4, 17.5),
+                  sheetOpen: sheetIndex >= 1,
+                  animationMode: "easeTo",
+                  animationDuration: 500,
+                })
+              }
             />
           </Mapbox.MapView>
 

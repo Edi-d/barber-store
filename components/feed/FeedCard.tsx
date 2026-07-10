@@ -508,7 +508,7 @@ function LikeParticle({
 
 const styles = StyleSheet.create({
   cardShadow: {
-    marginHorizontal: Spacing.lg,
+    marginHorizontal: Spacing.md,
     marginBottom: Spacing.base,
     ...Bubble.radii,
   },

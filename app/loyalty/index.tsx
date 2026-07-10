@@ -1,236 +1,289 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  Pressable,
+  ActivityIndicator,
+  RefreshControl,
+  Alert,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 
 import { useAuthStore } from '@/stores/authStore';
-import { useLoyaltyProfile } from '@/hooks/useLoyaltyProfile';
-import { XP_TX_PREVIEW_QK } from '@/hooks/useXpRealtime';
-import { fetchRecentXpTransactions } from '@/lib/loyalty';
-import { TierBadge } from '@/components/loyalty/TierBadge';
-import { TierProgressBar } from '@/components/loyalty/TierProgressBar';
-import { PointsTransactionList } from '@/components/loyalty/PointsTransactionList';
-import { VoucherConversionSection } from '@/components/loyalty/VoucherConversionSection';
-import { MyVouchersSection } from '@/components/loyalty/MyVouchersSection';
-import { SeeAllButton } from '@/components/loyalty/SeeAllButton';
-import { Brand, Colors, Bubble, Shadows, FontFamily, Typography, Spacing, Radius } from '@/constants/theme';
-
-type LoyaltyTab = 'beneficii' | 'vouchere' | 'istoric';
-
-const TABS: { key: LoyaltyTab; label: string }[] = [
-  { key: 'beneficii', label: 'Beneficii' },
-  { key: 'vouchere', label: 'Vouchere' },
-  { key: 'istoric', label: 'Istoric' },
-];
+import { useSalonLoyaltyCards } from '@/hooks/useSalonLoyaltyCards';
+import { useSalonLoyaltyDetail } from '@/hooks/useSalonLoyaltyDetail';
+import { useRedeemSalonReward } from '@/hooks/useRedeemSalonReward';
+import {
+  getSalonPointHistory,
+  type CatalogReward,
+  type PointHistoryItem,
+  type RedeemResult,
+} from '@/lib/salon-loyalty';
+import { SalonWalletCarousel } from '@/components/loyalty/salon/SalonWalletCarousel';
+import { SalonLoyaltyTabs, type SalonLoyaltyTab } from '@/components/loyalty/salon/SalonLoyaltyTabs';
+import { SalonRewardCard } from '@/components/loyalty/salon/SalonRewardCard';
+import { SalonVoucherRow } from '@/components/loyalty/salon/SalonVoucherRow';
+import { SalonHistoryRow } from '@/components/loyalty/salon/SalonHistoryRow';
+import { RewardCodeModal } from '@/components/loyalty/salon/RewardCodeModal';
+import { Bubble, Colors, Shadows, Spacing, Typography } from '@/constants/theme';
 
 export default function LoyaltyScreen() {
   const session = useAuthStore((s) => s.session);
+  const userId = session?.user.id;
   const { from } = useLocalSearchParams<{ from?: string }>();
   const showBackBtn = from === 'profile';
-  const { data: xp, isLoading } = useLoyaltyProfile();
-  const [activeTab, setActiveTab] = useState<LoyaltyTab>('beneficii');
-  const HISTORY_PREVIEW = 3;
 
-  const { data: transactions = [] } = useQuery({
-    queryKey: session?.user.id ? XP_TX_PREVIEW_QK(session.user.id) : ['loyalty-transactions', 'anonymous'],
-    queryFn: () =>
-      session?.user.id
-        ? fetchRecentXpTransactions(session.user.id, 20)
-        : Promise.resolve([]),
-    enabled: !!session?.user.id,
-  });
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [activeTab, setActiveTab] = useState<SalonLoyaltyTab>('recompense');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const cardsQuery = useSalonLoyaltyCards(userId);
+  const cards = cardsQuery.data ?? [];
+  const selectedSalonId = cards[selectedIndex]?.salonId;
+
+  const detailQuery = useSalonLoyaltyDetail(userId, selectedSalonId);
+  const detail = detailQuery.data ?? null;
+
+  /* ── Reward redemption ── */
+  const redeem = useRedeemSalonReward();
+  const [redeemingId, setRedeemingId] = useState<string | null>(null);
+  const [codeModal, setCodeModal] = useState<{ title: string; code: string; subtitle?: string } | null>(null);
+
+  const onRedeem = useCallback(
+    async (reward: CatalogReward) => {
+      if (!userId || !selectedSalonId) return;
+      setRedeemingId(reward.id);
+      try {
+        // mutateAsync returns the RedeemResult as a plain local, which narrows
+        // cleanly (react-query's mutate onSuccess callback defeats union narrowing).
+        const res: RedeemResult = await redeem.mutateAsync({ userId, salonId: selectedSalonId, rewardId: reward.id });
+        if (res.ok) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+          setCodeModal({ title: res.rewardName, code: res.code });
+        } else {
+          Alert.alert('Nu s-a putut revendica', res.error);
+        }
+      } catch (e: any) {
+        Alert.alert('Eroare', e?.message ?? 'A apărut o eroare.');
+      } finally {
+        setRedeemingId(null);
+      }
+    },
+    [userId, selectedSalonId, redeem],
+  );
+
+  /* ── History pagination (page 0 comes from the detail query) ── */
+  const [extraHistory, setExtraHistory] = useState<PointHistoryItem[]>([]);
+  const [historyPage, setHistoryPage] = useState(0);
+  const [historyHasMore, setHistoryHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  // Reset accumulated pages whenever the salon (or refetched detail) changes.
+  useEffect(() => {
+    setExtraHistory([]);
+    setHistoryPage(0);
+    setHistoryHasMore(detail?.historyHasMore ?? false);
+  }, [selectedSalonId, detail?.historyHasMore]);
+
+  const combinedHistory = [...(detail?.history ?? []), ...extraHistory];
+
+  const loadMoreHistory = useCallback(async () => {
+    if (!userId || !selectedSalonId || loadingMore) return;
+    setLoadingMore(true);
+    const next = historyPage + 1;
+    const { rows, hasMore } = await getSalonPointHistory(userId, selectedSalonId, next);
+    setExtraHistory((prev) => [...prev, ...rows]);
+    setHistoryPage(next);
+    setHistoryHasMore(hasMore);
+    setLoadingMore(false);
+  }, [userId, selectedSalonId, loadingMore, historyPage]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([cardsQuery.refetch(), detailQuery.refetch()]);
+    setRefreshing(false);
+  }, [cardsQuery, detailQuery]);
 
   const backSafely = () => {
     if (router.canGoBack()) router.back();
     else router.replace('/(tabs)/profile');
   };
 
-  return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        {showBackBtn ? (
-          <Pressable onPress={backSafely} hitSlop={10}>
-            <View style={styles.backBtn}>
-              <Ionicons name="chevron-back" size={22} color={Colors.text} />
-            </View>
-          </Pressable>
-        ) : (
-          <View style={{ width: 36 }} />
-        )}
-        <Text style={styles.headerTitle}>Punctele mele</Text>
+  const header = (
+    <View style={styles.header}>
+      {showBackBtn ? (
+        <Pressable onPress={backSafely} hitSlop={10}>
+          <View style={styles.backBtn}>
+            <Ionicons name="chevron-back" size={22} color={Colors.text} />
+          </View>
+        </Pressable>
+      ) : (
         <View style={{ width: 36 }} />
-      </View>
+      )}
+      <Text style={styles.headerTitle}>Loialitate</Text>
+      <View style={{ width: 36 }} />
+    </View>
+  );
 
-      {isLoading || !xp ? (
-        <View style={styles.loadingWrap}>
+  /* ── Loading & empty states ── */
+  if (cardsQuery.isLoading) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        {header}
+        <View style={styles.centerWrap}>
           <ActivityIndicator size="large" color={Colors.primary} />
         </View>
-      ) : (
-        <>
-          {/* Fixed hero + segmented tabs (always visible & tappable) */}
-          <View style={styles.topFixed}>
-          {/* Hero card — brand blue gradient */}
-          <View style={styles.heroWrap}>
-            <LinearGradient
-              colors={[Brand.gradientStart, Brand.gradientEnd]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.heroGradient}
-            >
-              {/* Top row: badge in translucent circle + tier name */}
-              <View style={styles.heroTop}>
-                <View style={styles.badgeCircle}>
-                  <TierBadge level={xp.currentLevel.level} size="md" />
-                </View>
-                <View style={styles.heroTierInfo}>
-                  <View style={styles.tierNameRow}>
-                    <View style={[styles.tierDot, { backgroundColor: xp.currentLevel.color }]} />
-                    <Text style={styles.heroTierLabel}>Nivelul tău</Text>
-                  </View>
-                  <Text style={styles.heroTierName}>{xp.currentLevel.title}</Text>
-                </View>
-              </View>
+      </SafeAreaView>
+    );
+  }
 
-              {/* Balance */}
-              <Text style={styles.pointsValue} numberOfLines={1} adjustsFontSizeToFit>
-                {xp.balance.toLocaleString('ro-RO')}
-              </Text>
-              <Text style={styles.pointsLabel}>puncte disponibile</Text>
-              <Text style={styles.lifetimeLabel}>
-                {xp.lifetime.toLocaleString('ro-RO')} puncte acumulate total
-              </Text>
-
-              {/* Progress bar — white on blue */}
-              <View style={styles.progressWrap}>
-                <TierProgressBar
-                  lifetimePoints={xp.lifetime}
-                  currentLevel={xp.currentLevel.level}
-                  textColor="#FFFFFF"
-                />
-              </View>
-            </LinearGradient>
+  if (cards.length === 0) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        {header}
+        <View style={styles.centerWrap}>
+          <View style={styles.emptyIcon}>
+            <Ionicons name="storefront-outline" size={30} color={Colors.primary} />
           </View>
+          <Text style={styles.emptyTitle}>Niciun salon încă</Text>
+          <Text style={styles.emptyText}>
+            Fă prima ta programare pentru a începe să acumulezi puncte de loialitate.
+          </Text>
+          <Pressable style={styles.emptyCta} onPress={() => router.push('/(tabs)/discover')}>
+            <Text style={styles.emptyCtaText}>Descoperă saloane</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
-          {/* Segmented tab bar */}
-          <View style={styles.tabBar}>
-            {TABS.map((t) => {
-              const active = activeTab === t.key;
-              return (
-                <Pressable
-                  key={t.key}
-                  style={[styles.tab, active && styles.tabActive]}
-                  onPress={() => {
-                    Haptics.selectionAsync().catch(() => {});
-                    setActiveTab(t.key);
-                  }}
-                >
-                  <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>
-                    {t.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      {header}
+
+      {/* Fixed top: wallet carousel + tabs */}
+      <View style={styles.topFixed}>
+        <SalonWalletCarousel
+          cards={cards}
+          selectedIndex={selectedIndex}
+          onIndexChange={(i) => {
+            setSelectedIndex(i);
+            setActiveTab('recompense');
+          }}
+        />
+        <View style={styles.tabsWrap}>
+          <SalonLoyaltyTabs
+            active={activeTab}
+            onChange={setActiveTab}
+            counts={{
+              recompense: detail?.rewards.length,
+              vouchere: detail?.vouchers.length,
+            }}
+          />
+        </View>
+      </View>
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
+        }
+      >
+        {!detail && detailQuery.isFetching ? (
+          <View style={styles.detailLoading}>
+            <ActivityIndicator size="small" color={Colors.primary} />
           </View>
-          </View>
-          {/* end fixed top */}
-
-          <ScrollView
-            style={styles.scroll}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-          >
-          {/* Tab: Beneficii */}
-          {activeTab === 'beneficii' && (
-            <>
-              <Text style={styles.sectionTitle}>Beneficii nivel {xp.currentLevel.title}</Text>
-              <View style={styles.card}>
-                {xp.currentLevel.perks.map((p, i) => (
-                  <View key={i} style={styles.benefitRow}>
-                    <View style={[styles.bullet, { backgroundColor: xp.currentLevel.color }]} />
-                    <Text style={styles.benefitText}>{p}</Text>
-                  </View>
-                ))}
-              </View>
-
-              <Text style={styles.sectionTitle}>Cum castigi puncte</Text>
-              <View style={styles.card}>
-                <View style={styles.howToRow}>
-                  <View style={styles.howToIconCircle}>
-                    <Ionicons name="star-outline" size={20} color={Colors.primary} />
-                  </View>
-                  <Text style={styles.howToText}>
-                    Primești puncte automat după fiecare programare finalizată sau comandă plătită.
-                    Cu cat cheltui mai mult, cu atat avansezi mai rapid in nivele si deblochezi
-                    vouchere mai valoroase.
-                  </Text>
+        ) : detail ? (
+          <>
+            {/* Tab: Recompense */}
+            {activeTab === 'recompense' &&
+              (!detail.hasProgram ? (
+                <MutedNote text="Acest salon nu are un program de loialitate momentan." />
+              ) : detail.rewards.length === 0 ? (
+                <MutedNote text="Nicio recompensă disponibilă deocamdată." />
+              ) : (
+                <View style={styles.list}>
+                  {detail.rewards.map((r) => (
+                    <SalonRewardCard
+                      key={r.id}
+                      reward={r}
+                      currentPoints={detail.currentPoints}
+                      userTier={detail.progress?.currentTier ?? null}
+                      enrolled={detail.enrolled}
+                      redeeming={redeemingId === r.id}
+                      onRedeem={onRedeem}
+                    />
+                  ))}
                 </View>
-              </View>
-            </>
-          )}
+              ))}
 
-          {/* Tab: Vouchere */}
-          {activeTab === 'vouchere' && (
-            <>
-              <Text style={styles.sectionTitle}>Vouchere disponibile</Text>
-              <View style={styles.card}>
-                <Text style={styles.cardSub}>
-                  Convertește punctele în voucher folosibil la orice salon.
-                </Text>
-                <View style={{ marginTop: Spacing.sm }}>
-                  <VoucherConversionSection currentBalance={xp.balance} />
+            {/* Tab: Vouchere */}
+            {activeTab === 'vouchere' &&
+              (detail.vouchers.length === 0 ? (
+                <MutedNote text="Nu ai vouchere la acest salon încă." />
+              ) : (
+                <View style={styles.list}>
+                  {detail.vouchers.map((v) => (
+                    <SalonVoucherRow key={v.id} voucher={v} />
+                  ))}
                 </View>
-              </View>
+              ))}
 
-              <Text style={styles.sectionTitle}>Voucherele mele</Text>
-              <MyVouchersSection userId={session?.user.id} previewCount={HISTORY_PREVIEW} />
-            </>
-          )}
-
-          {/* Tab: Istoric */}
-          {activeTab === 'istoric' && (
-            <>
-              <Text style={styles.sectionTitle}>Istoric tranzacții</Text>
-              <View style={styles.card}>
-                <View style={styles.historyHeaderRow}>
-                  <View style={styles.howToIconCircle}>
-                    <Ionicons name="time-outline" size={20} color={Colors.primary} />
-                  </View>
-                  <Text style={styles.historyHeaderText}>Activitate recentă</Text>
+            {/* Tab: Istoric */}
+            {activeTab === 'istoric' &&
+              (combinedHistory.length === 0 ? (
+                <MutedNote text="Nicio activitate încă la acest salon." />
+              ) : (
+                <View style={styles.historyCard}>
+                  {combinedHistory.map((h) => (
+                    <SalonHistoryRow key={h.id} item={h} />
+                  ))}
+                  {historyHasMore && (
+                    <Pressable style={styles.loadMore} onPress={loadMoreHistory} disabled={loadingMore}>
+                      {loadingMore ? (
+                        <ActivityIndicator size="small" color={Colors.primary} />
+                      ) : (
+                        <Text style={styles.loadMoreText}>Vezi mai mult</Text>
+                      )}
+                    </Pressable>
+                  )}
                 </View>
-                <View style={{ marginTop: Spacing.md }}>
-                  <PointsTransactionList
-                    transactions={transactions.slice(0, HISTORY_PREVIEW)}
-                  />
-                </View>
-              </View>
+              ))}
+          </>
+        ) : (
+          <MutedNote text="Nu am putut încărca detaliile salonului." />
+        )}
+      </ScrollView>
 
-              {transactions.length > HISTORY_PREVIEW && (
-                <SeeAllButton
-                  label={`Vezi tot istoricul (${transactions.length})`}
-                  onPress={() => router.push('/loyalty/history')}
-                />
-              )}
-            </>
-          )}
-          </ScrollView>
-        </>
-      )}
+      <RewardCodeModal
+        visible={codeModal !== null}
+        onClose={() => setCodeModal(null)}
+        title={codeModal?.title ?? ''}
+        code={codeModal?.code ?? ''}
+        subtitle={codeModal?.subtitle}
+      />
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
+function MutedNote({ text }: { text: string }) {
+  return (
+    <View style={styles.mutedNote}>
+      <Text style={styles.mutedNoteText}>{text}</Text>
+    </View>
+  );
+}
 
-  /* Header */
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: Colors.background },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -253,187 +306,94 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
 
-  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  centerWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.xl,
+    gap: Spacing.sm,
+  },
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    ...Bubble.radiiSm,
+    backgroundColor: Colors.primaryMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.xs,
+  },
+  emptyTitle: {
+    ...Typography.h3,
+    color: Colors.text,
+  },
+  emptyText: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  emptyCta: {
+    marginTop: Spacing.md,
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    borderRadius: 999,
+    backgroundColor: Colors.primary,
+  },
+  emptyCtaText: {
+    ...Typography.captionSemiBold,
+    color: '#FFFFFF',
+  },
+
+  topFixed: {
+    paddingTop: Spacing.sm,
+  },
+  tabsWrap: {
+    paddingHorizontal: Spacing.base,
+    marginTop: Spacing.lg,
+  },
 
   scroll: { flex: 1 },
   scrollContent: {
     paddingHorizontal: Spacing.base,
+    paddingTop: Spacing.lg,
     paddingBottom: Spacing['3xl'] * 3,
-    paddingTop: Spacing.md,
   },
 
-  /* Hero */
-  heroWrap: {
-    marginBottom: Spacing.lg,
-    ...Bubble.radiiSm,
-    overflow: 'hidden',
-    ...Shadows.glow,
-  },
-  heroGradient: {
-    padding: Spacing.lg,
-    gap: Spacing.xs,
-  },
-  heroTop: {
-    flexDirection: 'row',
+  detailLoading: {
+    paddingVertical: Spacing['3xl'],
     alignItems: 'center',
-    gap: Spacing.md,
-    marginBottom: Spacing.md,
-  },
-  badgeCircle: {
-    width: 64,
-    height: 64,
-    ...Bubble.radiiSm,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroTierInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  tierNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  tierDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  heroTierLabel: {
-    ...Typography.small,
-    color: 'rgba(255,255,255,0.75)',
-  },
-  heroTierName: {
-    ...Typography.h3,
-    color: Brand.white,
-    letterSpacing: -0.3,
-  },
-  pointsValue: {
-    fontFamily: FontFamily.bold,
-    fontSize: 44,
-    lineHeight: 50,
-    color: Brand.white,
-    letterSpacing: -1.5,
-    marginTop: 4,
-  },
-  pointsLabel: {
-    ...Typography.caption,
-    color: 'rgba(255,255,255,0.85)',
-    marginTop: -2,
-  },
-  lifetimeLabel: {
-    ...Typography.small,
-    color: 'rgba(255,255,255,0.65)',
-    marginTop: 2,
-  },
-  progressWrap: {
-    marginTop: Spacing.lg,
   },
 
-  /* Fixed top area (hero + tabs), sits above the scrolling tab content */
-  topFixed: {
-    paddingHorizontal: Spacing.base,
-    paddingTop: Spacing.sm,
-  },
+  list: { gap: Spacing.md },
 
-  /* Segmented tab bar */
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: '#E4EAF2',
-    borderRadius: Radius.full,
-    padding: 4,
-    gap: 4,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 9,
-    alignItems: 'center',
-    borderRadius: Radius.full,
-  },
-  tabActive: {
-    backgroundColor: Colors.gradientStart,
-    ...Shadows.sm,
-  },
-  tabLabel: {
-    ...Typography.captionSemiBold,
-    color: Colors.textSecondary,
-  },
-  tabLabelActive: {
-    color: Colors.white,
-  },
-
-  /* Section titles */
-  sectionTitle: {
-    ...Typography.h3,
-    color: Colors.text,
-    marginBottom: Spacing.md,
-    letterSpacing: -0.3,
-  },
-
-  /* Shared card */
-  card: {
+  historyCard: {
     backgroundColor: Colors.white,
     ...Bubble.radiiSm,
     ...Shadows.sm,
-    padding: Spacing.lg,
-    marginBottom: Spacing.lg,
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.xs,
   },
-  cardSub: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    lineHeight: 20,
-  },
-
-  /* Benefits */
-  benefitRow: {
-    flexDirection: 'row',
+  loadMore: {
     alignItems: 'center',
-    gap: Spacing.sm,
-    paddingVertical: 6,
+    paddingVertical: Spacing.md,
+    marginTop: Spacing.xs,
   },
-  bullet: {
-    width: 8,
-    height: 8,
-    borderRadius: 2,
-  },
-  benefitText: {
-    ...Typography.body,
-    color: '#191919',
-    flex: 1,
+  loadMoreText: {
+    ...Typography.captionSemiBold,
+    color: Colors.primary,
   },
 
-  /* How to earn */
-  howToRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.md,
-  },
-  howToIconCircle: {
-    width: 40,
-    height: 40,
+  mutedNote: {
+    backgroundColor: Colors.white,
     ...Bubble.radiiSm,
-    backgroundColor: Brand.primaryMuted,
+    ...Shadows.sm,
+    padding: Spacing.xl,
     alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
   },
-  howToText: {
+  mutedNoteText: {
     ...Typography.caption,
     color: Colors.textSecondary,
-    flex: 1,
+    textAlign: 'center',
     lineHeight: 20,
-  },
-
-  /* History */
-  historyHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  historyHeaderText: {
-    ...Typography.bodySemiBold,
-    color: Colors.text,
   },
 });

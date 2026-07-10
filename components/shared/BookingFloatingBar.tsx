@@ -42,12 +42,15 @@ interface BookingFloatingBarProps {
   selectedServices: BarberService[];
   onContinue: () => void;
   formatPrice: (cents: number, currency: string) => string;
+  /** Overrides the CTA label (default "Continuă") — e.g. "Gata" in guest mode. */
+  ctaLabel?: string;
 }
 
 export function BookingFloatingBar({
   selectedServices,
   onContinue,
   formatPrice,
+  ctaLabel,
 }: BookingFloatingBarProps) {
   const insets = useSafeAreaInsets();
 
@@ -184,7 +187,7 @@ export function BookingFloatingBar({
             style={styles.continueButton}
           >
             <View style={styles.buttonInner}>
-              <Text style={styles.buttonLabel}>Continuă</Text>
+              <Text style={styles.buttonLabel}>{ctaLabel ?? "Continuă"}</Text>
               <Ionicons
                 name="arrow-forward"
                 size={17}

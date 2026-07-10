@@ -8,6 +8,7 @@ import {
   Alert,
   StyleSheet,
   Platform,
+  BackHandler,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -42,6 +43,7 @@ import { BookingConfirmation } from "@/components/shared/BookingConfirmation";
 import { BookingForSelector, type BookingFor, type Dependent } from "@/components/shared/BookingForSelector";
 import { BookingSuccess, BookingSuccessResult } from "@/components/shared/BookingSuccess";
 import { BookingFloatingBar } from "@/components/shared/BookingFloatingBar";
+import { BookingGuestsSection, type Guest } from "@/components/shared/BookingGuestsSection";
 
 type BookingStep = 1 | 2 | 3 | 4;
 
@@ -75,6 +77,11 @@ export default function BookAppointmentScreen() {
   // or a new child added inline. Reset whenever the salon changes (dependents
   // are per-salon). See BookingForSelector.
   const [bookingFor, setBookingFor] = useState<BookingFor>({ kind: "self" });
+  // Extra people ("Persoane suplimentare") added to the same slot, each with
+  // their own services. `editingGuestKey` marks step 2 as being in "guest
+  // mode" (a sub-state of step 2, not a separate step) for that guest.
+  const [guests, setGuests] = useState<Guest[]>([]);
+  const [editingGuestKey, setEditingGuestKey] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAddingCalendar, setIsAddingCalendar] = useState(false);
   const [calendarEventAdded, setCalendarEventAdded] = useState(false);
@@ -91,6 +98,12 @@ export default function BookAppointmentScreen() {
 
   // Re-entrancy guard for handleSubmit — set synchronously to prevent double-tap
   const submittingRef = useRef(false);
+
+  // Whether the CURRENT guest-mode session (add or edit) was entered from step
+  // 4. We can't infer this from live selectedDate/selectedTime at exit time
+  // because toggling a guest's services clears both (duration changed) — so
+  // the origin is captured once, at entry, and consulted on exit instead.
+  const guestModeFromStep4Ref = useRef(false);
 
   // Step 1
   const stepIndicatorRef = useRef<View>(null);
@@ -146,17 +159,42 @@ export default function BookAppointmentScreen() {
   }, [registerRef, unregisterRef]);
 
   // ── Derived totals ───────────────────────────────────────────────────────
-  const totalDurationMin = useMemo(
+  // Main-only totals (the account holder / bookingFor person's own services).
+  const mainDurationMin = useMemo(
     () => selectedServices.reduce((acc, s) => acc + s.duration_min, 0),
     [selectedServices]
   );
-  const totalPriceCents = useMemo(
+  const mainPriceCents = useMemo(
     () => selectedServices.reduce((acc, s) => acc + s.price_cents, 0),
     [selectedServices]
   );
   const primaryCurrency = useMemo(
     () => selectedServices[0]?.currency ?? "RON",
     [selectedServices]
+  );
+
+  // Combined duration across the main person + every guest — this is what
+  // actually needs to fit in the barber's calendar (everyone is booked
+  // back-to-back in one slot), so all slot-availability queries below key and
+  // compute off THIS value, not the main-only one. Zero guests ⇒ identical to
+  // mainDurationMin, so the zero-guest flow is unaffected.
+  const guestsDurationMin = useMemo(
+    () =>
+      guests.reduce(
+        (sum, g) => sum + g.services.reduce((s2, s) => s2 + s.duration_min, 0),
+        0
+      ),
+    [guests]
+  );
+  const totalDurationMin = mainDurationMin + guestsDurationMin;
+
+  const guestsPriceCentsBase = useMemo(
+    () =>
+      guests.reduce(
+        (sum, g) => sum + g.services.reduce((s2, s) => s2 + s.price_cents, 0),
+        0
+      ),
+    [guests]
   );
 
   // ── Queries ──────────────────────────────────────────────────────────────
@@ -287,9 +325,12 @@ export default function BookAppointmentScreen() {
   });
 
   // Dependents are per-salon; if the salon changes (e.g. cross-salon "anyone
-  // available" lands on a barber in a different salon) reset the "for whom" pick.
+  // available" lands on a barber in a different salon) reset the "for whom"
+  // pick and any guests (a guest's dependentClientId is per-salon too).
   useEffect(() => {
     setBookingFor({ kind: "self" });
+    setGuests([]);
+    setEditingGuestKey(null);
   }, [effectiveSalonId]);
 
   const { data: daySlots, isLoading: slotsLoading, isError: slotsError, refetch: refetchSlots } = useQuery({
@@ -330,30 +371,54 @@ export default function BookAppointmentScreen() {
     return timeSlots.find((s) => s.time === selectedTime)?.extended === true;
   }, [selectedTime, timeSlots]);
 
-  // Final charged total for the chosen slot. In an extended window a service's
-  // explicit extended price REPLACES its base price + surcharge; the rest are
-  // surcharged. Mirrors the book_appointment RPC exactly (per-service rounding)
-  // so the preview matches what gets charged. `surchargeCents` is just the
-  // delta over base, shown as a single "Program extins" line.
+  // Final charged total for the chosen slot, MAIN PERSON ONLY. In an extended
+  // window a service's explicit extended price REPLACES its base price +
+  // surcharge; the rest are surcharged. Mirrors the book_appointment RPC
+  // exactly (per-service rounding) so the preview matches what gets charged.
   const effectiveTotalCents = useMemo(() => {
-    if (!isExtendedSlot || !selectedExtension) return totalPriceCents;
+    if (!isExtendedSlot || !selectedExtension) return mainPriceCents;
     return finalBookingTotalCents(selectedServices, selectedExtension, true);
-  }, [isExtendedSlot, selectedExtension, selectedServices, totalPriceCents]);
+  }, [isExtendedSlot, selectedExtension, selectedServices, mainPriceCents]);
 
-  const surchargeCents = effectiveTotalCents - totalPriceCents;
+  // Per-guest preview total. Approximation: a guest segment is treated as
+  // extended iff the main slot is — a guest whose OWN segment crosses INTO the
+  // extended window mid-group may in reality be charged slightly more; the
+  // book_appointment RPC recomputes and enforces the real total server-side.
+  const guestsEffectiveTotalCents = useMemo(() => {
+    return guests.reduce((sum, g) => {
+      if (isExtendedSlot && selectedExtension) {
+        return sum + finalBookingTotalCents(g.services, selectedExtension, true);
+      }
+      return sum + g.services.reduce((s2, s) => s2 + s.price_cents, 0);
+    }, 0);
+  }, [guests, isExtendedSlot, selectedExtension]);
 
-  // At least one selected service is charged its explicit extended price, so the
-  // delta over base isn't a plain percent/fixed surcharge — suppress the "+20%"
-  // style label in the summary to avoid implying it.
+  // Combined preview total (main + all guests) — what the services chip and
+  // the step-4 total should show. `surchargeCents` is the delta over the
+  // combined base, shown as a single "Program extins" line.
+  const combinedEffectiveTotalCents = effectiveTotalCents + guestsEffectiveTotalCents;
+  const combinedBaseCents = mainPriceCents + guestsPriceCentsBase;
+  const surchargeCents = combinedEffectiveTotalCents - combinedBaseCents;
+
+  // At least one service in the group (main person's or a guest's) is charged
+  // its explicit extended price, so the delta over base isn't a plain
+  // percent/fixed surcharge — suppress the "+20%" style label in the summary
+  // to avoid implying it.
   const usesExtendedServicePrice = useMemo(() => {
     if (!isExtendedSlot) return false;
-    return selectedServices.some((s) => (s.price_cents_extended ?? 0) > 0);
-  }, [isExtendedSlot, selectedServices]);
+    return (
+      selectedServices.some((s) => (s.price_cents_extended ?? 0) > 0) ||
+      guests.some((g) => g.services.some((s) => (s.price_cents_extended ?? 0) > 0))
+    );
+  }, [isExtendedSlot, selectedServices, guests]);
 
   const extendedServiceBlocked = useMemo(() => {
     if (!isExtendedSlot || !selectedExtension) return false;
-    return selectedServices.some((s) => !extensionCoversService(selectedExtension, s.id));
-  }, [isExtendedSlot, selectedExtension, selectedServices]);
+    return (
+      selectedServices.some((s) => !extensionCoversService(selectedExtension, s.id)) ||
+      guests.some((g) => g.services.some((s) => !extensionCoversService(selectedExtension, s.id)))
+    );
+  }, [isExtendedSlot, selectedExtension, selectedServices, guests]);
 
   // Find first available date (checks schedule + appointments)
   const { data: firstAvailableData } = useQuery({
@@ -459,6 +524,17 @@ export default function BookAppointmentScreen() {
     }
   }, [step, firstAvailableData, selectedDate]);
 
+  // Safety net: the combined duration can grow after a time was already
+  // picked (a guest added from step 4 jumps back to step 3, which re-fetches
+  // daySlots for the new, longer duration). Once the slots for the current
+  // day have actually loaded, drop a selectedTime that's no longer offered.
+  useEffect(() => {
+    if (!slotsLoading && !slotsError && selectedTime && timeSlots) {
+      const stillAvailable = timeSlots.some((s) => s.time === selectedTime);
+      if (!stillAvailable) setSelectedTime(null);
+    }
+  }, [slotsLoading, slotsError, selectedTime, timeSlots]);
+
   // ── Auto-apply route params ────────────────────────────────────────────
   useEffect(() => {
     // Clobber guard: if the user already interacted, params are no longer relevant
@@ -521,6 +597,118 @@ export default function BookAppointmentScreen() {
     }
   }, [barberId, salonId, serviceId, rawServiceIds, barbers, services, paramsApplied, selectedBarber, selectedServices.length]);
 
+  // ── Guest mode (group booking) ──────────────────────────────────────────
+  // Declared before goBack/goNext below since goBack's dependency array reads
+  // exitGuestMode directly.
+  // Toggling a guest's services mirrors toggleService and, for the same
+  // reason, clears date/time: the combined duration just changed.
+  const toggleGuestService = useCallback((guestKey: string, service: BarberService) => {
+    setGuests((prev) =>
+      prev.map((g) => {
+        if (g.key !== guestKey) return g;
+        const exists = g.services.some((s) => s.id === service.id);
+        return {
+          ...g,
+          services: exists
+            ? g.services.filter((s) => s.id !== service.id)
+            : [...g.services, service],
+        };
+      })
+    );
+    setSelectedTime(null);
+    setSelectedDate(null);
+  }, []);
+
+  const addGuest = useCallback(
+    (name: string, dependentClientId?: string) => {
+      const key = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      setGuests((prev) => [...prev, { key, name, dependentClientId, services: [] }]);
+      // Capture origin BEFORE navigating — see guestModeFromStep4Ref above.
+      guestModeFromStep4Ref.current = step === 4;
+      setEditingGuestKey(key);
+      if (step === 4) setStep(2);
+    },
+    [step]
+  );
+
+  const enterGuestMode = useCallback(
+    (key: string) => {
+      guestModeFromStep4Ref.current = step === 4;
+      setEditingGuestKey(key);
+      if (step === 4) setStep(2);
+    },
+    [step]
+  );
+
+  const removeGuest = useCallback((key: string) => {
+    // Removing a guest only ever shrinks the combined duration — the
+    // previously-validated slot stays valid, so date/time are kept as-is
+    // (this also covers the step-4 "remove guest" case, where re-picking the
+    // time would otherwise be a pointless extra step for the user).
+    setGuests((prev) => prev.filter((g) => g.key !== key));
+  }, []);
+
+  // Exits guest mode. "gata" requires the guest to already have ≥1 service
+  // (enforced structurally — the floating bar's CTA only renders once count >
+  // 0); "renunta" additionally drops the guest entirely if it ended up with
+  // zero services. When the session started from step 4: "gata" always routes
+  // to step 3 (not 4) so the slot gets re-validated against the new combined
+  // duration (see the safety effect on step 3); "renunta" tries to return to
+  // step 4, but ONLY if selectedDate/selectedTime are still set — any service
+  // toggle along the way (add, remove, or add-then-undo) clears both, and
+  // step 4 can't render without them, so we fall back to step 3 in that case
+  // too rather than leaving the user on a blank step 4.
+  const exitGuestMode = useCallback(
+    (mode: "gata" | "renunta") => {
+      const key = editingGuestKey;
+      if (!key) return;
+      if (mode === "renunta") {
+        setGuests((prev) => {
+          const guest = prev.find((g) => g.key === key);
+          return guest && guest.services.length === 0
+            ? prev.filter((g) => g.key !== key)
+            : prev;
+        });
+      }
+      setEditingGuestKey(null);
+      const cameFromStep4 = guestModeFromStep4Ref.current;
+      guestModeFromStep4Ref.current = false;
+      if (cameFromStep4) {
+        const canReturnToStep4 = mode === "renunta" && !!selectedDate && !!selectedTime;
+        setStep(canReturnToStep4 ? 4 : 3);
+      }
+    },
+    [editingGuestKey, selectedDate, selectedTime]
+  );
+
+  // Android hardware back / gesture pop while editing a guest exits guest mode
+  // instead of leaving step 2 — a plain (non-modal) screen doesn't intercept
+  // the hardware back button on its own.
+  useEffect(() => {
+    if (Platform.OS !== "android" || !editingGuestKey) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      exitGuestMode("renunta");
+      return true;
+    });
+    return () => sub.remove();
+  }, [editingGuestKey, exitGuestMode]);
+
+  const editingGuest = useMemo(
+    () => (editingGuestKey ? guests.find((g) => g.key === editingGuestKey) ?? null : null),
+    [editingGuestKey, guests]
+  );
+
+  // Dependent IDs to exclude from the "add guest" quick-pick chips: already a
+  // guest, or already the main "bookingFor" person.
+  const usedDependentIds = useMemo(() => {
+    const set = new Set<string>();
+    guests.forEach((g) => {
+      if (g.dependentClientId) set.add(g.dependentClientId);
+    });
+    if (bookingFor.kind === "dependent") set.add(bookingFor.clientId);
+    return set;
+  }, [guests, bookingFor]);
+
   // ── Navigation ─────────────────────────────────────────────────────────
   const goNext = useCallback(() => {
     if (step === 1) {
@@ -536,6 +724,12 @@ export default function BookAppointmentScreen() {
   }, [step, selectedServices]);
 
   const goBack = useCallback(() => {
+    if (editingGuestKey) {
+      // Guest mode is a sub-state of step 2, not a real navigation step —
+      // the header/hardware back button exits it instead of leaving step 2.
+      exitGuestMode("renunta");
+      return;
+    }
     if (step === 2 && salonId && barbers && barbers.length === 1) {
       // Single-barber salon: no step 1 to return to
       router.back();
@@ -559,7 +753,7 @@ export default function BookAppointmentScreen() {
     } else {
       router.back();
     }
-  }, [step, salonId, barbers, selectedServices]);
+  }, [step, salonId, barbers, selectedServices, editingGuestKey, exitGuestMode]);
 
   // ── Toggle service selection ───────────────────────────────────────────
   const toggleService = useCallback((service: BarberService) => {
@@ -603,6 +797,8 @@ export default function BookAppointmentScreen() {
         setSelectedServices([]);
         setSelectedDate(null);
         setSelectedTime(null);
+        setGuests([]);
+        setEditingGuestKey(null);
       }
       setSelectedBarber(barber);
       goNext();
@@ -638,6 +834,19 @@ export default function BookAppointmentScreen() {
       return;
     }
 
+    // Belt-and-braces — shouldn't happen by construction ("Adaugă persoană"
+    // requires entering guest mode, and "Gata" only shows once a guest has
+    // ≥1 service), but guard anyway before we hold a slot.
+    const emptyGuest = guests.find((g) => g.services.length === 0);
+    if (emptyGuest) {
+      Alert.alert(
+        "Persoană fără servicii",
+        `Alege serviciile pentru ${emptyGuest.name} sau șterge persoana.`,
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
     // Re-entrancy guard: synchronously block double-tap before any await
     if (submittingRef.current) return;
     submittingRef.current = true;
@@ -666,6 +875,16 @@ export default function BookAppointmentScreen() {
         rpcArgs.p_child_name =
           bookingFor.kind === "new_child" ? bookingFor.name.trim() : null;
       }
+      // Same backward-compat reasoning as p_booking_for above: only sent when
+      // there's actually a group booking, so a plain/self/dependent booking
+      // keeps working even before the p_guests migration ships.
+      if (guests.length > 0) {
+        rpcArgs.p_guests = guests.map((g) => ({
+          name: g.dependentClientId ? null : g.name.trim(),
+          dependent_client_id: g.dependentClientId ?? null,
+          service_ids: g.services.map((s) => s.id),
+        }));
+      }
 
       const { data: rpcData, error: rpcError } = await supabase.rpc(
         "book_appointment",
@@ -687,8 +906,9 @@ export default function BookAppointmentScreen() {
 
         // PGRST202 — PostgREST can't find a function matching the args we sent.
         // For a dependent booking this means the extended 7-arg book_appointment
-        // (migration 156) isn't deployed yet (or the schema cache is stale). Give
-        // a clear signal instead of the generic "try again".
+        // (migration 156) isn't deployed yet; for a group booking it means the
+        // p_guests migration isn't deployed yet (or the schema cache is stale
+        // in either case). Give a clear signal instead of the generic "try again".
         if (
           code === "PGRST202" ||
           msg.includes("Could not find the function") ||
@@ -696,7 +916,9 @@ export default function BookAppointmentScreen() {
         ) {
           Alert.alert(
             "Indisponibil temporar",
-            "Programarea pentru altă persoană nu este disponibilă momentan. Încearcă „Pentru mine” sau revino mai târziu.",
+            guests.length > 0
+              ? "Programarea cu mai multe persoane nu este disponibilă momentan. Încearcă fără persoane suplimentare sau revino mai târziu."
+              : "Programarea pentru altă persoană nu este disponibilă momentan. Încearcă „Pentru mine” sau revino mai târziu.",
             [{ text: "OK" }]
           );
           return;
@@ -786,8 +1008,10 @@ export default function BookAppointmentScreen() {
         return;
       }
 
-      // Success — use server-returned row
-      const result = (rpcData as RpcBookResult[])[0];
+      // Success — one row per appointment, MAIN FIRST then guests in order
+      // (same shape as before when there are no guests: a single-row array).
+      const rows = (rpcData as RpcBookResult[]) ?? [];
+      const mainRow = rows[0];
 
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       queryClient.invalidateQueries({ queryKey: ["appointments-upcoming"] });
@@ -795,16 +1019,21 @@ export default function BookAppointmentScreen() {
       queryClient.invalidateQueries({ queryKey: ["today-appointments-all"] });
       queryClient.invalidateQueries({ queryKey: ["time-slots"] });
       queryClient.invalidateQueries({ queryKey: ["first-available-date"] });
+      // A new_child booking (main or guest) may have created a CRM row.
+      queryClient.invalidateQueries({ queryKey: ["salon-dependents"] });
 
       setBookingResult({
-        id: result.id,
+        id: mainRow.id,
         barberName: selectedBarber.name,
-        serviceNames: selectedServices.map((s) => s.name),
+        serviceNames: [
+          ...selectedServices.map((s) => s.name),
+          ...guests.map((g) => `${g.name}: ${g.services.map((s) => s.name).join(", ")}`),
+        ],
         date: scheduledAt,
         time: selectedTime,
-        totalPriceCents: result.total_cents,
-        currency: result.currency,
-        totalDurationMin: result.duration_min,
+        totalPriceCents: rows.reduce((sum, r) => sum + r.total_cents, 0),
+        currency: mainRow.currency,
+        totalDurationMin: rows.reduce((sum, r) => sum + r.duration_min, 0),
       });
     } catch (err) {
       Alert.alert(
@@ -858,6 +1087,12 @@ export default function BookAppointmentScreen() {
     }
   };
 
+  // ── Step 2 "active" services: the main person's, unless guest mode is on ──
+  const activeServices = editingGuest ? editingGuest.services : selectedServices;
+  const handleToggleService = editingGuest
+    ? (service: BarberService) => toggleGuestService(editingGuest.key, service)
+    : toggleService;
+
   // ── Services summary for step 3 info chip ──────────────────────────────
   const servicesSummary = useMemo(() => {
     if (selectedServices.length === 0) return "";
@@ -901,10 +1136,13 @@ export default function BookAppointmentScreen() {
             setSelectedTime(null);
             setNotes("");
             setBookingFor({ kind: "self" });
+            setGuests([]);
+            setEditingGuestKey(null);
             setCalendarEventAdded(false);
             setIsAddingCalendar(false);
             // Reset flow control refs so a fresh manual booking starts clean
             step2VisitedRef.current = false;
+            guestModeFromStep4Ref.current = false;
             // Mark params consumed so deep-link doesn't re-fire on a new booking
             setParamsApplied(true);
           }}
@@ -950,6 +1188,9 @@ export default function BookAppointmentScreen() {
           stepTitles={STEP_TITLES}
           onStepPress={(target) => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+            // Guest mode is a sub-state of step 2 — any manual jump via the
+            // step indicator should back out of it first.
+            if (editingGuestKey) exitGuestMode("renunta");
             if (target < step) {
               // Jumping backward from step 3 or 4 always clears date/time
               if (step >= 3 && target <= 2) {
@@ -1030,6 +1271,8 @@ export default function BookAppointmentScreen() {
                             setSelectedServices([]);
                             setSelectedDate(null);
                             setSelectedTime(null);
+                            setGuests([]);
+                            setEditingGuestKey(null);
                           }
                           setSelectedBarber(barber);
                           goNext();
@@ -1051,14 +1294,42 @@ export default function BookAppointmentScreen() {
               styles.stepContent,
               {
                 paddingBottom:
-                  selectedServices.length > 0 ? 120 : 32,
+                  activeServices.length > 0 ? 120 : 32,
               },
             ]}
           >
-            <Text style={styles.stepTitle}>Alege serviciile</Text>
-            <Text style={styles.stepSubtitle}>
-              Cu {selectedBarber?.name} · poți selecta mai multe
-            </Text>
+            {editingGuest ? (
+              <View style={styles.guestBanner}>
+                <View style={styles.guestBannerIcon}>
+                  <Ionicons name="person" size={18} color={Colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.guestBannerTitle}>
+                    Alegi serviciile pentru {editingGuest.name}
+                  </Text>
+                  <Text style={styles.guestBannerSubtitle}>
+                    Cu {selectedBarber?.name}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                    exitGuestMode("renunta");
+                  }}
+                  className="px-3 py-2 ml-2"
+                  style={styles.guestBannerAction}
+                >
+                  <Text style={styles.guestBannerActionText}>Renunță</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                <Text style={styles.stepTitle}>Alege serviciile</Text>
+                <Text style={styles.stepSubtitle}>
+                  Cu {selectedBarber?.name} · poți selecta mai multe
+                </Text>
+              </>
+            )}
 
             {servicesLoading ? (
               <ActivityIndicator
@@ -1096,10 +1367,10 @@ export default function BookAppointmentScreen() {
                     <View ref={index === 0 ? serviceCheckboxRef : undefined} collapsable={false}>
                       <ServiceCard
                         service={service}
-                        isSelected={selectedServices.some(
+                        isSelected={activeServices.some(
                           (s) => s.id === service.id
                         )}
-                        onToggle={() => toggleService(service)}
+                        onToggle={() => handleToggleService(service)}
                         index={index}
                         formatPrice={formatPrice}
                       />
@@ -1107,6 +1378,21 @@ export default function BookAppointmentScreen() {
                   </View>
                 ))}
               </View>
+            )}
+
+            {/* Guest management stays hidden while actively editing a guest's
+                own services — it reappears once "Gata"/"Renunță" is pressed. */}
+            {!editingGuest && (
+              <BookingGuestsSection
+                guests={guests}
+                dependents={dependents ?? []}
+                usedDependentIds={usedDependentIds}
+                canAdd={selectedServices.length > 0 && guests.length < 5}
+                formatPrice={formatPrice}
+                onAdd={addGuest}
+                onEdit={enterGuestMode}
+                onRemove={removeGuest}
+              />
             )}
           </View>
         )}
@@ -1133,6 +1419,7 @@ export default function BookAppointmentScreen() {
                   ]}
                 >
                   {totalDurationMin} min · cu {selectedBarber?.name}
+                  {guests.length > 0 ? ` · ${1 + guests.length} persoane` : ""}
                 </Text>
                 {isExtendedSlot && selectedExtension && (
                   <Text style={[Typography.small, { color: "#B45309", marginTop: 2 }]}>
@@ -1146,7 +1433,7 @@ export default function BookAppointmentScreen() {
               </View>
               <View style={styles.serviceChipPrice}>
                 <Text style={styles.serviceChipPriceText}>
-                  {formatPrice(effectiveTotalCents, primaryCurrency)}
+                  {formatPrice(combinedEffectiveTotalCents, primaryCurrency)}
                 </Text>
               </View>
             </View>
@@ -1192,9 +1479,22 @@ export default function BookAppointmentScreen() {
               value={bookingFor}
               onChange={setBookingFor}
             />
+            {/* Guest management sits ABOVE the summary card so the add-person
+                affordance is seen before the Total / "Confirmă" CTA. */}
+            <BookingGuestsSection
+              guests={guests}
+              dependents={dependents ?? []}
+              usedDependentIds={usedDependentIds}
+              canAdd={selectedServices.length > 0 && guests.length < 5}
+              formatPrice={formatPrice}
+              onAdd={addGuest}
+              onEdit={enterGuestMode}
+              onRemove={removeGuest}
+            />
             <BookingConfirmation
               barber={selectedBarber}
               services={selectedServices}
+              guests={guests.length > 0 ? guests.map((g) => ({ name: g.name, services: g.services })) : undefined}
               selectedDate={selectedDate}
               selectedTime={selectedTime}
               notes={notes}
@@ -1226,13 +1526,18 @@ export default function BookAppointmentScreen() {
         <View ref={floatingBarRef} collapsable={false} style={{ position: "absolute", bottom: 0, left: 0, right: 0 }} pointerEvents="box-none">
           <View ref={continueBtnRef} collapsable={false} pointerEvents="box-none">
             <BookingFloatingBar
-              selectedServices={selectedServices}
+              selectedServices={activeServices}
               onContinue={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                step2VisitedRef.current = true;
-                setStep(3);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                if (editingGuest) {
+                  exitGuestMode("gata");
+                } else {
+                  step2VisitedRef.current = true;
+                  setStep(3);
+                }
               }}
               formatPrice={formatPrice}
+              ctaLabel={editingGuest ? "Gata" : undefined}
             />
           </View>
         </View>
@@ -1312,6 +1617,43 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     color: Colors.textSecondary,
     marginBottom: 16,
+  },
+
+  // Step 2 — guest mode banner
+  guestBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.primaryMuted,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+  guestBannerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: Colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  guestBannerTitle: {
+    ...Typography.bodySemiBold,
+    color: Colors.text,
+  },
+  guestBannerSubtitle: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  guestBannerAction: {
+    backgroundColor: Colors.white,
+    borderRadius: 999,
+  },
+  guestBannerActionText: {
+    ...Typography.captionSemiBold,
+    color: Colors.primary,
   },
 
   // Inline error state (step 1 barbers, step 2 services)

@@ -16,9 +16,17 @@ import { Button } from '@/components/ui/Button';
 // Types
 // ---------------------------------------------------------------------------
 
+export interface BookingConfirmationGuest {
+  name: string;
+  services: BarberService[];
+}
+
 interface BookingConfirmationProps {
   barber: Barber;
   services: BarberService[];
+  /** Extra people booked back-to-back with the same barber/slot (group
+   *  booking). Undefined/empty renders exactly like a single-person booking. */
+  guests?: BookingConfirmationGuest[];
   selectedDate: Date;
   selectedTime: string;
   notes: string;
@@ -198,6 +206,7 @@ function AnimatedTotal({
 export function BookingConfirmation({
   barber,
   services,
+  guests,
   selectedDate,
   selectedTime,
   notes,
@@ -212,12 +221,20 @@ export function BookingConfirmation({
   surchargeCents = 0,
   surchargeLabel,
 }: BookingConfirmationProps) {
-  // Derived totals
-  const baseCents = services.reduce((sum, s) => sum + s.price_cents, 0);
+  const hasGuests = !!guests && guests.length > 0;
+
+  // Derived totals — sum the main person's services + every guest's, mirroring
+  // the combined total the parent screen already computed for surchargeCents.
+  const guestServices = hasGuests ? guests!.flatMap((g) => g.services) : [];
+  const baseCents =
+    services.reduce((sum, s) => sum + s.price_cents, 0) +
+    guestServices.reduce((sum, s) => sum + s.price_cents, 0);
   const totalCents = baseCents + surchargeCents;
-  const totalDuration = services.reduce((sum, s) => sum + s.duration_min, 0);
-  const currency = services[0]?.currency ?? 'RON';
-  const hasMultiple = services.length > 1;
+  const totalDuration =
+    services.reduce((sum, s) => sum + s.duration_min, 0) +
+    guestServices.reduce((sum, s) => sum + s.duration_min, 0);
+  const currency = services[0]?.currency ?? guestServices[0]?.currency ?? 'RON';
+  const hasMultiple = services.length + guestServices.length > 1;
 
   // No pulse animation — clean static button
 
@@ -232,13 +249,13 @@ export function BookingConfirmation({
 
         <View style={styles.divider} />
 
-        {/* Services section */}
+        {/* Services section(s) — one group for the main person, one per guest */}
         <Animated.View
           entering={FadeInRight.delay(200).duration(250)}
           style={styles.servicesSection}
         >
           <Text style={styles.servicesSectionHeader}>
-            Servicii selectate ({services.length})
+            {hasGuests ? `Pentru tine (${services.length})` : `Servicii selectate (${services.length})`}
           </Text>
 
           {services.map((service, idx) => (
@@ -251,6 +268,31 @@ export function BookingConfirmation({
             />
           ))}
         </Animated.View>
+
+        {hasGuests &&
+          guests!.map((guest, gIdx) => (
+            <View key={`${guest.name}-${gIdx}`}>
+              <View style={styles.divider} />
+              <Animated.View
+                entering={FadeInRight.delay(220 + (gIdx + 1) * 160).duration(250)}
+                style={styles.servicesSection}
+              >
+                <Text style={styles.servicesSectionHeader}>
+                  {`Pentru ${guest.name} (${guest.services.length})`}
+                </Text>
+
+                {guest.services.map((service, idx) => (
+                  <ServiceRow
+                    key={service.id}
+                    service={service}
+                    isLast={idx === guest.services.length - 1}
+                    delay={220 + (gIdx + 1) * 160 + idx * 80}
+                    formatPrice={formatPrice}
+                  />
+                ))}
+              </Animated.View>
+            </View>
+          ))}
 
         <View style={styles.divider} />
 

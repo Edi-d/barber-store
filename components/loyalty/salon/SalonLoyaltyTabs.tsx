@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { Colors, FontFamily, Radius, Shadows, Typography } from '@/constants/theme';
+import { Bubble, Colors, FontFamily, Shadows, Typography } from '@/constants/theme';
 
 export type SalonLoyaltyTab = 'recompense' | 'vouchere' | 'istoric';
 
@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
     backgroundColor: '#E4EAF2',
-    borderRadius: Radius.full,
+    ...Bubble.radii,
     padding: 4,
     gap: 4,
   },
@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 9,
     alignItems: 'center',
-    borderRadius: Radius.full,
+    ...Bubble.radiiSm,
   },
   tabActive: {
     backgroundColor: Colors.gradientStart,

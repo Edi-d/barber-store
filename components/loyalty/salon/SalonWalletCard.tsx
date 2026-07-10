@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     backgroundColor: 'rgba(255,255,255,0.16)',
-    borderRadius: 999,
+    ...Bubble.radiiSm,
     paddingLeft: 4,
     paddingRight: 12,
     paddingVertical: 4,

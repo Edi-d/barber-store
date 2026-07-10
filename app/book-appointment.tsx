@@ -10,6 +10,7 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Animated, { LinearTransition } from "react-native-reanimated";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -55,6 +56,11 @@ const STEP_TITLES: Record<BookingStep, string> = {
 };
 
 const squircleSm = { ...Bubble.radiiSm };
+
+// Reflow spring for the step-2 service list — smooths its shift when
+// BookingPersonTabs above it changes height (add form / active-guest row
+// swap), rather than a hard jump. Tuned to match ServiceCard's own feel.
+const SERVICE_LIST_LAYOUT = LinearTransition.springify().damping(20).stiffness(220);
 
 export default function BookAppointmentScreen() {
   const { session } = useAuthStore();
@@ -1386,7 +1392,7 @@ export default function BookAppointmentScreen() {
                 </Text>
               </View>
             ) : (
-              <View style={{ gap: 12 }}>
+              <Animated.View style={{ gap: 12 }} layout={SERVICE_LIST_LAYOUT}>
                 {visibleServices.map((service, index) => (
                   <View
                     key={service.id}
@@ -1406,7 +1412,7 @@ export default function BookAppointmentScreen() {
                     </View>
                   </View>
                 ))}
-              </View>
+              </Animated.View>
             )}
           </View>
         )}

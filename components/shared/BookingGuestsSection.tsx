@@ -6,13 +6,18 @@
  * person's actual services happens on step 2 via `BookingPersonTabs`, which
  * reuses `GuestAddForm` for its own "+ Adaugă" chip — same inline flow, two
  * entry points.
+ *
+ * Motion: guest cards stagger in / fade out like ServiceCard.tsx, with a
+ * `layout` transition on each so a removal makes the remaining cards slide
+ * up smoothly instead of snapping (mirrors app/cart.tsx's swipeable rows).
  */
 
 import { useState } from "react";
 import { View, Text, Pressable, TextInput, StyleSheet } from "react-native";
+import Animated, { FadeInDown, FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { Bubble, Colors, Typography } from "@/constants/theme";
+import { Bubble, Colors, Shadows, Typography } from "@/constants/theme";
 import { BarberService } from "@/types/database";
 import { Dependent, dependentDisplayName } from "@/components/shared/BookingForSelector";
 
@@ -22,6 +27,8 @@ export type Guest = {
   dependentClientId?: string;
   services: BarberService[];
 };
+
+const CARD_LAYOUT = LinearTransition.springify().damping(20).stiffness(220);
 
 // ─── Shared inline "add guest" form ───────────────────────────────────────
 // Quick-pick chips for saved dependents not already in use, a free-text name
@@ -62,7 +69,22 @@ export function GuestAddForm({
   };
 
   return (
-    <View style={[formStyles.addForm, Bubble.radiiSm]}>
+    <Animated.View
+      entering={FadeInDown.springify().damping(18).stiffness(240)}
+      exiting={FadeOut.duration(120)}
+      layout={CARD_LAYOUT}
+      style={[formStyles.addForm, Bubble.radiiSm, Shadows.sm]}
+    >
+      <View style={formStyles.header}>
+        <View style={formStyles.headerIcon}>
+          <Ionicons name="person-add-outline" size={18} color={Colors.primary} />
+        </View>
+        <View style={formStyles.headerText}>
+          <Text style={formStyles.headerTitle}>Adaugă o persoană</Text>
+          <Text style={formStyles.headerSubtitle}>Copil sau prieten — cu serviciile lui</Text>
+        </View>
+      </View>
+
       {availableDependents.length > 0 && (
         <View style={formStyles.chips}>
           {availableDependents.map((d) => {
@@ -101,6 +123,7 @@ export function GuestAddForm({
           if (dependentClientId) setDependentClientId(undefined);
         }}
         autoCapitalize="words"
+        autoFocus
         maxLength={80}
         placeholderTextColor={Colors.textTertiary}
       />
@@ -123,7 +146,7 @@ export function GuestAddForm({
           <Ionicons name="arrow-forward" size={14} color={Colors.white} />
         </Pressable>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -158,12 +181,18 @@ export function BookingGuestsSection({
     <View style={styles.wrap}>
       <Text style={styles.label}>Persoane suplimentare</Text>
 
-      {guests.map((g) => {
+      {guests.map((g, index) => {
         const count = g.services.length;
         const cents = g.services.reduce((sum, s) => sum + s.price_cents, 0);
         const currency = g.services[0]?.currency ?? "RON";
         return (
-          <View key={g.key} style={[styles.card, Bubble.radiiSm]}>
+          <Animated.View
+            key={g.key}
+            entering={FadeInDown.delay(index * 60).springify().damping(18).stiffness(240)}
+            exiting={FadeOut.duration(150)}
+            layout={CARD_LAYOUT}
+            style={[styles.card, Bubble.radiiSm]}
+          >
             <View style={styles.cardIcon}>
               <Ionicons name="person-outline" size={18} color={Colors.primary} />
             </View>
@@ -198,7 +227,7 @@ export function BookingGuestsSection({
             >
               <Ionicons name="close" size={16} color={Colors.textSecondary} />
             </Pressable>
-          </View>
+          </Animated.View>
         );
       })}
 
@@ -213,25 +242,27 @@ export function BookingGuestsSection({
           onCancel={() => setShowAddForm(false)}
         />
       ) : (
-        <Pressable
-          onPress={() => {
-            if (!canAdd) return;
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-            setShowAddForm(true);
-          }}
-          disabled={!canAdd}
-          className="flex-row items-center justify-center gap-x-2 px-4 py-3.5"
-          style={[styles.addBtn, Bubble.radiiSm, !canAdd && styles.addBtnDisabled]}
-        >
-          <Ionicons
-            name="person-add-outline"
-            size={18}
-            color={canAdd ? Colors.primary : Colors.textTertiary}
-          />
-          <Text style={[styles.addBtnText, !canAdd && styles.addBtnTextDisabled]}>
-            Adaugă persoană
-          </Text>
-        </Pressable>
+        <Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(120)} layout={CARD_LAYOUT}>
+          <Pressable
+            onPress={() => {
+              if (!canAdd) return;
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+              setShowAddForm(true);
+            }}
+            disabled={!canAdd}
+            className="flex-row items-center justify-center gap-x-2 px-4 py-3.5"
+            style={[styles.addBtn, Bubble.radiiSm, !canAdd && styles.addBtnDisabled]}
+          >
+            <Ionicons
+              name="person-add-outline"
+              size={18}
+              color={canAdd ? Colors.primary : Colors.textTertiary}
+            />
+            <Text style={[styles.addBtnText, !canAdd && styles.addBtnTextDisabled]}>
+              Adaugă persoană
+            </Text>
+          </Pressable>
+        </Animated.View>
       )}
     </View>
   );
@@ -244,8 +275,33 @@ const formStyles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: Colors.separator,
-    padding: 12,
-    gap: 10,
+    padding: 14,
+    gap: 12,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  headerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: Colors.primaryMuted,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  headerText: {
+    flex: 1,
+  },
+  headerTitle: {
+    ...Typography.bodySemiBold,
+    color: Colors.text,
+  },
+  headerSubtitle: {
+    ...Typography.small,
+    color: Colors.textTertiary,
+    marginTop: 1,
   },
   chips: {
     flexDirection: "row",
@@ -276,7 +332,13 @@ const formStyles = StyleSheet.create({
     backgroundColor: Colors.background,
     borderWidth: 1,
     borderColor: Colors.separator,
-    borderRadius: 12,
+    // Squircle radii — same asymmetric corner language as BookingForSelector's
+    // "Numele copilului" input (Bubble.radiiSm inlined; ViewStyle isn't
+    // assignable to a TextInput's TextStyle, so it's spelled out here too).
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 8,
+    borderBottomRightRadius: 18,
+    borderBottomLeftRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 12,
     ...Typography.body,

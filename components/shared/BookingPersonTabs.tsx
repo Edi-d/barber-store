@@ -7,15 +7,154 @@
  * below this component reads/writes whichever person is currently active.
  * "+ Adaugă" reveals the shared GuestAddForm inline and, on confirm, makes
  * the new guest active immediately.
+ *
+ * Motion mirrors ServiceCard.tsx: staggered FadeInDown entrances, a
+ * press-down spring scale, and interpolateColor for the active/inactive
+ * swap — driven by a per-chip shared value kept in sync with the `active`
+ * prop (chip selection is parent-driven, not locally toggled, so there's no
+ * anticipatory flip to reconcile the way ServiceCard's multi-select does).
  */
 
-import { useState } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { useEffect, useState } from "react";
+import { Text, Pressable, StyleSheet } from "react-native";
+import Animated, {
+  FadeInDown,
+  FadeIn,
+  FadeOut,
+  LinearTransition,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  interpolateColor,
+} from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Bubble, Colors, Typography } from "@/constants/theme";
 import { Dependent } from "@/components/shared/BookingForSelector";
 import { Guest, GuestAddForm } from "@/components/shared/BookingGuestsSection";
+
+// ─── Spring / motion presets — tuned to match ServiceCard.tsx's feel ──────
+
+/** Tactile press-down: snappy, lightweight (mirrors ServiceCard's PRESS_SPRING) */
+const CHIP_PRESS_SPRING = { damping: 14, stiffness: 300, mass: 0.8 } as const;
+/** Active/inactive color swap */
+const CHIP_SELECT_SPRING = { damping: 18, stiffness: 260, mass: 0.8 } as const;
+/** Row + section reflow when a chip or the add form appears/disappears */
+const ROW_LAYOUT = LinearTransition.springify().damping(20).stiffness(220);
+const CHIP_EXITING = FadeOut.duration(150);
+
+// ─── Person chip (Tu / guest) — selection-interpolated ─────────────────────
+
+function PersonChip({
+  active,
+  icon,
+  label,
+  onPress,
+  index,
+}: {
+  active: boolean;
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+  index: number;
+}) {
+  const selection = useSharedValue(active ? 1 : 0);
+  const press = useSharedValue(0);
+
+  useEffect(() => {
+    selection.value = withSpring(active ? 1 : 0, CHIP_SELECT_SPRING);
+  }, [active]);
+
+  const chipStyle = useAnimatedStyle(() => {
+    const backgroundColor = interpolateColor(selection.value, [0, 1], [Colors.white, Colors.primary]);
+    const borderColor = interpolateColor(selection.value, [0, 1], [Colors.separator, Colors.primary]);
+    return {
+      backgroundColor,
+      borderColor,
+      transform: [{ scale: 1 - press.value * 0.04 }],
+    };
+  });
+
+  return (
+    <Animated.View
+      entering={FadeInDown.delay(index * 50).springify().damping(16).stiffness(260)}
+      exiting={CHIP_EXITING}
+      layout={ROW_LAYOUT}
+    >
+      <Pressable
+        onPress={onPress}
+        onPressIn={() => {
+          press.value = withSpring(1, CHIP_PRESS_SPRING);
+        }}
+        onPressOut={() => {
+          press.value = withSpring(0, CHIP_PRESS_SPRING);
+        }}
+        accessibilityRole="button"
+        accessibilityState={{ selected: active }}
+      >
+        <Animated.View style={[styles.chip, Bubble.radiiSm, chipStyle]}>
+          <Ionicons name={icon} size={14} color={active ? Colors.white : Colors.textSecondary} />
+          <Text
+            style={[styles.chipText, active ? styles.chipTextActive : styles.chipTextInactive]}
+            numberOfLines={1}
+          >
+            {label}
+          </Text>
+        </Animated.View>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+// ─── "+ Adaugă" trigger — plain press-scale, no selection state ───────────
+
+function AddPersonChip({
+  canAdd,
+  index,
+  onPress,
+}: {
+  canAdd: boolean;
+  index: number;
+  onPress: () => void;
+}) {
+  const press = useSharedValue(0);
+
+  const chipStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 - press.value * 0.04 }],
+  }));
+
+  return (
+    <Animated.View
+      entering={FadeInDown.delay(index * 50).springify().damping(16).stiffness(260)}
+      exiting={FadeOut.duration(120)}
+      layout={ROW_LAYOUT}
+    >
+      <Pressable
+        onPress={() => {
+          if (!canAdd) return;
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+          onPress();
+        }}
+        onPressIn={() => {
+          if (!canAdd) return;
+          press.value = withSpring(1, CHIP_PRESS_SPRING);
+        }}
+        onPressOut={() => {
+          press.value = withSpring(0, CHIP_PRESS_SPRING);
+        }}
+        disabled={!canAdd}
+        accessibilityRole="button"
+      >
+        <Animated.View
+          style={[styles.chip, Bubble.radiiSm, styles.chipAdd, !canAdd && styles.chipAddDisabled, chipStyle]}
+        >
+          <Ionicons name="add" size={16} color={canAdd ? Colors.primary : Colors.textTertiary} />
+          <Text style={[styles.chipAddText, !canAdd && styles.chipAddTextDisabled]}>Adaugă</Text>
+        </Animated.View>
+      </Pressable>
+    </Animated.View>
+  );
+}
 
 interface Props {
   /** "self" or a guest's key. */
@@ -55,74 +194,37 @@ export function BookingPersonTabs({
   };
 
   return (
-    <View style={styles.wrap}>
+    <Animated.View style={styles.wrap} layout={ROW_LAYOUT}>
       <Text style={styles.title}>Alege serviciile</Text>
 
-      <View style={styles.chips}>
-        <Pressable
+      <Animated.View style={styles.chips} layout={ROW_LAYOUT}>
+        <PersonChip
+          active={activePersonKey === "self"}
+          icon="person"
+          label={`Tu (${mainServiceCount})`}
           onPress={() => selectPerson("self")}
-          className="flex-row items-center gap-x-1.5 px-3.5 py-2.5"
-          style={[
-            styles.chip,
-            Bubble.radiiSm,
-            activePersonKey === "self" ? styles.chipActive : styles.chipInactive,
-          ]}
-        >
-          <Ionicons
-            name="person"
-            size={14}
-            color={activePersonKey === "self" ? Colors.white : Colors.textSecondary}
-          />
-          <Text
-            style={[
-              styles.chipText,
-              activePersonKey === "self" ? styles.chipTextActive : styles.chipTextInactive,
-            ]}
-          >
-            Tu ({mainServiceCount})
-          </Text>
-        </Pressable>
+          index={0}
+        />
 
-        {guests.map((g) => {
-          const active = g.key === activePersonKey;
-          return (
-            <Pressable
-              key={g.key}
-              onPress={() => selectPerson(g.key)}
-              className="flex-row items-center gap-x-1.5 px-3.5 py-2.5"
-              style={[styles.chip, Bubble.radiiSm, active ? styles.chipActive : styles.chipInactive]}
-            >
-              <Ionicons
-                name="happy-outline"
-                size={14}
-                color={active ? Colors.white : Colors.textSecondary}
-              />
-              <Text
-                style={[styles.chipText, active ? styles.chipTextActive : styles.chipTextInactive]}
-                numberOfLines={1}
-              >
-                {g.name} ({g.services.length})
-              </Text>
-            </Pressable>
-          );
-        })}
+        {guests.map((g, i) => (
+          <PersonChip
+            key={g.key}
+            active={g.key === activePersonKey}
+            icon="happy-outline"
+            label={`${g.name} (${g.services.length})`}
+            onPress={() => selectPerson(g.key)}
+            index={i + 1}
+          />
+        ))}
 
         {!showAddForm && (
-          <Pressable
-            onPress={() => {
-              if (!canAdd) return;
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-              setShowAddForm(true);
-            }}
-            disabled={!canAdd}
-            className="flex-row items-center gap-x-1 px-3.5 py-2.5"
-            style={[styles.chip, Bubble.radiiSm, styles.chipAdd, !canAdd && styles.chipAddDisabled]}
-          >
-            <Ionicons name="add" size={16} color={canAdd ? Colors.primary : Colors.textTertiary} />
-            <Text style={[styles.chipAddText, !canAdd && styles.chipAddTextDisabled]}>Adaugă</Text>
-          </Pressable>
+          <AddPersonChip
+            canAdd={canAdd}
+            index={guests.length + 1}
+            onPress={() => setShowAddForm(true)}
+          />
         )}
-      </View>
+      </Animated.View>
 
       {showAddForm ? (
         <GuestAddForm
@@ -137,8 +239,15 @@ export function BookingPersonTabs({
       ) : activeGuest ? (
         // Replaces the plain subtitle when a guest is active — same spot,
         // but carries the "remove this guest" affordance since that's only
-        // ever relevant while their chip is the one being edited.
-        <View style={styles.activeGuestRow}>
+        // ever relevant while their chip is the one being edited. Keyed on
+        // the guest so switching between two different guests re-plays the
+        // fade instead of the text just snapping to the new name.
+        <Animated.View
+          key={activeGuest.key}
+          entering={FadeIn.duration(180)}
+          exiting={FadeOut.duration(150)}
+          style={styles.activeGuestRow}
+        >
           <Text style={styles.activeGuestText} numberOfLines={1}>
             Alegi serviciile pentru {activeGuest.name}
           </Text>
@@ -147,17 +256,18 @@ export function BookingPersonTabs({
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
               onRemoveGuest(activeGuest.key);
             }}
-            className="px-2 py-1"
+            className="flex-row items-center gap-x-1 px-2 py-1"
           >
+            <Ionicons name="trash-outline" size={13} color={Colors.error} />
             <Text style={styles.removeGuestText}>Șterge persoana</Text>
           </Pressable>
-        </View>
+        </Animated.View>
       ) : (
         <Text style={styles.subtitle}>
           Cu {barberName ?? "frizerul tău"} · poți selecta mai multe
         </Text>
       )}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -179,16 +289,14 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 6,
     borderWidth: 1,
     maxWidth: 170,
-  },
-  chipActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  chipInactive: {
-    backgroundColor: Colors.white,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    // backgroundColor / borderColor overridden by the animated style above
     borderColor: Colors.separator,
+    backgroundColor: Colors.white,
   },
   chipText: {
     ...Typography.captionSemiBold,

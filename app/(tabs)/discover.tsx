@@ -17,7 +17,7 @@ import { Image } from '@/components/ui/Image';
 import { useTutorialContext } from "@/components/tutorial/TutorialProvider";
 import { useTutorialStore } from "@/stores/tutorialStore";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -27,7 +27,7 @@ import { Salon, AppointmentWithDetails, SalonHappyHour } from "@/types/database"
 import { CategoryPickerModal } from "@/components/discover/CategoryPickerModal";
 import { Ionicons } from "@expo/vector-icons";
 import Mapbox, { MAPBOX_STYLE_URL } from "@/lib/mapbox";
-import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import BottomSheet, { BottomSheetScrollView, type BottomSheetScrollViewMethods } from "@gorhom/bottom-sheet";
 import { enrichSalons, SalonWithDistance } from "@/lib/discover";
 import { CountdownTimer } from "@/components/shared/CountdownTimer";
 import { UpcomingAppointmentBanner } from "@/components/home/UpcomingAppointmentBanner";
@@ -63,6 +63,10 @@ export default function DiscoverScreen() {
   const { session, profile } = useAuthStore();
   const queryClient = useQueryClient();
   const { latitude, longitude, hasPermission, requestLocation, isLoading: locationLoading } = useLocationStore();
+  // Set by the '+' menu's "Programează-te" action (see data/createMenuActions.ts)
+  // to expand the pull-tab sheet on arrival — consumed (cleared) once handled,
+  // see the effect below.
+  const { expandSheet } = useLocalSearchParams<{ expandSheet?: string }>();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSalon, setSelectedSalon] = useState<SalonWithDistance | null>(null);
@@ -86,6 +90,10 @@ export default function DiscoverScreen() {
   const cameraRef = useRef<Mapbox.Camera>(null);
   const mapRef = useRef<Mapbox.MapView>(null);
   const bottomSheetRef = useRef<BottomSheet>(null);
+  // BottomSheetScrollView forwards a ScrollView-compatible ref (scrollTo) —
+  // used to snap back to the top when expandSheet lands us on this tab, so
+  // the greeting / "Cine e liber acum?" card is what the user actually sees.
+  const sheetScrollRef = useRef<BottomSheetScrollViewMethods>(null);
   // Guards the one-time auto-center on the user's location after app open.
   const didAutoCenterRef = useRef(false);
 
@@ -127,6 +135,25 @@ export default function DiscoverScreen() {
   }, [registerRef, unregisterRef]);
 
   const snapPoints = useMemo(() => ["32%", "60%", "92%"], []);
+
+  // '+' menu "Programează-te" lands here with ?expandSheet=1 — snap the
+  // pull-tab to its highest point (index 2 / "92%", same snap the "Vezi
+  // toate" favorites row and category picker already use to reveal the full
+  // salon list) and reset the scroll position so the greeting + "Cine e
+  // liber acum?" card is what greets the user, not wherever they'd scrolled
+  // to last time. The param is then cleared via router.setParams so: (a)
+  // tapping the same menu item again re-triggers this effect (the value
+  // actually changes undefined → "1" → undefined instead of staying "1"),
+  // and (b) a later manual visit to this tab doesn't unexpectedly re-expand.
+  // Runs whether this screen was already focused (params update in place)
+  // or we just navigated here from another tab (params arrive on mount).
+  useEffect(() => {
+    if (!expandSheet) return;
+    setSheetIndex(2);
+    bottomSheetRef.current?.snapToIndex(2);
+    sheetScrollRef.current?.scrollTo({ y: 0, animated: false });
+    router.setParams({ expandSheet: undefined });
+  }, [expandSheet]);
 
   // Request location on mount
   useEffect(() => {
@@ -999,6 +1026,7 @@ export default function DiscoverScreen() {
           onChange={handleSheetChange}
         >
           <BottomSheetScrollView
+            ref={sheetScrollRef}
             contentContainerStyle={{ paddingBottom: 120 }}
             showsVerticalScrollIndicator={false}
           >

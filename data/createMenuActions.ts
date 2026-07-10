@@ -17,7 +17,13 @@ export const CLIENT_ACTIONS: CreateMenuAction[] = [
     id: 'book',
     label: 'Programează-te',
     icon: 'calendar',
-    route: '/book-appointment',
+    // Lands on the Programări (discover) tab with its draggable pull-tab
+    // sheet expanded to the "Toate saloanele" view (greeting, "Cine e liber
+    // acum?", salon list) — instead of dropping straight into
+    // /book-appointment with no salonId (which used to trigger a flat,
+    // cross-salon, no-distance barber list fallback). See the `expandSheet`
+    // query-param effect in app/(tabs)/discover.tsx.
+    route: '/(tabs)/discover?expandSheet=1',
     colorKey: 'booking',
     requiresAuth: true,
   },

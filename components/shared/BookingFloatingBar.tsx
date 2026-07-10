@@ -42,15 +42,21 @@ interface BookingFloatingBarProps {
   selectedServices: BarberService[];
   onContinue: () => void;
   formatPrice: (cents: number, currency: string) => string;
-  /** Overrides the CTA label (default "Continuă") — e.g. "Gata" in guest mode. */
-  ctaLabel?: string;
+  /** Total people the `selectedServices` cover (main + guests). Appends
+   *  "· N persoane" to the duration meta line when ≥ 2 — this bar always
+   *  shows the GROUP total, not just the currently-active person's. */
+  personCount?: number;
+  /** Shows a small spinner in the CTA and blocks presses — used while
+   *  re-validating a carried-over slot before jumping to step 4. */
+  isBusy?: boolean;
 }
 
 export function BookingFloatingBar({
   selectedServices,
   onContinue,
   formatPrice,
-  ctaLabel,
+  personCount,
+  isBusy,
 }: BookingFloatingBarProps) {
   const insets = useSafeAreaInsets();
 
@@ -119,7 +125,10 @@ export function BookingFloatingBar({
   // ── Label helpers ───────────────────────────────────────────────────────────
 
   const serviceLabel = count === 1 ? '1 serviciu' : `${count} servicii`;
-  const durationLabel = totalMin > 0 ? `~${totalMin} min` : '';
+  const metaParts: string[] = [];
+  if (totalMin > 0) metaParts.push(`~${totalMin} min`);
+  if (personCount && personCount >= 2) metaParts.push(`${personCount} persoane`);
+  const durationLabel = metaParts.join(' · ');
   const priceLabel = isVisible ? formatPrice(totalCents, currency) : '';
 
   // ── Bottom offset: respect safe-area but keep a minimum gap ────────────────
@@ -184,10 +193,11 @@ export function BookingFloatingBar({
             variant="primary"
             size="md"
             onPress={onContinue}
+            loading={isBusy}
             style={styles.continueButton}
           >
             <View style={styles.buttonInner}>
-              <Text style={styles.buttonLabel}>{ctaLabel ?? "Continuă"}</Text>
+              <Text style={styles.buttonLabel}>Continuă</Text>
               <Ionicons
                 name="arrow-forward"
                 size={17}

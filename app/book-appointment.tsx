@@ -8,7 +8,6 @@ import {
   Alert,
   StyleSheet,
   Platform,
-  BackHandler,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -44,6 +43,7 @@ import { BookingForSelector, type BookingFor, type Dependent } from "@/component
 import { BookingSuccess, BookingSuccessResult } from "@/components/shared/BookingSuccess";
 import { BookingFloatingBar } from "@/components/shared/BookingFloatingBar";
 import { BookingGuestsSection, type Guest } from "@/components/shared/BookingGuestsSection";
+import { BookingPersonTabs } from "@/components/shared/BookingPersonTabs";
 
 type BookingStep = 1 | 2 | 3 | 4;
 
@@ -78,10 +78,14 @@ export default function BookAppointmentScreen() {
   // are per-salon). See BookingForSelector.
   const [bookingFor, setBookingFor] = useState<BookingFor>({ kind: "self" });
   // Extra people ("Persoane suplimentare") added to the same slot, each with
-  // their own services. `editingGuestKey` marks step 2 as being in "guest
-  // mode" (a sub-state of step 2, not a separate step) for that guest.
+  // their own services. `activePersonKey` is "self" or a guest's key — it
+  // drives which person's services step 2's list reads/writes; switching is
+  // just a chip tap (BookingPersonTabs), never a navigation.
   const [guests, setGuests] = useState<Guest[]>([]);
-  const [editingGuestKey, setEditingGuestKey] = useState<string | null>(null);
+  const [activePersonKey, setActivePersonKey] = useState<string>("self");
+  // Drives the step-2 floating bar's spinner while we re-validate a
+  // carried-over slot (see handleContinueStep2) before jumping to step 4.
+  const [isCheckingFit, setIsCheckingFit] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAddingCalendar, setIsAddingCalendar] = useState(false);
   const [calendarEventAdded, setCalendarEventAdded] = useState(false);
@@ -98,12 +102,6 @@ export default function BookAppointmentScreen() {
 
   // Re-entrancy guard for handleSubmit — set synchronously to prevent double-tap
   const submittingRef = useRef(false);
-
-  // Whether the CURRENT guest-mode session (add or edit) was entered from step
-  // 4. We can't infer this from live selectedDate/selectedTime at exit time
-  // because toggling a guest's services clears both (duration changed) — so
-  // the origin is captured once, at entry, and consulted on exit instead.
-  const guestModeFromStep4Ref = useRef(false);
 
   // Step 1
   const stepIndicatorRef = useRef<View>(null);
@@ -330,27 +328,37 @@ export default function BookAppointmentScreen() {
   useEffect(() => {
     setBookingFor({ kind: "self" });
     setGuests([]);
-    setEditingGuestKey(null);
+    setActivePersonKey("self");
   }, [effectiveSalonId]);
 
-  const { data: daySlots, isLoading: slotsLoading, isError: slotsError, refetch: refetchSlots } = useQuery({
-    queryKey: [
+  // Factored out (key + fn) so handleContinueStep2's explicit fit-check can
+  // reuse the EXACT SAME query via queryClient.fetchQuery — same cache entry,
+  // same freshness semantics, just awaited instead of subscribed-to.
+  const timeSlotsQueryKey = useMemo(
+    () => [
       "time-slots",
       selectedBarber?.id,
       selectedDate?.toISOString(),
       totalDurationMin,
-    ],
-    queryFn: async () => {
-      if (!selectedBarber || !selectedDate || totalDurationMin === 0) {
-        return { slots: [], unavailableReason: null } as DaySlots;
-      }
-      return generateTimeSlots(
-        selectedBarber.id,
-        selectedDate,
-        totalDurationMin,
-        selectedBarber.salon_id
-      );
-    },
+    ] as const,
+    [selectedBarber, selectedDate, totalDurationMin]
+  );
+
+  const fetchTimeSlots = useCallback(async (): Promise<DaySlots> => {
+    if (!selectedBarber || !selectedDate || totalDurationMin === 0) {
+      return { slots: [], unavailableReason: null } as DaySlots;
+    }
+    return generateTimeSlots(
+      selectedBarber.id,
+      selectedDate,
+      totalDurationMin,
+      selectedBarber.salon_id
+    );
+  }, [selectedBarber, selectedDate, totalDurationMin]);
+
+  const { data: daySlots, isLoading: slotsLoading, isError: slotsError, refetch: refetchSlots } = useQuery({
+    queryKey: timeSlotsQueryKey,
+    queryFn: fetchTimeSlots,
     enabled: !!selectedBarber && !!selectedDate && totalDurationMin > 0,
     staleTime: 30_000, // Override global 5-min staleTime — slots go stale quickly
   });
@@ -524,16 +532,20 @@ export default function BookAppointmentScreen() {
     }
   }, [step, firstAvailableData, selectedDate]);
 
-  // Safety net: the combined duration can grow after a time was already
-  // picked (a guest added from step 4 jumps back to step 3, which re-fetches
-  // daySlots for the new, longer duration). Once the slots for the current
-  // day have actually loaded, drop a selectedTime that's no longer offered.
+  // Safety net for STEP 3 ONLY: the combined duration can grow while the user
+  // is browsing the time grid (e.g. after a step-indicator jump back from a
+  // step where a guest's services changed). Gated to step 3 so it can't fire
+  // while the user is still composing on step 2 — that path now has its own
+  // explicit fit-check (handleContinueStep2) that shows a proper explanation
+  // instead of silently blanking selectedTime out from under them.
   useEffect(() => {
-    if (!slotsLoading && !slotsError && selectedTime && timeSlots) {
-      const stillAvailable = timeSlots.some((s) => s.time === selectedTime);
+    if (step === 3 && !slotsLoading && !slotsError && selectedTime && timeSlots) {
+      // Membership alone isn't enough — generateTimeSlots returns taken/past
+      // slots too (available: false), which the grid greys out.
+      const stillAvailable = timeSlots.some((s) => s.time === selectedTime && s.available);
       if (!stillAvailable) setSelectedTime(null);
     }
-  }, [slotsLoading, slotsError, selectedTime, timeSlots]);
+  }, [step, slotsLoading, slotsError, selectedTime, timeSlots]);
 
   // ── Auto-apply route params ────────────────────────────────────────────
   useEffect(() => {
@@ -597,11 +609,10 @@ export default function BookAppointmentScreen() {
     }
   }, [barberId, salonId, serviceId, rawServiceIds, barbers, services, paramsApplied, selectedBarber, selectedServices.length]);
 
-  // ── Guest mode (group booking) ──────────────────────────────────────────
-  // Declared before goBack/goNext below since goBack's dependency array reads
-  // exitGuestMode directly.
-  // Toggling a guest's services mirrors toggleService and, for the same
-  // reason, clears date/time: the combined duration just changed.
+  // ── Group booking: guests + active person ───────────────────────────────
+  // Toggling a guest's services mirrors toggleService below. Unlike before,
+  // this does NOT clear selectedDate/selectedTime — see the "no more
+  // guest-mode bounce" note above toggleService for why.
   const toggleGuestService = useCallback((guestKey: string, service: BarberService) => {
     setGuests((prev) =>
       prev.map((g) => {
@@ -615,87 +626,41 @@ export default function BookAppointmentScreen() {
         };
       })
     );
-    setSelectedTime(null);
-    setSelectedDate(null);
   }, []);
 
+  // Creates the guest and makes it the active person. When called from step 4
+  // (BookingGuestsSection's "Adaugă persoană") this also jumps to step 2 —
+  // date/time are left untouched, so if they were set, step 2's Continuă will
+  // re-validate them against the new duration instead of clearing on sight.
   const addGuest = useCallback(
     (name: string, dependentClientId?: string) => {
       const key = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
       setGuests((prev) => [...prev, { key, name, dependentClientId, services: [] }]);
-      // Capture origin BEFORE navigating — see guestModeFromStep4Ref above.
-      guestModeFromStep4Ref.current = step === 4;
-      setEditingGuestKey(key);
+      setActivePersonKey(key);
       if (step === 4) setStep(2);
     },
     [step]
   );
 
-  const enterGuestMode = useCallback(
-    (key: string) => {
-      guestModeFromStep4Ref.current = step === 4;
-      setEditingGuestKey(key);
-      if (step === 4) setStep(2);
-    },
-    [step]
-  );
-
-  const removeGuest = useCallback((key: string) => {
-    // Removing a guest only ever shrinks the combined duration — the
-    // previously-validated slot stays valid, so date/time are kept as-is
-    // (this also covers the step-4 "remove guest" case, where re-picking the
-    // time would otherwise be a pointless extra step for the user).
-    setGuests((prev) => prev.filter((g) => g.key !== key));
+  // BookingGuestsSection's "Modifică" (step 4 only) — same uniform return
+  // path as addGuest: just switch the active chip and land on step 2.
+  const editGuestServices = useCallback((key: string) => {
+    setActivePersonKey(key);
+    setStep(2);
   }, []);
 
-  // Exits guest mode. "gata" requires the guest to already have ≥1 service
-  // (enforced structurally — the floating bar's CTA only renders once count >
-  // 0); "renunta" additionally drops the guest entirely if it ended up with
-  // zero services. When the session started from step 4: "gata" always routes
-  // to step 3 (not 4) so the slot gets re-validated against the new combined
-  // duration (see the safety effect on step 3); "renunta" tries to return to
-  // step 4, but ONLY if selectedDate/selectedTime are still set — any service
-  // toggle along the way (add, remove, or add-then-undo) clears both, and
-  // step 4 can't render without them, so we fall back to step 3 in that case
-  // too rather than leaving the user on a blank step 4.
-  const exitGuestMode = useCallback(
-    (mode: "gata" | "renunta") => {
-      const key = editingGuestKey;
-      if (!key) return;
-      if (mode === "renunta") {
-        setGuests((prev) => {
-          const guest = prev.find((g) => g.key === key);
-          return guest && guest.services.length === 0
-            ? prev.filter((g) => g.key !== key)
-            : prev;
-        });
-      }
-      setEditingGuestKey(null);
-      const cameFromStep4 = guestModeFromStep4Ref.current;
-      guestModeFromStep4Ref.current = false;
-      if (cameFromStep4) {
-        const canReturnToStep4 = mode === "renunta" && !!selectedDate && !!selectedTime;
-        setStep(canReturnToStep4 ? 4 : 3);
-      }
-    },
-    [editingGuestKey, selectedDate, selectedTime]
-  );
+  const removeGuest = useCallback((key: string) => {
+    // Removing a guest only ever shrinks the combined duration — a
+    // previously-validated slot stays valid, so date/time are kept as-is.
+    setGuests((prev) => prev.filter((g) => g.key !== key));
+    // If the removed guest was the active chip, fall back to "self" so step 2
+    // never points at a person that no longer exists.
+    setActivePersonKey((prev) => (prev === key ? "self" : prev));
+  }, []);
 
-  // Android hardware back / gesture pop while editing a guest exits guest mode
-  // instead of leaving step 2 — a plain (non-modal) screen doesn't intercept
-  // the hardware back button on its own.
-  useEffect(() => {
-    if (Platform.OS !== "android" || !editingGuestKey) return;
-    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      exitGuestMode("renunta");
-      return true;
-    });
-    return () => sub.remove();
-  }, [editingGuestKey, exitGuestMode]);
-
-  const editingGuest = useMemo(
-    () => (editingGuestKey ? guests.find((g) => g.key === editingGuestKey) ?? null : null),
-    [editingGuestKey, guests]
+  const activePerson = useMemo(
+    () => (activePersonKey === "self" ? null : guests.find((g) => g.key === activePersonKey) ?? null),
+    [activePersonKey, guests]
   );
 
   // Dependent IDs to exclude from the "add guest" quick-pick chips: already a
@@ -724,12 +689,9 @@ export default function BookAppointmentScreen() {
   }, [step, selectedServices]);
 
   const goBack = useCallback(() => {
-    if (editingGuestKey) {
-      // Guest mode is a sub-state of step 2, not a real navigation step —
-      // the header/hardware back button exits it instead of leaving step 2.
-      exitGuestMode("renunta");
-      return;
-    }
+    // Person chips (activePersonKey) are intentionally ignored here — free
+    // switching between people is the whole point of the redesign, so
+    // leaving step 2 doesn't need to "undo" whichever chip was active.
     if (step === 2 && salonId && barbers && barbers.length === 1) {
       // Single-barber salon: no step 1 to return to
       router.back();
@@ -753,17 +715,21 @@ export default function BookAppointmentScreen() {
     } else {
       router.back();
     }
-  }, [step, salonId, barbers, selectedServices, editingGuestKey, exitGuestMode]);
+  }, [step, salonId, barbers, selectedServices]);
 
-  // ── Toggle service selection ───────────────────────────────────────────
+  // ── Toggle service selection ────────────────────────────────────────────
+  // Does NOT clear selectedDate/selectedTime anymore. Navigation-driven
+  // clears (goBack from step 3, step-indicator backward jumps) are the only
+  // other ways to reach step 2, so a non-null date/time here means the user
+  // arrived via a step-4 shortcut (Modifică / Adaugă persoană) and their slot
+  // is provisional — handleContinueStep2 re-validates it explicitly instead
+  // of us silently discarding it on every single tap.
   const toggleService = useCallback((service: BarberService) => {
     setSelectedServices((prev) => {
       const exists = prev.some((s) => s.id === service.id);
       if (exists) return prev.filter((s) => s.id !== service.id);
       return [...prev, service];
     });
-    setSelectedTime(null);
-    setSelectedDate(null);
   }, []);
 
   // ── "Anyone available": auto-pick the soonest-bookable barber ──────────
@@ -798,7 +764,7 @@ export default function BookAppointmentScreen() {
         setSelectedDate(null);
         setSelectedTime(null);
         setGuests([]);
-        setEditingGuestKey(null);
+        setActivePersonKey("self");
       }
       setSelectedBarber(barber);
       goNext();
@@ -834,9 +800,9 @@ export default function BookAppointmentScreen() {
       return;
     }
 
-    // Belt-and-braces — shouldn't happen by construction ("Adaugă persoană"
-    // requires entering guest mode, and "Gata" only shows once a guest has
-    // ≥1 service), but guard anyway before we hold a slot.
+    // Belt-and-braces — shouldn't happen by construction (handleContinueStep2
+    // already blocks with the same message when a guest has 0 services), but
+    // guard again here before we hold a slot.
     const emptyGuest = guests.find((g) => g.services.length === 0);
     if (emptyGuest) {
       Alert.alert(
@@ -1087,11 +1053,97 @@ export default function BookAppointmentScreen() {
     }
   };
 
-  // ── Step 2 "active" services: the main person's, unless guest mode is on ──
-  const activeServices = editingGuest ? editingGuest.services : selectedServices;
-  const handleToggleService = editingGuest
-    ? (service: BarberService) => toggleGuestService(editingGuest.key, service)
+  // ── Step 2 "active" services: whichever person's chip is selected ──────
+  const activeServices = activePerson ? activePerson.services : selectedServices;
+  const handleToggleService = activePerson
+    ? (service: BarberService) => toggleGuestService(activePerson.key, service)
     : toggleService;
+
+  // Every service across the whole group — what the step-2 floating bar
+  // shows (it's a group total now, not just the active person's).
+  const groupServices = useMemo(
+    () => [...selectedServices, ...guests.flatMap((g) => g.services)],
+    [selectedServices, guests]
+  );
+
+  // ── Step 2 "Continuă" ────────────────────────────────────────────────────
+  // Three outcomes:
+  //  (a) someone in the group still has 0 services → jump their chip into
+  //      view + alert, don't navigate;
+  //  (b) a provisional slot survived from a step-4 shortcut (Modifică /
+  //      Adaugă persoană kept date/time instead of clearing it) → verify it
+  //      still fits the — possibly now larger — combined duration BEFORE
+  //      trusting it, via the exact same time-slots query the grid itself
+  //      uses (queryClient.fetchQuery with timeSlotsQueryKey/fetchTimeSlots),
+  //      so we only bounce the user through step 3 when the slot truly no
+  //      longer fits, instead of unconditionally on every guest edit;
+  //  (c) first pass, nothing provisional → step 3 as always.
+  const handleContinueStep2 = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+
+    if (selectedServices.length === 0) {
+      // Can only happen while the bar is visible if some guest already has
+      // services — the main person still needs at least one of their own.
+      setActivePersonKey("self");
+      Alert.alert("Servicii lipsă", "Alege cel puțin un serviciu pentru tine.", [{ text: "OK" }]);
+      return;
+    }
+
+    const emptyGuest = guests.find((g) => g.services.length === 0);
+    if (emptyGuest) {
+      setActivePersonKey(emptyGuest.key);
+      Alert.alert(
+        "Servicii lipsă",
+        `Alege serviciile pentru ${emptyGuest.name} sau șterge persoana.`,
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
+    if (selectedDate && selectedTime) {
+      setIsCheckingFit(true);
+      try {
+        const fresh = await queryClient.fetchQuery({
+          queryKey: timeSlotsQueryKey,
+          queryFn: fetchTimeSlots,
+          staleTime: 30_000,
+        });
+        step2VisitedRef.current = true;
+        // available: false slots exist in the list too (taken/past, greyed
+        // out by the grid) — a slot must be genuinely free for the new,
+        // longer duration to skip the re-pick.
+        if (fresh.slots.some((s) => s.time === selectedTime && s.available)) {
+          setStep(4);
+        } else {
+          setSelectedTime(null);
+          setStep(3);
+          Alert.alert(
+            "Alege o altă oră",
+            `Programarea durează acum ${totalDurationMin} min — la ${selectedTime} nu mai este loc. Alege o altă oră.`,
+            [{ text: "OK" }]
+          );
+        }
+      } catch {
+        // Grid has its own retry UI — land on step 3 without an extra modal.
+        setStep(3);
+      } finally {
+        setIsCheckingFit(false);
+      }
+      return;
+    }
+
+    step2VisitedRef.current = true;
+    setStep(3);
+  }, [
+    selectedServices,
+    guests,
+    selectedDate,
+    selectedTime,
+    queryClient,
+    timeSlotsQueryKey,
+    fetchTimeSlots,
+    totalDurationMin,
+  ]);
 
   // ── Services summary for step 3 info chip ──────────────────────────────
   const servicesSummary = useMemo(() => {
@@ -1137,12 +1189,11 @@ export default function BookAppointmentScreen() {
             setNotes("");
             setBookingFor({ kind: "self" });
             setGuests([]);
-            setEditingGuestKey(null);
+            setActivePersonKey("self");
             setCalendarEventAdded(false);
             setIsAddingCalendar(false);
             // Reset flow control refs so a fresh manual booking starts clean
             step2VisitedRef.current = false;
-            guestModeFromStep4Ref.current = false;
             // Mark params consumed so deep-link doesn't re-fire on a new booking
             setParamsApplied(true);
           }}
@@ -1188,9 +1239,6 @@ export default function BookAppointmentScreen() {
           stepTitles={STEP_TITLES}
           onStepPress={(target) => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-            // Guest mode is a sub-state of step 2 — any manual jump via the
-            // step indicator should back out of it first.
-            if (editingGuestKey) exitGuestMode("renunta");
             if (target < step) {
               // Jumping backward from step 3 or 4 always clears date/time
               if (step >= 3 && target <= 2) {
@@ -1272,7 +1320,7 @@ export default function BookAppointmentScreen() {
                             setSelectedDate(null);
                             setSelectedTime(null);
                             setGuests([]);
-                            setEditingGuestKey(null);
+                            setActivePersonKey("self");
                           }
                           setSelectedBarber(barber);
                           goNext();
@@ -1293,43 +1341,24 @@ export default function BookAppointmentScreen() {
             style={[
               styles.stepContent,
               {
+                // Padding reserves space for the floating bar, which now
+                // shows the GROUP total (not just the active person's).
                 paddingBottom:
-                  activeServices.length > 0 ? 120 : 32,
+                  groupServices.length > 0 ? 120 : 32,
               },
             ]}
           >
-            {editingGuest ? (
-              <View style={styles.guestBanner}>
-                <View style={styles.guestBannerIcon}>
-                  <Ionicons name="person" size={18} color={Colors.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.guestBannerTitle}>
-                    Alegi serviciile pentru {editingGuest.name}
-                  </Text>
-                  <Text style={styles.guestBannerSubtitle}>
-                    Cu {selectedBarber?.name}
-                  </Text>
-                </View>
-                <Pressable
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                    exitGuestMode("renunta");
-                  }}
-                  className="px-3 py-2 ml-2"
-                  style={styles.guestBannerAction}
-                >
-                  <Text style={styles.guestBannerActionText}>Renunță</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <>
-                <Text style={styles.stepTitle}>Alege serviciile</Text>
-                <Text style={styles.stepSubtitle}>
-                  Cu {selectedBarber?.name} · poți selecta mai multe
-                </Text>
-              </>
-            )}
+            <BookingPersonTabs
+              activePersonKey={activePersonKey}
+              onSelectPerson={setActivePersonKey}
+              mainServiceCount={selectedServices.length}
+              guests={guests}
+              dependents={dependents ?? []}
+              usedDependentIds={usedDependentIds}
+              barberName={selectedBarber?.name}
+              onAddGuest={addGuest}
+              onRemoveGuest={removeGuest}
+            />
 
             {servicesLoading ? (
               <ActivityIndicator
@@ -1378,21 +1407,6 @@ export default function BookAppointmentScreen() {
                   </View>
                 ))}
               </View>
-            )}
-
-            {/* Guest management stays hidden while actively editing a guest's
-                own services — it reappears once "Gata"/"Renunță" is pressed. */}
-            {!editingGuest && (
-              <BookingGuestsSection
-                guests={guests}
-                dependents={dependents ?? []}
-                usedDependentIds={usedDependentIds}
-                canAdd={selectedServices.length > 0 && guests.length < 5}
-                formatPrice={formatPrice}
-                onAdd={addGuest}
-                onEdit={enterGuestMode}
-                onRemove={removeGuest}
-              />
             )}
           </View>
         )}
@@ -1488,7 +1502,7 @@ export default function BookAppointmentScreen() {
               canAdd={selectedServices.length > 0 && guests.length < 5}
               formatPrice={formatPrice}
               onAdd={addGuest}
-              onEdit={enterGuestMode}
+              onEdit={editGuestServices}
               onRemove={removeGuest}
             />
             <BookingConfirmation
@@ -1526,18 +1540,11 @@ export default function BookAppointmentScreen() {
         <View ref={floatingBarRef} collapsable={false} style={{ position: "absolute", bottom: 0, left: 0, right: 0 }} pointerEvents="box-none">
           <View ref={continueBtnRef} collapsable={false} pointerEvents="box-none">
             <BookingFloatingBar
-              selectedServices={activeServices}
-              onContinue={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                if (editingGuest) {
-                  exitGuestMode("gata");
-                } else {
-                  step2VisitedRef.current = true;
-                  setStep(3);
-                }
-              }}
+              selectedServices={groupServices}
+              personCount={1 + guests.length}
+              isBusy={isCheckingFit}
+              onContinue={handleContinueStep2}
               formatPrice={formatPrice}
-              ctaLabel={editingGuest ? "Gata" : undefined}
             />
           </View>
         </View>
@@ -1617,43 +1624,6 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     color: Colors.textSecondary,
     marginBottom: 16,
-  },
-
-  // Step 2 — guest mode banner
-  guestBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.primaryMuted,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 16,
-  },
-  guestBannerIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: Colors.white,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  guestBannerTitle: {
-    ...Typography.bodySemiBold,
-    color: Colors.text,
-  },
-  guestBannerSubtitle: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  guestBannerAction: {
-    backgroundColor: Colors.white,
-    borderRadius: 999,
-  },
-  guestBannerActionText: {
-    ...Typography.captionSemiBold,
-    color: Colors.primary,
   },
 
   // Inline error state (step 1 barbers, step 2 services)

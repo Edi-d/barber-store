@@ -1,13 +1,11 @@
 /**
- * BookingGuestsSection — "Persoane suplimentare"
+ * BookingGuestsSection — "Persoane suplimentare" (step 4 only)
  *
- * Manages the extra people (up to 5) added to a group booking: one summary
- * card per guest (name, service count + price, "Modifică" / remove) plus an
- * inline "add" form with quick-pick chips for saved dependents that aren't
- * already in use. A guest only needs a name here — services are chosen by
- * entering "guest mode" on step 2 (see app/book-appointment.tsx).
- *
- * Reused verbatim on step 2 (normal mode) and step 4 of the booking flow.
+ * One summary card per guest (name, service count + price, "Modifică" /
+ * remove) plus the shared `GuestAddForm` to add a new one. Choosing a
+ * person's actual services happens on step 2 via `BookingPersonTabs`, which
+ * reuses `GuestAddForm` for its own "+ Adaugă" chip — same inline flow, two
+ * entry points.
  */
 
 import { useState } from "react";
@@ -25,11 +23,115 @@ export type Guest = {
   services: BarberService[];
 };
 
-interface Props {
-  guests: Guest[];
+// ─── Shared inline "add guest" form ───────────────────────────────────────
+// Quick-pick chips for saved dependents not already in use, a free-text name
+// fallback, and Anulează / "Alege serviciile" actions. Purely a name-capture
+// step — the caller decides what happens next (see onConfirm).
+
+interface GuestAddFormProps {
   dependents: Dependent[];
   /** Dependent IDs to exclude from the quick-pick chips (already a guest, or
    *  already the main "bookingFor" person). */
+  usedDependentIds: Set<string>;
+  onConfirm: (name: string, dependentClientId?: string) => void;
+  onCancel: () => void;
+}
+
+export function GuestAddForm({
+  dependents,
+  usedDependentIds,
+  onConfirm,
+  onCancel,
+}: GuestAddFormProps) {
+  const [name, setName] = useState("");
+  const [dependentClientId, setDependentClientId] = useState<string | undefined>(undefined);
+
+  const availableDependents = dependents.filter((d) => !usedDependentIds.has(d.id));
+
+  const handlePickDependent = (d: Dependent) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setName(dependentDisplayName(d));
+    setDependentClientId(d.id);
+  };
+
+  const handleConfirm = () => {
+    const trimmed = name.trim();
+    if (trimmed.length === 0) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    onConfirm(trimmed, dependentClientId);
+  };
+
+  return (
+    <View style={[formStyles.addForm, Bubble.radiiSm]}>
+      {availableDependents.length > 0 && (
+        <View style={formStyles.chips}>
+          {availableDependents.map((d) => {
+            const dName = dependentDisplayName(d);
+            const active = dependentClientId === d.id;
+            return (
+              <Pressable
+                key={d.id}
+                onPress={() => handlePickDependent(d)}
+                className="flex-row items-center gap-x-1.5 px-3 py-2"
+                style={[formStyles.chip, Bubble.radiiSm, active ? formStyles.chipActive : formStyles.chipInactive]}
+              >
+                <Ionicons
+                  name="happy-outline"
+                  size={14}
+                  color={active ? Colors.white : Colors.textSecondary}
+                />
+                <Text style={[formStyles.chipText, active ? formStyles.chipTextActive : formStyles.chipTextInactive]}>
+                  {dName}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+
+      <TextInput
+        style={formStyles.input}
+        placeholder="Numele persoanei"
+        value={name}
+        onChangeText={(t) => {
+          setName(t);
+          // Manual edits detach from the tapped dependent — otherwise a
+          // freely-typed name would silently keep writing into that
+          // dependent's booking history.
+          if (dependentClientId) setDependentClientId(undefined);
+        }}
+        autoCapitalize="words"
+        maxLength={80}
+        placeholderTextColor={Colors.textTertiary}
+      />
+
+      <View style={formStyles.addFormActions}>
+        <Pressable onPress={onCancel} className="px-4 py-2.5" style={formStyles.cancelBtn}>
+          <Text style={formStyles.cancelBtnText}>Anulează</Text>
+        </Pressable>
+        <Pressable
+          onPress={handleConfirm}
+          disabled={name.trim().length === 0}
+          className="flex-row items-center justify-center gap-x-1.5 px-4 py-2.5"
+          style={[
+            formStyles.confirmBtn,
+            Bubble.radiiSm,
+            name.trim().length === 0 && formStyles.confirmBtnDisabled,
+          ]}
+        >
+          <Text style={formStyles.confirmBtnText}>Alege serviciile</Text>
+          <Ionicons name="arrow-forward" size={14} color={Colors.white} />
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+// ─── Guest cards + add trigger (step 4) ───────────────────────────────────
+
+interface Props {
+  guests: Guest[];
+  dependents: Dependent[];
   usedDependentIds: Set<string>;
   /** Whether "Adaugă persoană" is currently allowed (main person has ≥1
    *  service selected, and fewer than 5 guests so far). */
@@ -51,30 +153,6 @@ export function BookingGuestsSection({
   onRemove,
 }: Props) {
   const [showAddForm, setShowAddForm] = useState(false);
-  const [name, setName] = useState("");
-  const [dependentClientId, setDependentClientId] = useState<string | undefined>(undefined);
-
-  const availableDependents = dependents.filter((d) => !usedDependentIds.has(d.id));
-
-  const resetForm = () => {
-    setShowAddForm(false);
-    setName("");
-    setDependentClientId(undefined);
-  };
-
-  const handlePickDependent = (d: Dependent) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    setName(dependentDisplayName(d));
-    setDependentClientId(d.id);
-  };
-
-  const handleConfirm = () => {
-    const trimmed = name.trim();
-    if (trimmed.length === 0) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    onAdd(trimmed, dependentClientId);
-    resetForm();
-  };
 
   return (
     <View style={styles.wrap}>
@@ -125,68 +203,15 @@ export function BookingGuestsSection({
       })}
 
       {showAddForm ? (
-        <View style={[styles.addForm, Bubble.radiiSm]}>
-          {availableDependents.length > 0 && (
-            <View style={styles.chips}>
-              {availableDependents.map((d) => {
-                const dName = dependentDisplayName(d);
-                const active = dependentClientId === d.id;
-                return (
-                  <Pressable
-                    key={d.id}
-                    onPress={() => handlePickDependent(d)}
-                    className="flex-row items-center gap-x-1.5 px-3 py-2"
-                    style={[styles.chip, Bubble.radiiSm, active ? styles.chipActive : styles.chipInactive]}
-                  >
-                    <Ionicons
-                      name="happy-outline"
-                      size={14}
-                      color={active ? Colors.white : Colors.textSecondary}
-                    />
-                    <Text style={[styles.chipText, active ? styles.chipTextActive : styles.chipTextInactive]}>
-                      {dName}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          )}
-
-          <TextInput
-            style={styles.input}
-            placeholder="Numele persoanei"
-            value={name}
-            onChangeText={(t) => {
-              setName(t);
-              // Manual edits detach from the tapped dependent — otherwise a
-              // freely-typed name would silently keep writing into that
-              // dependent's booking history.
-              if (dependentClientId) setDependentClientId(undefined);
-            }}
-            autoCapitalize="words"
-            maxLength={80}
-            placeholderTextColor={Colors.textTertiary}
-          />
-
-          <View style={styles.addFormActions}>
-            <Pressable onPress={resetForm} className="px-4 py-2.5" style={styles.cancelBtn}>
-              <Text style={styles.cancelBtnText}>Anulează</Text>
-            </Pressable>
-            <Pressable
-              onPress={handleConfirm}
-              disabled={name.trim().length === 0}
-              className="flex-row items-center justify-center gap-x-1.5 px-4 py-2.5"
-              style={[
-                styles.confirmBtn,
-                Bubble.radiiSm,
-                name.trim().length === 0 && styles.confirmBtnDisabled,
-              ]}
-            >
-              <Text style={styles.confirmBtnText}>Alege serviciile</Text>
-              <Ionicons name="arrow-forward" size={14} color={Colors.white} />
-            </Pressable>
-          </View>
-        </View>
+        <GuestAddForm
+          dependents={dependents}
+          usedDependentIds={usedDependentIds}
+          onConfirm={(name, dependentClientId) => {
+            setShowAddForm(false);
+            onAdd(name, dependentClientId);
+          }}
+          onCancel={() => setShowAddForm(false)}
+        />
       ) : (
         <Pressable
           onPress={() => {
@@ -212,61 +237,9 @@ export function BookingGuestsSection({
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    marginTop: 20,
-    gap: 10,
-  },
-  label: {
-    ...Typography.captionSemiBold,
-    color: Colors.textSecondary,
-  },
+// ─── GuestAddForm styles ───────────────────────────────────────────────────
 
-  // ── Guest card ──────────────────────────────────────────────────────────
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.separator,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  cardIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: Colors.primaryMuted,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
-  },
-  cardInfo: {
-    flex: 1,
-  },
-  cardName: {
-    ...Typography.captionSemiBold,
-    color: Colors.text,
-  },
-  cardMeta: {
-    ...Typography.small,
-    color: Colors.textTertiary,
-    marginTop: 1,
-  },
-  editBtn: {
-    backgroundColor: Colors.primaryMuted,
-    borderRadius: 999,
-  },
-  editBtnText: {
-    ...Typography.smallSemiBold,
-    color: Colors.primary,
-  },
-  removeBtn: {
-    borderRadius: 14,
-    backgroundColor: Colors.background,
-  },
-
-  // ── Add form ────────────────────────────────────────────────────────────
+const formStyles = StyleSheet.create({
   addForm: {
     backgroundColor: Colors.white,
     borderWidth: 1,
@@ -330,6 +303,63 @@ const styles = StyleSheet.create({
   confirmBtnText: {
     ...Typography.captionSemiBold,
     color: Colors.white,
+  },
+});
+
+// ─── BookingGuestsSection styles ───────────────────────────────────────────
+
+const styles = StyleSheet.create({
+  wrap: {
+    marginTop: 20,
+    gap: 10,
+  },
+  label: {
+    ...Typography.captionSemiBold,
+    color: Colors.textSecondary,
+  },
+
+  // ── Guest card ──────────────────────────────────────────────────────────
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.separator,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  cardIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: Colors.primaryMuted,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  cardInfo: {
+    flex: 1,
+  },
+  cardName: {
+    ...Typography.captionSemiBold,
+    color: Colors.text,
+  },
+  cardMeta: {
+    ...Typography.small,
+    color: Colors.textTertiary,
+    marginTop: 1,
+  },
+  editBtn: {
+    backgroundColor: Colors.primaryMuted,
+    borderRadius: 999,
+  },
+  editBtnText: {
+    ...Typography.smallSemiBold,
+    color: Colors.primary,
+  },
+  removeBtn: {
+    borderRadius: 14,
+    backgroundColor: Colors.background,
   },
 
   // ── Add button ──────────────────────────────────────────────────────────

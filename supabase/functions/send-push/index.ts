@@ -55,6 +55,18 @@ const TEMPLATES: Record<
     title: "Programare anulată",
     body: `${p(x, "serviceTitle")} la ${p(x, "salonName")} (${p(x, "time")}) a fost anulată.`,
   }),
+  package_cancelled: (x) => {
+    const n = Number(p(x, "count", "0")) || 0;
+    const noun = n === 1 ? "O programare" : `${n} programări`;
+    const verb = n === 1 ? "a fost anulată" : "au fost anulate";
+    const salon = p(x, "salonName");
+    return {
+      title: "Pachet anulat",
+      body: salon
+        ? `${noun} viitoare de la ${salon} ${verb}.`
+        : `${noun} viitoare din pachetul tău ${verb}.`,
+    };
+  },
   booking_rescheduled: (x) => ({
     title: "Programare reprogramată",
     body: `${p(x, "serviceTitle")} la ${p(x, "salonName")} a fost mutată la ${p(x, "newTime")}.`,

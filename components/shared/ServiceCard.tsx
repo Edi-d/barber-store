@@ -35,6 +35,12 @@ interface ServiceCardProps {
   /** Zero-based index — drives staggered FadeInDown entrance */
   index: number;
   formatPrice: (cents: number, currency: string) => string;
+  /** Show the quiet "Pachete disponibile" hint inside the card. */
+  hasPackages?: boolean;
+  /** A recurring package is already chosen for this service. */
+  packageActive?: boolean;
+  /** Tap handler for the package hint — opens the chooser sheet. */
+  onPressPackage?: () => void;
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────────
@@ -45,6 +51,9 @@ export function ServiceCard({
   onToggle,
   index,
   formatPrice,
+  hasPackages = false,
+  packageActive = false,
+  onPressPackage,
 }: ServiceCardProps) {
   // 0 = idle/deselected  |  1 = selected
   const selection = useSharedValue(isSelected ? 1 : 0);
@@ -219,6 +228,36 @@ export function ServiceCard({
             </Animated.Text>
           </View>
 
+          {/* ── Recurring-package hint (quiet, in-card) ─────────────────────── */}
+          {/* A nested Pressable: tapping it opens the chooser without toggling
+              the card's selection (the child wins the responder). */}
+          {hasPackages ? (
+            <Pressable
+              onPress={onPressPackage}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={
+                packageActive ? 'Pachet recurent ales' : 'Pachete disponibile'
+              }
+              style={[styles.pkgHint, packageActive && styles.pkgHintActive]}
+            >
+              <Ionicons
+                name={packageActive ? 'checkmark-circle' : 'repeat'}
+                size={14}
+                color={Colors.primary}
+              />
+              <Text style={styles.pkgHintText} numberOfLines={1}>
+                {packageActive ? 'Pachet recurent ales' : 'Pachete disponibile'}
+              </Text>
+              <Ionicons
+                name="chevron-forward"
+                size={12}
+                color={Colors.primary}
+                style={styles.pkgHintChevron}
+              />
+            </Pressable>
+          ) : null}
+
         </Animated.View>
       </Pressable>
     </Animated.View>
@@ -305,5 +344,35 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 21,
     color: Colors.text, // overridden by animated style
+  },
+
+  // ── Recurring-package hint ──────────────────────────────────────────────────────
+  pkgHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 5,
+    marginTop: 10,
+  },
+
+  // Selected: wrap in a subtle tinted pill so the chosen state reads at a glance.
+  pkgHintActive: {
+    marginTop: 8,
+    marginLeft: -3,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: Colors.primaryMuted,
+  },
+
+  pkgHintText: {
+    fontFamily: 'EuclidCircularA-SemiBold',
+    fontSize: 12,
+    color: Colors.primary,
+  },
+
+  pkgHintChevron: {
+    opacity: 0.7,
+    marginLeft: -1,
   },
 });

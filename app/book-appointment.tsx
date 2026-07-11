@@ -21,8 +21,6 @@ import {
   packageTitle,
   packageSubtitle,
   cadenceLabel,
-  describePackage,
-  minPackagePriceCents,
 } from "@/lib/recurring-package";
 import { generateTimeSlots, getNext14Days, formatCalendarDay, findFirstAvailableDate, findNextAvailableDateAfter, findSoonestAvailableBarber, DaySlots, DayStatus, DayUnavailableReason } from "@/lib/booking";
 import {
@@ -1659,15 +1657,15 @@ export default function BookAppointmentScreen() {
               <Animated.View style={{ gap: 12 }} layout={SERVICE_LIST_LAYOUT}>
                 {visibleServices.map((service, index) => {
                   const pkgs = packagesByService.get(service.id);
-                  // Packages: single-person only, so shown only when there are no
-                  // guests and the main person's tab is active.
-                  const showPackageTrigger =
+                  const packageActive =
+                    selectedPackage?.service.id === service.id;
+                  // Packages are single-person, so the in-card hint only shows for
+                  // the main person with no guests (mirrors the chooser's gating).
+                  const showPackages =
                     !!pkgs &&
                     pkgs.length > 0 &&
                     guests.length === 0 &&
                     activePersonKey === "self";
-                  const packageActive =
-                    selectedPackage?.service.id === service.id;
                   return (
                     <View
                       key={service.id}
@@ -1683,52 +1681,11 @@ export default function BookAppointmentScreen() {
                           onToggle={() => handleToggleService(service)}
                           index={index}
                           formatPrice={formatPrice}
+                          hasPackages={showPackages}
+                          packageActive={packageActive}
+                          onPressPackage={() => handleOpenPackageSheet(service)}
                         />
                       </View>
-
-                      {showPackageTrigger && (
-                        <Pressable
-                          onPress={() => handleOpenPackageSheet(service)}
-                          style={[
-                            styles.pkgTrigger,
-                            packageActive && styles.pkgTriggerActive,
-                          ]}
-                        >
-                          <View
-                            style={[
-                              styles.pkgTriggerIcon,
-                              packageActive && styles.pkgTriggerIconActive,
-                            ]}
-                          >
-                            <Ionicons
-                              name={packageActive ? "checkmark" : "repeat"}
-                              size={16}
-                              color={packageActive ? Colors.white : Colors.primary}
-                            />
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.pkgTriggerTitle}>
-                              {packageActive ? "Pachet recurent ales" : "Pachete recurente"}
-                            </Text>
-                            <Text style={styles.pkgTriggerSub} numberOfLines={1}>
-                              {packageActive && selectedPackage
-                                ? `${describePackage(selectedPackage.pkg)} · ${formatPrice(
-                                    selectedPackage.pkg.price_cents,
-                                    service.currency
-                                  )}`
-                                : `${pkgs!.length} ${
-                                    pkgs!.length === 1 ? "opțiune" : "opțiuni"
-                                  } · de la ${formatPrice(
-                                    minPackagePriceCents(pkgs!),
-                                    service.currency
-                                  )}`}
-                            </Text>
-                          </View>
-                          <Text style={styles.pkgTriggerAction}>
-                            {packageActive ? "Schimbă" : "Vezi"}
-                          </Text>
-                        </Pressable>
-                      )}
                     </View>
                   );
                 })}
@@ -2083,52 +2040,6 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
   // ── Recurring-package trigger row (under a service in step 2) ──
-  pkgTrigger: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginTop: 8,
-    marginHorizontal: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderStyle: "dashed",
-    borderColor: Colors.primary,
-    backgroundColor: "#F4F9FF",
-  },
-  pkgTriggerActive: {
-    borderStyle: "solid",
-    borderColor: Colors.primary,
-    backgroundColor: "#EFF6FF",
-  },
-  pkgTriggerIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: Colors.primaryMuted,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  pkgTriggerIconActive: {
-    backgroundColor: Colors.primary,
-  },
-  pkgTriggerTitle: {
-    fontFamily: "EuclidCircularA-SemiBold",
-    fontSize: 13.5,
-    color: Colors.text,
-  },
-  pkgTriggerSub: {
-    fontFamily: "EuclidCircularA-Regular",
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  pkgTriggerAction: {
-    fontFamily: "EuclidCircularA-SemiBold",
-    fontSize: 12.5,
-    color: Colors.primary,
-  },
   divider: {
     height: 1,
     backgroundColor: Colors.separator,

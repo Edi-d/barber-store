@@ -8,7 +8,7 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import { Barber, BarberService } from '@/types/database';
 import { barberRoleLabel } from '@/lib/utils';
-import { Colors, Shadows, Typography } from '@/constants/theme';
+import { Bubble, Colors, Shadows, Typography } from '@/constants/theme';
 import { Input } from '@/components/ui';
 import { Button } from '@/components/ui/Button';
 
@@ -46,6 +46,15 @@ interface BookingConfirmationProps {
    *  slot is after-close, with a short label like "+20%" or "+15 RON". */
   surchargeCents?: number;
   surchargeLabel?: string;
+  /** Present for a recurring-package booking ("pachet recurent"). When set, the
+   *  `services` prop carries only the anchor-only add-ons (extras); the package
+   *  itself is summarised from this prop and its price drives the total. */
+  recurringPackage?: {
+    title: string;      // e.g. "6 luni · Lunar"
+    subtitle: string;   // e.g. "24 programări · plătiți o singură dată"
+    serviceName: string;
+    priceCents: number;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -220,8 +229,14 @@ export function BookingConfirmation({
   confirmBtnRef,
   surchargeCents = 0,
   surchargeLabel,
+  recurringPackage,
 }: BookingConfirmationProps) {
   const hasGuests = !!guests && guests.length > 0;
+  // With a package active, `services` holds only the anchor-only extras; the
+  // package price is added on top and the extras section is relabelled.
+  const isPackage = !!recurringPackage;
+  const packageCents = recurringPackage?.priceCents ?? 0;
+  const showServices = isPackage ? services.length > 0 : true;
 
   // Derived totals — sum the main person's services + every guest's, mirroring
   // the combined total the parent screen already computed for surchargeCents.
@@ -229,12 +244,12 @@ export function BookingConfirmation({
   const baseCents =
     services.reduce((sum, s) => sum + s.price_cents, 0) +
     guestServices.reduce((sum, s) => sum + s.price_cents, 0);
-  const totalCents = baseCents + surchargeCents;
+  const totalCents = baseCents + surchargeCents + packageCents;
   const totalDuration =
     services.reduce((sum, s) => sum + s.duration_min, 0) +
     guestServices.reduce((sum, s) => sum + s.duration_min, 0);
   const currency = services[0]?.currency ?? guestServices[0]?.currency ?? 'RON';
-  const hasMultiple = services.length + guestServices.length > 1;
+  const hasMultiple = !isPackage && services.length + guestServices.length > 1;
 
   // No pulse animation — clean static button
 
@@ -249,25 +264,62 @@ export function BookingConfirmation({
 
         <View style={styles.divider} />
 
-        {/* Services section(s) — one group for the main person, one per guest */}
-        <Animated.View
-          entering={FadeInRight.delay(200).duration(250)}
-          style={styles.servicesSection}
-        >
-          <Text style={styles.servicesSectionHeader}>
-            {hasGuests ? `Pentru tine (${services.length})` : `Servicii selectate (${services.length})`}
-          </Text>
+        {/* Recurring-package summary (only for a "pachet recurent" booking) */}
+        {isPackage && (
+          <>
+            <Animated.View
+              entering={FadeInRight.delay(160).duration(250)}
+              style={styles.packageSection}
+            >
+              <View style={styles.packageRow}>
+                <View style={styles.packageIconWrap}>
+                  <Ionicons name="repeat" size={18} color={Colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rowLabel}>Pachet recurent</Text>
+                  <Text style={styles.packageTitle}>{recurringPackage!.serviceName}</Text>
+                  <Text style={styles.packageSub}>
+                    {recurringPackage!.title} · {recurringPackage!.subtitle}
+                  </Text>
+                </View>
+                <Text style={styles.servicePrice}>
+                  {formatPrice(recurringPackage!.priceCents, currency)}
+                </Text>
+              </View>
+              <Text style={styles.packageNote}>
+                Data și ora aleasă este prima programare; restul se repetă automat la același
+                interval, cu același specialist.
+              </Text>
+            </Animated.View>
+            {showServices && <View style={styles.divider} />}
+          </>
+        )}
 
-          {services.map((service, idx) => (
-            <ServiceRow
-              key={service.id}
-              service={service}
-              isLast={idx === services.length - 1}
-              delay={220 + idx * 80}
-              formatPrice={formatPrice}
-            />
-          ))}
-        </Animated.View>
+        {/* Services section(s) — one group for the main person, one per guest */}
+        {showServices && (
+          <Animated.View
+            entering={FadeInRight.delay(200).duration(250)}
+            style={styles.servicesSection}
+          >
+            <Text style={styles.servicesSectionHeader}>
+              {isPackage
+                ? `Adăugate la prima programare (${services.length})`
+                : hasGuests
+                ? `Pentru tine (${services.length})`
+                : `Servicii selectate (${services.length})`}
+            </Text>
+
+            {services.map((service, idx) => (
+              <ServiceRow
+                key={service.id}
+                service={service}
+                isLast={idx === services.length - 1}
+                delay={220 + idx * 80}
+                formatPrice={formatPrice}
+              />
+            ))}
+          </Animated.View>
+        )}
 
         {hasGuests &&
           guests!.map((guest, gIdx) => (
@@ -385,7 +437,7 @@ const styles = StyleSheet.create({
   // --- Card ---
   card: {
     backgroundColor: Colors.white,
-    borderRadius: 20,
+    ...Bubble.radii,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     overflow: 'hidden',
@@ -464,6 +516,47 @@ const styles = StyleSheet.create({
     ...Typography.captionSemiBold,
     color: Colors.primary,
     marginTop: 2,
+  },
+
+  // --- Recurring-package section ---
+  packageSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+
+  packageRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+
+  packageIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: Colors.primaryMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    marginTop: 1,
+  },
+
+  packageTitle: {
+    ...Typography.bodySemiBold,
+    color: Colors.text,
+    marginTop: 1,
+  },
+
+  packageSub: {
+    ...Typography.small,
+    color: Colors.textTertiary,
+    marginTop: 1,
+  },
+
+  packageNote: {
+    ...Typography.small,
+    color: Colors.textSecondary,
+    lineHeight: 16,
+    marginTop: 10,
   },
 
   // --- Services section ---
@@ -554,8 +647,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: Colors.primaryMuted,
+    backgroundColor: '#DCEBFF',
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(10,102,194,0.35)',
     paddingHorizontal: 20,
     paddingVertical: 16,
   },

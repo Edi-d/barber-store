@@ -28,8 +28,15 @@ import {
 } from "@/components/shared/AppointmentCard";
 import { NewAppointmentCTA, TabEmptyState } from "@/components/appointments/AppointmentsCTA";
 import { AppointmentsSkeleton, AppointmentsError } from "@/components/appointments/AppointmentSkeletons";
+import { PackageGroupCard } from "@/components/shared/PackageGroupCard";
 import { Colors } from "@/constants/theme";
 import type { AppointmentWithDetails } from "@/types/database";
+
+// A row in the list is either a single appointment or a recurring-package group
+// (all upcoming occurrences of one package collapsed into one card).
+type ListItem =
+  | { kind: "single"; appt: AppointmentWithDetails }
+  | { kind: "package"; packageId: string; appts: AppointmentWithDetails[] };
 
 // ─── Tab filter ───────────────────────────────────────────────────────────────
 
@@ -305,6 +312,43 @@ export default function AppointmentsScreen() {
     [queryClient, refetch]
   );
 
+  const handleCancelPackage = useCallback(
+    (packageId: string, remaining: number) => {
+      Alert.alert(
+        "Anulează pachetul",
+        `Se vor anula toate cele ${remaining} programări viitoare din acest pachet. Programările trecute rămân neschimbate. Continui?`,
+        [
+          { text: "Nu", style: "cancel" },
+          {
+            text: "Da, anulează pachetul",
+            style: "destructive",
+            onPress: async () => {
+              const { error } = await supabase.rpc("cancel_recurring_package", {
+                p_package_id: packageId,
+              });
+
+              if (error) {
+                Alert.alert(
+                  "Eroare",
+                  "Nu am putut anula pachetul. Încearcă din nou."
+                );
+                return;
+              }
+
+              queryClient.invalidateQueries({ queryKey: ["appointments"] });
+              queryClient.invalidateQueries({ queryKey: ["appointments-upcoming"] });
+              queryClient.invalidateQueries({ queryKey: ["next-appointment"] });
+              queryClient.invalidateQueries({ queryKey: ["today-appointments-all"] });
+              queryClient.invalidateQueries({ queryKey: ["time-slots"] });
+              queryClient.invalidateQueries({ queryKey: ["first-available-date"] });
+            },
+          },
+        ]
+      );
+    },
+    [queryClient]
+  );
+
   const handleReschedule = useCallback((item: AppointmentWithDetails) => {
     const params: Record<string, string> = {};
 
@@ -347,8 +391,34 @@ export default function AppointmentsScreen() {
     [appointments]
   );
 
-  const displayedList =
-    activeTab === "upcoming" ? upcomingAppointments : pastAppointments;
+  // Upcoming tab: collapse each recurring package's occurrences into one group
+  // card (placed where its first occurrence appears in the list). Past tab keeps
+  // occurrences individual (normal history).
+  const upcomingItems = useMemo<ListItem[]>(() => {
+    const items: ListItem[] = [];
+    const seen = new Set<string>();
+    for (const a of upcomingAppointments) {
+      if (a.package_id) {
+        if (seen.has(a.package_id)) continue;
+        seen.add(a.package_id);
+        items.push({
+          kind: "package",
+          packageId: a.package_id,
+          appts: upcomingAppointments.filter((x) => x.package_id === a.package_id),
+        });
+      } else {
+        items.push({ kind: "single", appt: a });
+      }
+    }
+    return items;
+  }, [upcomingAppointments]);
+
+  const pastItems = useMemo<ListItem[]>(
+    () => pastAppointments.map((a) => ({ kind: "single", appt: a })),
+    [pastAppointments]
+  );
+
+  const displayedList = activeTab === "upcoming" ? upcomingItems : pastItems;
 
   // ── Loading ───────────────────────────────────────────────────────────────
 
@@ -381,7 +451,9 @@ export default function AppointmentsScreen() {
       <AnimatedScreen>
         <FlatList
           data={displayedList}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) =>
+            item.kind === "package" ? `pkg-${item.packageId}` : item.appt.id
+          }
           contentContainerStyle={{
             paddingTop: 4,
             paddingBottom: 100,
@@ -413,12 +485,21 @@ export default function AppointmentsScreen() {
           }
           renderItem={({ item, index }) => (
             <View className="mb-2.5 px-4">
-              <AppointmentCard
-                item={item}
-                index={index}
-                onCancel={handleCancel}
-                onReschedule={handleReschedule}
-              />
+              {item.kind === "package" ? (
+                <PackageGroupCard
+                  appts={item.appts}
+                  index={index}
+                  onCancelPackage={handleCancelPackage}
+                  onReschedule={handleReschedule}
+                />
+              ) : (
+                <AppointmentCard
+                  item={item.appt}
+                  index={index}
+                  onCancel={handleCancel}
+                  onReschedule={handleReschedule}
+                />
+              )}
             </View>
           )}
           showsVerticalScrollIndicator={false}

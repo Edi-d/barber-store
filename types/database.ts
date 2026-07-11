@@ -638,6 +638,13 @@ export interface Appointment {
   currency: string;
   created_at: string;
   updated_at: string;
+  // Set when this appointment is one occurrence of a recurring package
+  // ("pachet recurent", migration 158). Every occurrence of the same purchased
+  // package shares this id; NULL for ordinary bookings.
+  package_id?: string | null;
+  // Set when this appointment was booked together with back-to-back guests
+  // (migration 157). NULL for solo bookings.
+  booking_group_id?: string | null;
 }
 
 export interface AppointmentService {
@@ -668,6 +675,59 @@ export type AppointmentWithDetails = Appointment & {
     managed_by_profile_id: string | null;
   } | null;
 };
+
+// A recurring-package definition a service offers ("pachet recurent",
+// migration 158 / web 20260711). The owner configures it on the web; the mobile
+// client reads the active catalogue (RLS: "public reads active recurring
+// packages") to let the client pick one at booking. interval_unit/interval_count
+// + occurrences are the authoritative engine params; duration_months/cadence are
+// friendlier labels (nullable on legacy rows).
+export interface ServiceRecurringPackage {
+  id: string;
+  salon_id: string;
+  service_id: string;
+  duration_months: number | null;
+  cadence: "weekly" | "biweekly" | "monthly" | null;
+  interval_unit: "week" | "month";
+  interval_count: number;
+  occurrences: number;
+  discount_type: "amount" | "percent" | null;
+  discount_value: number | null;
+  price_cents: number;
+  active: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
+// One purchased recurring package = a bounded set of generated appointments
+// (migration 158). Occurrences link back via appointments.package_id.
+export interface AppointmentPackage {
+  id: string;
+  salon_id: string;
+  barber_id: string | null;
+  service_id: string | null;
+  user_id: string | null;
+  salon_client_id: string | null;
+  anchor_start_at: string;
+  interval_unit: "week" | "month";
+  interval_count: number;
+  occurrences: number;
+  price_cents: number;
+  payment_method: "cash" | "card";
+  payment_status: "pending" | "paid";
+  status: "active" | "cancelled";
+  source_package_id: string | null;
+  created_at: string;
+}
+
+// Row returned by the book_recurring_package RPC (migration 158).
+export interface BookRecurringPackageResult {
+  package_id: string;
+  booking_id: string;
+  occurrences: number;
+  shifted_count: number;
+  first_slot_iso: string;
+}
 
 export interface BarberAvailability {
   id: string;

@@ -15,8 +15,15 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/authStore";
-import { Barber, BarberService } from "@/types/database";
+import { Barber, BarberService, ServiceRecurringPackage, BookRecurringPackageResult } from "@/types/database";
 import { formatPrice } from "@/lib/utils";
+import {
+  packageTitle,
+  packageSubtitle,
+  cadenceLabel,
+  describePackage,
+  minPackagePriceCents,
+} from "@/lib/recurring-package";
 import { generateTimeSlots, getNext14Days, formatCalendarDay, findFirstAvailableDate, findNextAvailableDateAfter, findSoonestAvailableBarber, DaySlots, DayStatus, DayUnavailableReason } from "@/lib/booking";
 import {
   fetchSalonExtendedHours,
@@ -45,6 +52,7 @@ import { BookingSuccess, BookingSuccessResult } from "@/components/shared/Bookin
 import { BookingFloatingBar } from "@/components/shared/BookingFloatingBar";
 import { BookingGuestsSection, type Guest } from "@/components/shared/BookingGuestsSection";
 import { BookingPersonTabs } from "@/components/shared/BookingPersonTabs";
+import { PackageChooserSheet, type PackageChooserSheetHandle } from "@/components/shared/PackageChooserSheet";
 
 type BookingStep = 1 | 2 | 3 | 4;
 
@@ -89,6 +97,14 @@ export default function BookAppointmentScreen() {
   // just a chip tap (BookingPersonTabs), never a navigation.
   const [guests, setGuests] = useState<Guest[]>([]);
   const [activePersonKey, setActivePersonKey] = useState<string>("self");
+  // Recurring package ("pachet recurent") chosen for one of the selected
+  // services. Single-person and mutually exclusive with guests. When set, the
+  // OTHER selected services ride only on the first appointment as extras, and
+  // submit goes through the book_recurring_package RPC instead of book_appointment.
+  const [selectedPackage, setSelectedPackage] = useState<{
+    service: BarberService;
+    pkg: ServiceRecurringPackage;
+  } | null>(null);
   // Drives the step-2 floating bar's spinner while we re-validate a
   // carried-over slot (see handleContinueStep2) before jumping to step 4.
   const [isCheckingFit, setIsCheckingFit] = useState(false);
@@ -99,6 +115,9 @@ export default function BookAppointmentScreen() {
   const [isResolvingAnyBarber, setIsResolvingAnyBarber] = useState(false);
   const [bookingResult, setBookingResult] =
     useState<BookingSuccessResult | null>(null);
+
+  // Imperative handle for the recurring-package chooser sheet.
+  const packageSheetRef = useRef<PackageChooserSheetHandle>(null);
 
   // ── Tutorial refs ────────────────────────────────────────────────────────
   const { registerRef, unregisterRef } = useTutorialContext();
@@ -299,6 +318,56 @@ export default function BookAppointmentScreen() {
     return services.filter((s) => allowed.has(s.id));
   }, [services, barberAssignments]);
 
+  // Recurring-package definitions ("pachete recurente") offered by this salon's
+  // services. RLS "public reads active recurring packages" exposes active rows.
+  // Grouped by service so step 2 can show a "Pachete recurente" trigger under
+  // each service that offers one.
+  const { data: servicePackages } = useQuery({
+    queryKey: ["service-packages", effectiveSalonId ?? "none"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("service_recurring_packages")
+        .select("*")
+        .eq("salon_id", effectiveSalonId!)
+        .eq("active", true)
+        .order("sort_order");
+      if (error) throw error;
+      return data as ServiceRecurringPackage[];
+    },
+    enabled: !!effectiveSalonId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const packagesByService = useMemo(() => {
+    const map = new Map<string, ServiceRecurringPackage[]>();
+    for (const p of servicePackages ?? []) {
+      const arr = map.get(p.service_id) ?? [];
+      arr.push(p);
+      map.set(p.service_id, arr);
+    }
+    return map;
+  }, [servicePackages]);
+
+  // Anchor-only add-ons when a package is active: every selected service other
+  // than the package's own service. They ride on the first appointment only.
+  const packageExtras = useMemo<BarberService[]>(
+    () =>
+      selectedPackage
+        ? selectedServices.filter((s) => s.id !== selectedPackage.service.id)
+        : [],
+    [selectedPackage, selectedServices]
+  );
+
+  // Displayed price for a package booking: the fixed package price + any extras.
+  const packageTotalCents = useMemo(
+    () =>
+      selectedPackage
+        ? selectedPackage.pkg.price_cents +
+          packageExtras.reduce((acc, s) => acc + s.price_cents, 0)
+        : 0,
+    [selectedPackage, packageExtras]
+  );
+
   // Salon extended-hours config (after-close window + surcharge), keyed by
   // weekday. Drives the surcharge preview; the book_appointment RPC enforces it.
   const { data: extendedHoursByDay } = useQuery({
@@ -335,6 +404,7 @@ export default function BookAppointmentScreen() {
     setBookingFor({ kind: "self" });
     setGuests([]);
     setActivePersonKey("self");
+    setSelectedPackage(null);
   }, [effectiveSalonId]);
 
   // Factored out (key + fn) so handleContinueStep2's explicit fit-check can
@@ -643,6 +713,8 @@ export default function BookAppointmentScreen() {
       const key = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
       setGuests((prev) => [...prev, { key, name, dependentClientId, services: [] }]);
       setActivePersonKey(key);
+      // Packages are single-person: adding a guest removes any active package.
+      setSelectedPackage(null);
       if (step === 4) setStep(2);
     },
     [step]
@@ -736,6 +808,43 @@ export default function BookAppointmentScreen() {
       if (exists) return prev.filter((s) => s.id !== service.id);
       return [...prev, service];
     });
+    // Deselecting the package's own service removes the package.
+    setSelectedPackage((pkg) =>
+      pkg && pkg.service.id === service.id ? null : pkg
+    );
+  }, []);
+
+  // ── Recurring package ("pachet recurent") selection ──────────────────────
+  const handleOpenPackageSheet = useCallback(
+    (service: BarberService) => {
+      const pkgs = packagesByService.get(service.id);
+      if (!pkgs || pkgs.length === 0) return;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      packageSheetRef.current?.open(
+        service,
+        pkgs,
+        selectedPackage?.service.id === service.id ? selectedPackage.pkg.id : null
+      );
+    },
+    [packagesByService, selectedPackage]
+  );
+
+  const handleSelectPackage = useCallback(
+    (service: BarberService, pkg: ServiceRecurringPackage) => {
+      setSelectedPackage({ service, pkg });
+      // The package covers this service on the anchor — make sure it's selected.
+      setSelectedServices((prev) =>
+        prev.some((s) => s.id === service.id) ? prev : [...prev, service]
+      );
+      // Packages are single-person — drop any guests.
+      setGuests([]);
+      setActivePersonKey("self");
+    },
+    []
+  );
+
+  const handleClearPackage = useCallback(() => {
+    setSelectedPackage(null);
   }, []);
 
   // ── "Anyone available": auto-pick the soonest-bookable barber ──────────
@@ -771,6 +880,7 @@ export default function BookAppointmentScreen() {
         setSelectedTime(null);
         setGuests([]);
         setActivePersonKey("self");
+        setSelectedPackage(null);
       }
       setSelectedBarber(barber);
       goNext();
@@ -795,6 +905,154 @@ export default function BookAppointmentScreen() {
       !selectedTime
     )
       return;
+
+    // ── Recurring-package path ───────────────────────────────────────────────
+    // A package books its own series via book_recurring_package (the anchor is
+    // this slot; the rest are generated + placed server-side). It's single-person
+    // and ignores the "for whom"/guests flow.
+    if (selectedPackage) {
+      if (submittingRef.current) return;
+      submittingRef.current = true;
+      setIsSubmitting(true);
+      try {
+        const [pHours, pMinutes] = selectedTime.split(":").map(Number);
+        const anchorAt = new Date(selectedDate);
+        anchorAt.setHours(pHours, pMinutes, 0, 0);
+
+        const extraIds = packageExtras.map((s) => s.id);
+        const { data, error } = await supabase.rpc("book_recurring_package", {
+          p_barber_id: selectedBarber.id,
+          p_source_package_id: selectedPackage.pkg.id,
+          p_anchor_start_at: anchorAt.toISOString(),
+          p_extra_service_ids: extraIds.length > 0 ? extraIds : null,
+          p_notes: notes.trim() || null,
+        });
+
+        if (error) {
+          const code = error.code ?? "";
+          const msg = error.message ?? "";
+          console.error("[book] book_recurring_package failed", {
+            code,
+            message: msg,
+            details: (error as { details?: string }).details,
+            hint: (error as { hint?: string }).hint,
+          });
+
+          // RPC not deployed (migration 158) or stale schema cache.
+          if (
+            code === "PGRST202" ||
+            msg.includes("Could not find the function") ||
+            msg.includes("schema cache")
+          ) {
+            Alert.alert(
+              "Indisponibil temporar",
+              "Pachetele recurente nu sunt disponibile momentan. Încearcă mai târziu.",
+              [{ text: "OK" }]
+            );
+            return;
+          }
+          // Anchor slot just taken / barber on break.
+          if (code === "23P01") {
+            queryClient.invalidateQueries({ queryKey: ["time-slots"] });
+            queryClient.invalidateQueries({ queryKey: ["first-available-date"] });
+            setSelectedTime(null);
+            setStep(3);
+            Alert.alert(
+              "Interval indisponibil",
+              "Prima programare tocmai a fost ocupată. Alege alt interval.",
+              [{ text: "OK" }]
+            );
+            return;
+          }
+          if (code === "42501") {
+            Alert.alert("Sesiune expirată", "Te rugăm să te autentifici din nou.", [{ text: "OK" }]);
+            return;
+          }
+          if (code === "22023") {
+            if (msg.includes("occurrence_unplaceable")) {
+              setSelectedTime(null);
+              setStep(3);
+              Alert.alert(
+                "Pachet indisponibil",
+                "Nu am putut programa toate ședințele pachetului la acest frizer în perioada următoare. Încearcă altă oră de început sau alt frizer.",
+                [{ text: "OK" }]
+              );
+              return;
+            }
+            if (msg.includes("past_slot")) {
+              queryClient.invalidateQueries({ queryKey: ["time-slots"] });
+              setSelectedTime(null);
+              setStep(3);
+              Alert.alert(
+                "Interval trecut",
+                "Intervalul ales a trecut deja. Alege un interval viitor.",
+                [{ text: "OK" }]
+              );
+              return;
+            }
+            if (msg.includes("invalid_package")) {
+              setSelectedPackage(null);
+              setStep(2);
+              Alert.alert(
+                "Pachet indisponibil",
+                "Acest pachet nu mai este disponibil. Alege din nou.",
+                [{ text: "OK" }]
+              );
+              return;
+            }
+            if (msg.includes("service_not_assigned") || msg.includes("invalid_services")) {
+              setStep(2);
+              Alert.alert(
+                "Servicii indisponibile",
+                "Serviciile alese nu sunt disponibile la acest frizer. Alege din nou.",
+                [{ text: "OK" }]
+              );
+              return;
+            }
+          }
+          Alert.alert("Eroare", "Nu am putut crea pachetul. Încearcă din nou.", [{ text: "OK" }]);
+          return;
+        }
+
+        const row = (data as BookRecurringPackageResult[])?.[0];
+        if (!row) {
+          Alert.alert("Eroare", "Nu am putut crea pachetul. Încearcă din nou.", [{ text: "OK" }]);
+          return;
+        }
+
+        queryClient.invalidateQueries({ queryKey: ["appointments"] });
+        queryClient.invalidateQueries({ queryKey: ["appointments-upcoming"] });
+        queryClient.invalidateQueries({ queryKey: ["next-appointment"] });
+        queryClient.invalidateQueries({ queryKey: ["today-appointments-all"] });
+        queryClient.invalidateQueries({ queryKey: ["time-slots"] });
+        queryClient.invalidateQueries({ queryKey: ["first-available-date"] });
+
+        setBookingResult({
+          id: row.booking_id,
+          barberName: selectedBarber.name,
+          serviceNames: [
+            selectedPackage.service.name,
+            ...packageExtras.map((s) => s.name),
+          ],
+          date: anchorAt,
+          time: selectedTime,
+          totalPriceCents: packageTotalCents,
+          currency: primaryCurrency,
+          totalDurationMin: mainDurationMin,
+          recurringPackage: {
+            occurrences: row.occurrences,
+            shiftedCount: row.shifted_count,
+            cadence: cadenceLabel(selectedPackage.pkg),
+          },
+        });
+      } catch (err) {
+        Alert.alert("Eroare", "Nu am putut crea pachetul. Încearcă din nou.", [{ text: "OK" }]);
+      } finally {
+        submittingRef.current = false;
+        setIsSubmitting(false);
+      }
+      return;
+    }
 
     // "Adaugă copil" chosen but no name typed — validate before we hold a slot.
     if (bookingFor.kind === "new_child" && bookingFor.name.trim().length === 0) {
@@ -1196,6 +1454,7 @@ export default function BookAppointmentScreen() {
             setBookingFor({ kind: "self" });
             setGuests([]);
             setActivePersonKey("self");
+            setSelectedPackage(null);
             setCalendarEventAdded(false);
             setIsAddingCalendar(false);
             // Reset flow control refs so a fresh manual booking starts clean
@@ -1327,6 +1586,7 @@ export default function BookAppointmentScreen() {
                             setSelectedTime(null);
                             setGuests([]);
                             setActivePersonKey("self");
+                            setSelectedPackage(null);
                           }
                           setSelectedBarber(barber);
                           goNext();
@@ -1354,17 +1614,21 @@ export default function BookAppointmentScreen() {
               },
             ]}
           >
-            <BookingPersonTabs
-              activePersonKey={activePersonKey}
-              onSelectPerson={setActivePersonKey}
-              mainServiceCount={selectedServices.length}
-              guests={guests}
-              dependents={dependents ?? []}
-              usedDependentIds={usedDependentIds}
-              barberName={selectedBarber?.name}
-              onAddGuest={addGuest}
-              onRemoveGuest={removeGuest}
-            />
+            {/* Packages are single-person, so the guest tabs are hidden while
+                one is active (mirrors the web). */}
+            {!selectedPackage && (
+              <BookingPersonTabs
+                activePersonKey={activePersonKey}
+                onSelectPerson={setActivePersonKey}
+                mainServiceCount={selectedServices.length}
+                guests={guests}
+                dependents={dependents ?? []}
+                usedDependentIds={usedDependentIds}
+                barberName={selectedBarber?.name}
+                onAddGuest={addGuest}
+                onRemoveGuest={removeGuest}
+              />
+            )}
 
             {servicesLoading ? (
               <ActivityIndicator
@@ -1393,25 +1657,81 @@ export default function BookAppointmentScreen() {
               </View>
             ) : (
               <Animated.View style={{ gap: 12 }} layout={SERVICE_LIST_LAYOUT}>
-                {visibleServices.map((service, index) => (
-                  <View
-                    key={service.id}
-                    ref={index === 0 ? serviceCardRef : undefined}
-                    collapsable={false}
-                  >
-                    <View ref={index === 0 ? serviceCheckboxRef : undefined} collapsable={false}>
-                      <ServiceCard
-                        service={service}
-                        isSelected={activeServices.some(
-                          (s) => s.id === service.id
-                        )}
-                        onToggle={() => handleToggleService(service)}
-                        index={index}
-                        formatPrice={formatPrice}
-                      />
+                {visibleServices.map((service, index) => {
+                  const pkgs = packagesByService.get(service.id);
+                  // Packages: single-person only, so shown only when there are no
+                  // guests and the main person's tab is active.
+                  const showPackageTrigger =
+                    !!pkgs &&
+                    pkgs.length > 0 &&
+                    guests.length === 0 &&
+                    activePersonKey === "self";
+                  const packageActive =
+                    selectedPackage?.service.id === service.id;
+                  return (
+                    <View
+                      key={service.id}
+                      ref={index === 0 ? serviceCardRef : undefined}
+                      collapsable={false}
+                    >
+                      <View ref={index === 0 ? serviceCheckboxRef : undefined} collapsable={false}>
+                        <ServiceCard
+                          service={service}
+                          isSelected={activeServices.some(
+                            (s) => s.id === service.id
+                          )}
+                          onToggle={() => handleToggleService(service)}
+                          index={index}
+                          formatPrice={formatPrice}
+                        />
+                      </View>
+
+                      {showPackageTrigger && (
+                        <Pressable
+                          onPress={() => handleOpenPackageSheet(service)}
+                          style={[
+                            styles.pkgTrigger,
+                            packageActive && styles.pkgTriggerActive,
+                          ]}
+                        >
+                          <View
+                            style={[
+                              styles.pkgTriggerIcon,
+                              packageActive && styles.pkgTriggerIconActive,
+                            ]}
+                          >
+                            <Ionicons
+                              name={packageActive ? "checkmark" : "repeat"}
+                              size={16}
+                              color={packageActive ? Colors.white : Colors.primary}
+                            />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.pkgTriggerTitle}>
+                              {packageActive ? "Pachet recurent ales" : "Pachete recurente"}
+                            </Text>
+                            <Text style={styles.pkgTriggerSub} numberOfLines={1}>
+                              {packageActive && selectedPackage
+                                ? `${describePackage(selectedPackage.pkg)} · ${formatPrice(
+                                    selectedPackage.pkg.price_cents,
+                                    service.currency
+                                  )}`
+                                : `${pkgs!.length} ${
+                                    pkgs!.length === 1 ? "opțiune" : "opțiuni"
+                                  } · de la ${formatPrice(
+                                    minPackagePriceCents(pkgs!),
+                                    service.currency
+                                  )}`}
+                            </Text>
+                          </View>
+                          <Text style={styles.pkgTriggerAction}>
+                            {packageActive ? "Schimbă" : "Vezi"}
+                          </Text>
+                        </Pressable>
+                      )}
                     </View>
-                  </View>
-                ))}
+                  );
+                })}
               </Animated.View>
             )}
           </View>
@@ -1430,7 +1750,7 @@ export default function BookAppointmentScreen() {
                   style={[Typography.captionSemiBold, { color: Colors.text }]}
                   numberOfLines={2}
                 >
-                  {servicesSummary}
+                  {selectedPackage ? selectedPackage.service.name : servicesSummary}
                 </Text>
                 <Text
                   style={[
@@ -1441,7 +1761,12 @@ export default function BookAppointmentScreen() {
                   {totalDurationMin} min · cu {selectedBarber?.name}
                   {guests.length > 0 ? ` · ${1 + guests.length} persoane` : ""}
                 </Text>
-                {isExtendedSlot && selectedExtension && (
+                {selectedPackage && (
+                  <Text style={[Typography.small, { color: Colors.primary, marginTop: 2 }]}>
+                    Pachet recurent · {selectedPackage.pkg.occurrences} programări · prima este cea aleasă
+                  </Text>
+                )}
+                {!selectedPackage && isExtendedSlot && selectedExtension && (
                   <Text style={[Typography.small, { color: "#B45309", marginTop: 2 }]}>
                     {extendedServiceBlocked
                       ? "Unele servicii nu sunt disponibile în programul extins"
@@ -1453,7 +1778,10 @@ export default function BookAppointmentScreen() {
               </View>
               <View style={styles.serviceChipPrice}>
                 <Text style={styles.serviceChipPriceText}>
-                  {formatPrice(combinedEffectiveTotalCents, primaryCurrency)}
+                  {formatPrice(
+                    selectedPackage ? packageTotalCents : combinedEffectiveTotalCents,
+                    primaryCurrency
+                  )}
                 </Text>
               </View>
             </View>
@@ -1494,27 +1822,37 @@ export default function BookAppointmentScreen() {
         {/* ── Step 4: Confirmation (animated) ── */}
         {step === 4 && selectedBarber && selectedDate && selectedTime && (
           <View style={styles.stepContent}>
-            <BookingForSelector
-              dependents={dependents ?? []}
-              value={bookingFor}
-              onChange={setBookingFor}
-            />
-            {/* Guest management sits ABOVE the summary card so the add-person
-                affordance is seen before the Total / "Confirmă" CTA. */}
-            <BookingGuestsSection
-              guests={guests}
-              dependents={dependents ?? []}
-              usedDependentIds={usedDependentIds}
-              canAdd={selectedServices.length > 0 && guests.length < 5}
-              formatPrice={formatPrice}
-              onAdd={addGuest}
-              onEdit={editGuestServices}
-              onRemove={removeGuest}
-            />
+            {/* "Pentru cine" + guests are single-person concerns — hidden for a
+                recurring package, which always books under the account holder. */}
+            {!selectedPackage && (
+              <>
+                <BookingForSelector
+                  dependents={dependents ?? []}
+                  value={bookingFor}
+                  onChange={setBookingFor}
+                />
+                {/* Guest management sits ABOVE the summary card so the add-person
+                    affordance is seen before the Total / "Confirmă" CTA. */}
+                <BookingGuestsSection
+                  guests={guests}
+                  dependents={dependents ?? []}
+                  usedDependentIds={usedDependentIds}
+                  canAdd={selectedServices.length > 0 && guests.length < 5}
+                  formatPrice={formatPrice}
+                  onAdd={addGuest}
+                  onEdit={editGuestServices}
+                  onRemove={removeGuest}
+                />
+              </>
+            )}
             <BookingConfirmation
               barber={selectedBarber}
-              services={selectedServices}
-              guests={guests.length > 0 ? guests.map((g) => ({ name: g.name, services: g.services })) : undefined}
+              services={selectedPackage ? packageExtras : selectedServices}
+              guests={
+                !selectedPackage && guests.length > 0
+                  ? guests.map((g) => ({ name: g.name, services: g.services }))
+                  : undefined
+              }
               selectedDate={selectedDate}
               selectedTime={selectedTime}
               notes={notes}
@@ -1530,11 +1868,21 @@ export default function BookAppointmentScreen() {
               summaryCardRef={summaryCardRef}
               notesInputRef={notesInputRef}
               confirmBtnRef={confirmBtnRef}
-              surchargeCents={surchargeCents}
+              surchargeCents={selectedPackage ? 0 : surchargeCents}
               surchargeLabel={
-                usesExtendedServicePrice || !selectedExtension
+                selectedPackage || usesExtendedServicePrice || !selectedExtension
                   ? undefined
                   : surchargeLabel(selectedExtension)
+              }
+              recurringPackage={
+                selectedPackage
+                  ? {
+                      title: packageTitle(selectedPackage.pkg),
+                      subtitle: packageSubtitle(selectedPackage.pkg),
+                      serviceName: selectedPackage.service.name,
+                      priceCents: selectedPackage.pkg.price_cents,
+                    }
+                  : undefined
               }
             />
           </View>
@@ -1551,6 +1899,19 @@ export default function BookAppointmentScreen() {
               isBusy={isCheckingFit}
               onContinue={handleContinueStep2}
               formatPrice={formatPrice}
+              packageSummary={
+                selectedPackage
+                  ? {
+                      totalCents: packageTotalCents,
+                      title: "Pachet recurent",
+                      meta: `${selectedPackage.pkg.occurrences} programări${
+                        packageExtras.length > 0
+                          ? ` · +${packageExtras.length} la prima`
+                          : ""
+                      }`,
+                    }
+                  : undefined
+              }
             />
           </View>
         </View>
@@ -1583,6 +1944,14 @@ export default function BookAppointmentScreen() {
           </Button>
         </View>
       ) : null}
+
+      {/* Recurring-package chooser (opened per-service from step 2) */}
+      <PackageChooserSheet
+        ref={packageSheetRef}
+        onSelect={handleSelectPackage}
+        onClear={handleClearPackage}
+        formatPrice={formatPrice}
+      />
     </SafeAreaView>
   );
 }
@@ -1711,6 +2080,53 @@ const styles = StyleSheet.create({
   serviceChipPriceText: {
     fontFamily: "EuclidCircularA-Bold",
     fontSize: 12,
+    color: Colors.primary,
+  },
+  // ── Recurring-package trigger row (under a service in step 2) ──
+  pkgTrigger: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 8,
+    marginHorizontal: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: Colors.primary,
+    backgroundColor: "#F4F9FF",
+  },
+  pkgTriggerActive: {
+    borderStyle: "solid",
+    borderColor: Colors.primary,
+    backgroundColor: "#EFF6FF",
+  },
+  pkgTriggerIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: Colors.primaryMuted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pkgTriggerIconActive: {
+    backgroundColor: Colors.primary,
+  },
+  pkgTriggerTitle: {
+    fontFamily: "EuclidCircularA-SemiBold",
+    fontSize: 13.5,
+    color: Colors.text,
+  },
+  pkgTriggerSub: {
+    fontFamily: "EuclidCircularA-Regular",
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  pkgTriggerAction: {
+    fontFamily: "EuclidCircularA-SemiBold",
+    fontSize: 12.5,
     color: Colors.primary,
   },
   divider: {

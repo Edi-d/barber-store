@@ -49,6 +49,10 @@ interface BookingFloatingBarProps {
   /** Shows a small spinner in the CTA and blocks presses — used while
    *  re-validating a carried-over slot before jumping to step 4. */
   isBusy?: boolean;
+  /** When set (a recurring package is active), the bar shows this package
+   *  summary — its fixed price, a title and a meta line — instead of the
+   *  per-service running totals. */
+  packageSummary?: { totalCents: number; title: string; meta: string };
 }
 
 export function BookingFloatingBar({
@@ -57,6 +61,7 @@ export function BookingFloatingBar({
   formatPrice,
   personCount,
   isBusy,
+  packageSummary,
 }: BookingFloatingBarProps) {
   const insets = useSafeAreaInsets();
 
@@ -124,12 +129,18 @@ export function BookingFloatingBar({
 
   // ── Label helpers ───────────────────────────────────────────────────────────
 
-  const serviceLabel = count === 1 ? '1 serviciu' : `${count} servicii`;
+  const serviceLabel = packageSummary
+    ? packageSummary.title
+    : count === 1
+    ? '1 serviciu'
+    : `${count} servicii`;
   const metaParts: string[] = [];
   if (totalMin > 0) metaParts.push(`~${totalMin} min`);
   if (personCount && personCount >= 2) metaParts.push(`${personCount} persoane`);
-  const durationLabel = metaParts.join(' · ');
-  const priceLabel = isVisible ? formatPrice(totalCents, currency) : '';
+  const durationLabel = packageSummary ? packageSummary.meta : metaParts.join(' · ');
+  const priceLabel = isVisible
+    ? formatPrice(packageSummary ? packageSummary.totalCents : totalCents, currency)
+    : '';
 
   // ── Bottom offset: respect safe-area but keep a minimum gap ────────────────
 

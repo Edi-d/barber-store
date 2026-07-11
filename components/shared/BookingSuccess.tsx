@@ -47,6 +47,13 @@ export interface BookingSuccessResult {
   totalPriceCents: number;
   currency: string;
   totalDurationMin: number;
+  /** Present only for a recurring-package booking ("pachet recurent"). The
+   *  date/time above is the FIRST appointment; the rest repeat automatically. */
+  recurringPackage?: {
+    occurrences: number;
+    shiftedCount: number;
+    cadence: string;
+  };
 }
 
 export interface BookingSuccessProps {
@@ -323,6 +330,7 @@ export function BookingSuccess({
     totalPriceCents,
     currency,
     totalDurationMin,
+    recurringPackage,
   } = result;
 
   // Fire haptic on mount to punctuate the confirmation
@@ -446,12 +454,34 @@ export function BookingSuccess({
           )}
         </DetailRow>
 
+        {/* Recurring-package row (only for a "pachet recurent" booking) */}
+        {recurringPackage && (
+          <DetailRow
+            icon="repeat"
+            iconBg="#eef2ff"
+            iconColor="#6366F1"
+            label="Pachet recurent"
+            delay={770}
+          >
+            <Text style={styles.detailPrimary} allowFontScaling={false}>
+              {recurringPackage.occurrences} ședințe · {recurringPackage.cadence}
+            </Text>
+            {recurringPackage.shiftedCount > 0 && (
+              <Text style={styles.shiftNote} allowFontScaling={false}>
+                {recurringPackage.shiftedCount}{' '}
+                {recurringPackage.shiftedCount === 1 ? 'programare a fost mutată' : 'programări au fost mutate'}{' '}
+                în următoarea zi lucrătoare
+              </Text>
+            )}
+          </DetailRow>
+        )}
+
         {/* Date & time row */}
         <DetailRow
           icon="calendar"
           iconBg="#eff6ff"
           iconColor={Colors.primary}
-          label="Data & Ora"
+          label={recurringPackage ? 'Prima programare' : 'Data & Ora'}
           delay={800}
         >
           <Text style={styles.detailPrimary} allowFontScaling={false}>{formattedDate}</Text>
@@ -722,6 +752,14 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     lineHeight: 20,
     marginTop: 1,
+  },
+
+  shiftNote: {
+    fontFamily: "EuclidCircularA-Regular",
+    fontSize: 12,
+    color: "#B45309",
+    lineHeight: 16,
+    marginTop: 4,
   },
 
   receiptCode: {

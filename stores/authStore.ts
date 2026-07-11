@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { supabase } from "@/lib/supabase";
 import { cleanupAllChannels } from "@/lib/realtime";
+import { deactivatePushToken } from "@/utils/push-notifications";
 import { Profile } from "@/types/database";
 import { Session, User } from "@supabase/supabase-js";
 
@@ -227,6 +228,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signOut: async () => {
     set({ isSubmitting: true });
     try {
+      // Release THIS device's push token BEFORE tearing down the session — the
+      // RLS update needs the still-valid auth. Without this the row stays
+      // active = true forever and the device keeps receiving this account's
+      // pushes even while logged out (or logged in as someone else).
+      await deactivatePushToken();
       cleanupAllChannels(); // Clean up realtime channels before signing out
       await supabase.auth.signOut();
       set({ session: null, profile: null });

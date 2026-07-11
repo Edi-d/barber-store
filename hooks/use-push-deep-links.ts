@@ -1,33 +1,26 @@
 import { useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
-import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
-import { extractDeepLink, logNotificationInteraction, PushDeepLinkData } from '@/utils/push-notifications';
+import {
+  extractDeepLink,
+  logNotificationInteraction,
+  resolveNotificationRoute,
+  PushDeepLinkData,
+} from '@/utils/push-notifications';
 
 /**
- * Routes a notification tap to the right in-app screen instead of opening the
- * web URL. Campaign pushes carry `data.deep_link`, which the backend resolves
- * to e.g. https://tapzi.ro/salon/<id> (an associated-domain universal link) or
- * tapzi://salon/<id>. We parse out the path and router.push it so the native
- * salon screen opens directly.
+ * Routes a notification tap to the right in-app screen. Notification links
+ * arrive either as bare trigger paths ("/bookings/<id>") or full campaign URLs
+ * ("tapzi://salon/<id>" / "https://tapzi.ro/salon/<id>"). resolveNotificationRoute
+ * normalises both and maps them onto routes that exist in this client, with a
+ * fallback so a tap never lands on the "Unmatched Route" screen.
  */
 function routeFromDeepLink(
   router: ReturnType<typeof useRouter>,
   deepLink: string | null,
 ): void {
   if (!deepLink) return;
-  try {
-    // Linking.parse strips both the tapzi:// scheme and the https://tapzi.ro
-    // host, leaving the route path (e.g. 'salon/123').
-    const { path } = Linking.parse(deepLink);
-    if (path) {
-      router.push(('/' + path) as any);
-      return;
-    }
-  } catch {
-    // fall through to OS-level open
-  }
-  Linking.openURL(deepLink).catch(() => {});
+  router.push(resolveNotificationRoute(deepLink) as any);
 }
 
 function handleResponse(

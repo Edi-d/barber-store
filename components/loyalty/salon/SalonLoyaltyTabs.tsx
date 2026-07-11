@@ -34,8 +34,14 @@ export function SalonLoyaltyTabs({ active, onChange, counts }: Props) {
           >
             <Text style={[styles.label, isActive && styles.labelActive]}>
               {t.label}
-              {count != null && count > 0 ? ` ${count}` : ''}
             </Text>
+            {count != null && count > 0 ? (
+              <View style={[styles.badge, isActive && styles.badgeActive]}>
+                <Text style={[styles.badgeText, isActive && styles.badgeTextActive]}>
+                  {count}
+                </Text>
+              </View>
+            ) : null}
           </Pressable>
         );
       })}
@@ -53,8 +59,11 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    paddingVertical: 9,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 9,
     ...Bubble.radiiSm,
   },
   tabActive: {
@@ -68,5 +77,26 @@ const styles = StyleSheet.create({
   labelActive: {
     color: Colors.white,
     fontFamily: FontFamily.semiBold,
+  },
+  badge: {
+    minWidth: 18,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(15,23,42,0.10)',
+    ...Bubble.radiiSm,
+  },
+  badgeActive: {
+    backgroundColor: 'rgba(255,255,255,0.28)',
+  },
+  badgeText: {
+    fontFamily: FontFamily.semiBold,
+    fontSize: 11,
+    lineHeight: 15,
+    color: Colors.textSecondary,
+  },
+  badgeTextActive: {
+    color: Colors.white,
   },
 });

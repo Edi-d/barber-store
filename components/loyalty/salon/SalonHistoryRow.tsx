@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, FontFamily, Spacing } from '@/constants/theme';
+import { Bubble, Colors, FontFamily, Spacing } from '@/constants/theme';
 import {
   txnMeta,
   relativeTimeLabel,
@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
   iconChip: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    ...Bubble.radiiSm,
     alignItems: 'center',
     justifyContent: 'center',
   },

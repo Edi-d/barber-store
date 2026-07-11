@@ -427,11 +427,12 @@ const styles = StyleSheet.create({
   // ── Add button ──────────────────────────────────────────────────────────
   addBtn: {
     backgroundColor: Colors.primaryMuted,
-    borderWidth: 1,
-    borderColor: "transparent",
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
   },
   addBtnDisabled: {
     backgroundColor: Colors.background,
+    borderColor: "transparent",
   },
   addBtnText: {
     ...Typography.captionSemiBold,

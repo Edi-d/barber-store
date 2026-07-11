@@ -3,7 +3,7 @@ import { View, Text, Pressable, StyleSheet, Modal, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import QRCode from 'react-native-qrcode-svg';
-import { Colors, FontFamily, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Bubble, Colors, FontFamily, Shadows, Spacing } from '@/constants/theme';
 
 interface Props {
   visible: boolean;
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 340,
     backgroundColor: '#FFFFFF',
-    borderRadius: Radius.xl,
+    ...Bubble.radiiLg,
     padding: Spacing.xl,
     alignItems: 'center',
     gap: Spacing.sm,
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
   iconChip: {
     width: 48,
     height: 48,
-    borderRadius: Radius.full,
+    ...Bubble.radiiSm,
     backgroundColor: Colors.primaryMuted,
     alignItems: 'center',
     justifyContent: 'center',
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   qrBox: {
     padding: Spacing.md,
     backgroundColor: '#FFFFFF',
-    borderRadius: Radius.lg,
+    ...Bubble.radii,
     borderWidth: 1,
     borderColor: '#EEF2F6',
     marginTop: Spacing.sm,
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xs,
     paddingVertical: 10,
     paddingHorizontal: 16,
-    borderRadius: Radius.md,
+    ...Bubble.radiiSm,
     borderWidth: 1,
     borderStyle: 'dashed',
     borderColor: 'rgba(10,102,194,0.30)',
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
     paddingVertical: 12,
     paddingHorizontal: 32,
-    borderRadius: Radius.full,
+    ...Bubble.radiiSm,
     backgroundColor: Colors.primary,
   },
   closeText: {

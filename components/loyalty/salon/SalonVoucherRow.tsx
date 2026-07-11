@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Bubble, Colors, FontFamily, Radius, Spacing } from '@/constants/theme';
+import { Bubble, Colors, FontFamily, Spacing } from '@/constants/theme';
 import {
   effectiveVoucherStatus,
   VOUCHER_STATUS_META,
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   qrHint: {
     width: 36,
     height: 34,
-    borderRadius: Radius.full,
+    ...Bubble.radiiSm,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(10,102,194,0.30)',
   },
   statusPill: {
-    borderRadius: Radius.full,
+    ...Bubble.radiiSm,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },

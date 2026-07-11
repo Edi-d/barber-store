@@ -1,0 +1,13 @@
+# Supabase project config.
+# Minimal file: only the settings we need to pin are set here; everything else
+# uses CLI defaults. Functions NOT listed below default to verify_jwt = true.
+
+project_id = "tapzi"
+
+# send-push authenticates itself (SEND_PUSH_SECRET / service key), so the
+# platform JWT gate MUST be off — otherwise the runtime 401s every DB-webhook
+# and campaign call before the code runs (total push outage). The
+# `--no-verify-jwt` CLI flag is unreliable in recent CLI versions; this is the
+# authoritative way to disable it.
+[functions.send-push]
+verify_jwt = false

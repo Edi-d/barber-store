@@ -47,3 +47,6 @@ yarn-error.*
 # build artifacts
 *.ipa
 *.aab
+
+# Supabase CLI local state
+supabase/.temp/

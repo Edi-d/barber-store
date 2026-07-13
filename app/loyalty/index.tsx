@@ -43,7 +43,9 @@ export default function LoyaltyScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const cardsQuery = useSalonLoyaltyCards(userId);
-  const cards = cardsQuery.data ?? [];
+  // Only surface salons that actually run a loyalty program — hide "no program"
+  // salons the client has merely visited.
+  const cards = (cardsQuery.data ?? []).filter((c) => c.hasProgram);
   const selectedSalonId = cards[selectedIndex]?.salonId;
 
   const detailQuery = useSalonLoyaltyDetail(userId, selectedSalonId);

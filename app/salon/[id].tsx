@@ -59,7 +59,7 @@ export default function SalonDetailScreen() {
   const { latitude, longitude } = useLocationStore();
   const queryClient = useQueryClient();
 
-  const [showFullDescription, setShowFullDescription] = useState(false);
+  const [showDescriptionModal, setShowDescriptionModal] = useState(false);
   const [showFullSchedule, setShowFullSchedule] = useState(false);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -635,32 +635,6 @@ export default function SalonDetailScreen() {
           </View>
         )}
 
-        {/* ── 7. Description ── */}
-        {salon.bio && (
-          <View className="mx-4 mt-4">
-            <Text
-              className="font-bold mb-2"
-              style={{ fontSize: 16, color: "#191919" }}
-            >
-              Despre salon
-            </Text>
-            <Text
-              className="text-sm leading-5"
-              style={{ color: "#65676B" }}
-              numberOfLines={showFullDescription ? undefined : 3}
-            >
-              {salon.bio}
-            </Text>
-            {salon.bio.length > 120 && (
-              <Pressable onPress={() => setShowFullDescription(!showFullDescription)}>
-                <Text className="text-primary-500 text-sm font-semibold mt-1">
-                  {showFullDescription ? "Mai puțin" : "Citește mai mult"}
-                </Text>
-              </Pressable>
-            )}
-          </View>
-        )}
-
         {/* ── 8. Services ── */}
         {availableCategories.length > 0 && (
           <View className="mt-4">
@@ -878,6 +852,32 @@ export default function SalonDetailScreen() {
                 </Pressable>
               ))}
             </ScrollView>
+          </View>
+        )}
+
+        {/* ── 9b. Description (after the team) ── */}
+        {salon.bio && (
+          <View className="mx-4 mt-4">
+            <Text
+              className="font-bold mb-2"
+              style={{ fontSize: 16, color: "#191919" }}
+            >
+              Despre salon
+            </Text>
+            <Text
+              className="text-sm leading-5"
+              style={{ color: "#65676B" }}
+              numberOfLines={4}
+            >
+              {salon.bio}
+            </Text>
+            {salon.bio.length > 160 && (
+              <Pressable onPress={() => setShowDescriptionModal(true)}>
+                <Text className="text-primary-500 text-sm font-semibold mt-1">
+                  Vezi tot
+                </Text>
+              </Pressable>
+            )}
           </View>
         )}
 
@@ -1104,6 +1104,45 @@ export default function SalonDetailScreen() {
         initialComment={userReview?.comment ?? undefined}
         initialPhotoUrls={userReview?.photo_urls}
       />
+
+      {/* ── Full description Modal ── */}
+      <Modal
+        visible={showDescriptionModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDescriptionModal(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+          <View
+            className="bg-white"
+            style={{
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              maxHeight: "80%",
+              paddingBottom: Platform.OS === "ios" ? 34 : 20,
+            }}
+          >
+            {/* Header */}
+            <View className="flex-row items-center justify-between px-5 pt-5 pb-3">
+              <Text className="font-bold" style={{ fontSize: 18, color: "#191919" }}>
+                Despre salon
+              </Text>
+              <Pressable
+                onPress={() => setShowDescriptionModal(false)}
+                className="w-9 h-9 bg-[#F0F4F8] items-center justify-center"
+                style={Bubble.radiiSm}
+              >
+                <Ionicons name="close" size={20} color="#64748b" />
+              </Pressable>
+            </View>
+            <ScrollView className="px-5" contentContainerStyle={{ paddingBottom: 8 }}>
+              <Text className="text-sm leading-6" style={{ color: "#65676B" }}>
+                {salon.bio}
+              </Text>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* ── D-4: Lightbox Modal ── */}
       <Modal

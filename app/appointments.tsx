@@ -29,7 +29,7 @@ import {
 import { NewAppointmentCTA, TabEmptyState } from "@/components/appointments/AppointmentsCTA";
 import { AppointmentsSkeleton, AppointmentsError } from "@/components/appointments/AppointmentSkeletons";
 import { PackageGroupCard } from "@/components/shared/PackageGroupCard";
-import { Colors } from "@/constants/theme";
+import { Bubble, Colors } from "@/constants/theme";
 import type { AppointmentWithDetails } from "@/types/database";
 
 // A row in the list is either a single appointment or a recurring-package group
@@ -87,10 +87,13 @@ function TabFilter({
   return (
     <View className="px-4 pb-3 pt-1 bg-[#F0F4F8]">
       <View
-        className="flex-row bg-[#E4EAF2] rounded-full p-1 relative"
+        className="flex-row bg-[#E4EAF2] p-1 relative"
+        style={Bubble.radii}
         onLayout={handleLayout}
       >
-        {/* Animated pill */}
+        {/* Animated pill — bubble corners nested concentrically inside the
+            track (track radii minus the 4px inset) so it keeps the app's
+            asymmetric "bubble" shape in both positions. */}
         <Animated.View
           style={[
             pillStyle,
@@ -99,7 +102,10 @@ function TabFilter({
               top: 4,
               bottom: 4,
               left: 4,
-              borderRadius: 9999,
+              borderTopLeftRadius: 21,
+              borderTopRightRadius: 8,
+              borderBottomRightRadius: 21,
+              borderBottomLeftRadius: 21,
               backgroundColor: Colors.gradientStart,
             },
           ]}

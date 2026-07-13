@@ -71,12 +71,17 @@ const SERVICE_LIST_LAYOUT = LinearTransition.springify().damping(20).stiffness(2
 export default function BookAppointmentScreen() {
   const { session } = useAuthStore();
   const queryClient = useQueryClient();
-  const { salonId: rawSalonId, serviceId, serviceIds: rawServiceIds, barberId } = useLocalSearchParams<{
+  const { salonId: rawSalonId, serviceId, serviceIds: rawServiceIds, barberId, rescheduleId: rawRescheduleId } = useLocalSearchParams<{
     salonId?: string;
     serviceId?: string;
     serviceIds?: string;
     barberId?: string;
+    rescheduleId?: string;
   }>();
+  // Set by the "Reprogramează" action (see app/appointments.tsx). When present,
+  // this booking is a reschedule: once the NEW appointment is confirmed we
+  // cancel this original so the user isn't left with two active bookings.
+  const rescheduleId = rawRescheduleId && rawRescheduleId.length > 0 ? rawRescheduleId : undefined;
   const salonId = rawSalonId && rawSalonId.length > 0 ? rawSalonId : undefined;
 
   const [step, setStep] = useState<BookingStep>(1);
@@ -893,6 +898,29 @@ export default function BookAppointmentScreen() {
     }
   }, [barbers, isResolvingAnyBarber, totalDurationMin, selectedBarber, goNext]);
 
+  // When this booking is a reschedule (arrived with ?rescheduleId=), cancel the
+  // original appointment once the new one is confirmed. `appointments` has no
+  // client DELETE policy, so we soft-cancel (status='cancelled') exactly like
+  // the manual cancel flow — the old slot is freed and it drops out of the
+  // upcoming list. Guarded to pending/confirmed so we never touch an already
+  // cancelled/completed row. Best-effort: a failure here is logged, not fatal,
+  // since the new appointment already exists.
+  const cancelRescheduledOriginal = useCallback(async () => {
+    if (!rescheduleId) return;
+    const { error } = await supabase
+      .from("appointments")
+      .update({ status: "cancelled" })
+      .eq("id", rescheduleId)
+      .in("status", ["pending", "confirmed"]);
+    if (error) {
+      console.error("[book] failed to cancel rescheduled original", {
+        id: rescheduleId,
+        code: error.code,
+        message: error.message,
+      });
+    }
+  }, [rescheduleId]);
+
   // ── Submit ─────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (
@@ -1017,6 +1045,9 @@ export default function BookAppointmentScreen() {
           Alert.alert("Eroare", "Nu am putut crea pachetul. Încearcă din nou.", [{ text: "OK" }]);
           return;
         }
+
+        // Reschedule: drop the original now that the new booking is confirmed.
+        await cancelRescheduledOriginal();
 
         queryClient.invalidateQueries({ queryKey: ["appointments"] });
         queryClient.invalidateQueries({ queryKey: ["appointments-upcoming"] });
@@ -1240,6 +1271,9 @@ export default function BookAppointmentScreen() {
       // (same shape as before when there are no guests: a single-row array).
       const rows = (rpcData as RpcBookResult[]) ?? [];
       const mainRow = rows[0];
+
+      // Reschedule: drop the original now that the new booking is confirmed.
+      await cancelRescheduledOriginal();
 
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       queryClient.invalidateQueries({ queryKey: ["appointments-upcoming"] });

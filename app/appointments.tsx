@@ -350,7 +350,9 @@ export default function AppointmentsScreen() {
   );
 
   const handleReschedule = useCallback((item: AppointmentWithDetails) => {
-    const params: Record<string, string> = {};
+    // Carry the original id so book-appointment cancels it once the new booking
+    // is confirmed — otherwise a reschedule leaves the old appointment active.
+    const params: Record<string, string> = { rescheduleId: item.id };
 
     if (item.barber?.salon_id) {
       params.salonId = item.barber.salon_id;

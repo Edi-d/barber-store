@@ -45,6 +45,13 @@ import { BarberService } from '@/types/database';
 
 const bubbleRadii = Bubble.radii;
 const bubbleRadiiSm = Bubble.radiiSm;
+
+// Module-scoped guard so the "start-up" category picker appears at most once
+// per app launch. Without it, any navigation that remounts this tab — notably
+// router.replace("/(tabs)/discover") after confirming a booking — re-fires the
+// mount effect below and pops the category modal on top of the Programări tab.
+// Persists for the JS runtime lifetime (i.e. the whole app session).
+let categoryPickerShownThisSession = false;
 const cardShadow = Platform.select({
   ios: {
     shadowColor: "#1E293B",
@@ -108,13 +115,19 @@ export default function DiscoverScreen() {
 
   useEffect(() => {
     if (isTutorialActive) return;
+    // Show only once per app launch — a remount (e.g. returning to this tab
+    // after confirming a booking) must not re-pop the picker. See the guard.
+    if (categoryPickerShownThisSession) return;
     // Skip the category picker when a push notification cold-started the app —
     // that launch is deep-linking to a specific screen (e.g. a salon profile),
     // and this modal renders above it (RN <Modal> overlays pushed screens).
     // getLastNotificationResponseAsync resolves null on a normal launch.
     let active = true;
     Notifications.getLastNotificationResponseAsync().then((resp) => {
-      if (active && !resp) setShowCategoryPicker(true);
+      if (active && !resp) {
+        categoryPickerShownThisSession = true;
+        setShowCategoryPicker(true);
+      }
     });
     return () => {
       active = false;

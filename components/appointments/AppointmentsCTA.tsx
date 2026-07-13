@@ -30,7 +30,7 @@ export function NewAppointmentCTA() {
         onPressOut={() => {
           scale.value = withSpring(1, { damping: 18, stiffness: 320 });
         }}
-        onPress={() => router.push("/book-appointment")}
+        onPress={() => router.push("/(tabs)/discover?expandSheet=1" as any)}
         style={[
           Shadows.md,
           Bubble.radii,
@@ -121,7 +121,7 @@ export function AppointmentsEmptyState() {
           onPressOut={() => {
             scale.value = withSpring(1, { damping: 18, stiffness: 320 });
           }}
-          onPress={() => router.push("/book-appointment")}
+          onPress={() => router.push("/(tabs)/discover?expandSheet=1" as any)}
           className="flex-row items-center justify-center px-6"
           style={[
             Bubble.radii,
@@ -205,7 +205,7 @@ export function TabEmptyState({ tab }: TabEmptyStateProps) {
             onPressOut={() => {
               scale.value = withSpring(1, { damping: 18, stiffness: 320 });
             }}
-            onPress={() => router.push("/book-appointment")}
+            onPress={() => router.push("/(tabs)/discover?expandSheet=1" as any)}
             className="flex-row items-center justify-center px-5"
             style={[
               Bubble.radii,

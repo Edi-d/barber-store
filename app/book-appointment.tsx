@@ -17,6 +17,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/authStore";
 import { Barber, BarberService, ServiceRecurringPackage, BookRecurringPackageResult } from "@/types/database";
 import { formatPrice } from "@/lib/utils";
+import { useLastBookedServices } from "@/hooks/useLastBookedServices";
 import {
   packageTitle,
   packageSubtitle,
@@ -146,6 +147,9 @@ export default function BookAppointmentScreen() {
   // the original group rows to cancel once the new group booking is confirmed.
   const [groupApplied, setGroupApplied] = useState(false);
   const [rescheduleGroupOriginalIds, setRescheduleGroupOriginalIds] = useState<string[]>([]);
+  // Flips on "Book another": the original deep-link/reschedule intent is
+  // spent, so it must no longer suppress last-booked preselection.
+  const [explicitIntentSpent, setExplicitIntentSpent] = useState(false);
   const [isResolvingAnyBarber, setIsResolvingAnyBarber] = useState(false);
   const [bookingResult, setBookingResult] =
     useState<BookingSuccessResult | null>(null);
@@ -158,6 +162,10 @@ export default function BookAppointmentScreen() {
 
   // Tracks whether the user has manually visited step 2 at least once
   const step2VisitedRef = useRef(false);
+
+  // Flips the moment the user manually toggles any service; once true, the
+  // last-booked auto-select must never fire again (it would fight the user).
+  const servicesTouchedRef = useRef(false);
 
   // Re-entrancy guard for handleSubmit — set synchronously to prevent double-tap
   const submittingRef = useRef(false);
@@ -377,6 +385,41 @@ export default function BookAppointmentScreen() {
     const allowed = new Set(barberAssignments.map((a) => a.service_id));
     return services.filter((s) => allowed.has(s.id));
   }, [services, barberAssignments]);
+
+  // ── Last-booked preselection ("Ultima rezervare") ────────────────────────
+  // Disabled whenever explicit intent drives the flow: a deep-linked service
+  // (serviceId/serviceIds params) or a (group) reschedule — the group flow
+  // reconstructs its own service selection and must not race preselection.
+  // Passing undefined salonId disables the underlying query entirely.
+  const lastBookedEnabled =
+    explicitIntentSpent ||
+    (!serviceId && !rawServiceIds && !rescheduleId && !rescheduleGroupId);
+  const { serviceIds: lastBookedIds } = useLastBookedServices(
+    lastBookedEnabled ? effectiveSalonId : undefined,
+    selectedBarber?.id
+  );
+
+  // Only ids still bookable here (active + offered by this barber), kept in
+  // the original appointment's service order.
+  const lastBookedVisibleIds = useMemo(() => {
+    if (lastBookedIds.length === 0 || visibleServices.length === 0) return [];
+    const visible = new Set(visibleServices.map((s) => s.id));
+    return lastBookedIds.filter((id) => visible.has(id));
+  }, [lastBookedIds, visibleServices]);
+
+  // Step-2 list order: last-booked cards first, the rest keep the price sort.
+  const orderedServices = useMemo(() => {
+    if (lastBookedVisibleIds.length === 0) return visibleServices;
+    const rank = new Map(lastBookedVisibleIds.map((id, i) => [id, i]));
+    const pinned: BarberService[] = [];
+    const rest: BarberService[] = [];
+    for (const s of visibleServices) {
+      if (rank.has(s.id)) pinned.push(s);
+      else rest.push(s);
+    }
+    pinned.sort((a, b) => rank.get(a.id)! - rank.get(b.id)!);
+    return [...pinned, ...rest];
+  }, [visibleServices, lastBookedVisibleIds]);
 
   // Recurring-package definitions ("pachete recurente") offered by this salon's
   // services. RLS "public reads active recurring packages" exposes active rows.
@@ -827,11 +870,38 @@ export default function BookAppointmentScreen() {
     setParamsApplied(true);
   }, [rescheduleGroupId, groupApplied, barbers, services, rescheduleGroup, barberId]);
 
+  // ── Auto-preselect last-booked services ──────────────────────────────────
+  // History-driven sibling of the param auto-apply above; gated on
+  // paramsApplied so params always win and the two can't race. Fires only
+  // while the selection is untouched and empty, and only for the main user
+  // (never guests). Re-evaluates if the barber changes while still untouched.
+  useEffect(() => {
+    if (!lastBookedEnabled || !paramsApplied) return;
+    if (!selectedBarber || lastBookedVisibleIds.length === 0) return;
+    if (servicesTouchedRef.current || selectedServices.length > 0) return;
+    if (activePersonKey !== "self" || guests.length > 0) return;
+    const byId = new Map(visibleServices.map((s) => [s.id, s]));
+    const resolved = lastBookedVisibleIds
+      .map((id) => byId.get(id))
+      .filter((s): s is BarberService => !!s);
+    if (resolved.length > 0) setSelectedServices(resolved);
+  }, [
+    lastBookedEnabled,
+    paramsApplied,
+    selectedBarber,
+    lastBookedVisibleIds,
+    selectedServices.length,
+    activePersonKey,
+    guests.length,
+    visibleServices,
+  ]);
+
   // ── Group booking: guests + active person ───────────────────────────────
   // Toggling a guest's services mirrors toggleService below. Unlike before,
   // this does NOT clear selectedDate/selectedTime — see the "no more
   // guest-mode bounce" note above toggleService for why.
   const toggleGuestService = useCallback((guestKey: string, service: BarberService) => {
+    servicesTouchedRef.current = true;
     setGuests((prev) =>
       prev.map((g) => {
         if (g.key !== guestKey) return g;
@@ -945,6 +1015,7 @@ export default function BookAppointmentScreen() {
   // is provisional — handleContinueStep2 re-validates it explicitly instead
   // of us silently discarding it on every single tap.
   const toggleService = useCallback((service: BarberService) => {
+    servicesTouchedRef.current = true;
     setSelectedServices((prev) => {
       const exists = prev.some((s) => s.id === service.id);
       if (exists) return prev.filter((s) => s.id !== service.id);
@@ -1638,8 +1709,10 @@ export default function BookAppointmentScreen() {
             setIsAddingCalendar(false);
             // Reset flow control refs so a fresh manual booking starts clean
             step2VisitedRef.current = false;
+            servicesTouchedRef.current = false;
             // Mark params consumed so deep-link doesn't re-fire on a new booking
             setParamsApplied(true);
+            setExplicitIntentSpent(true);
           }}
           onGoHome={() => {
             router.replace("/(tabs)/discover" as any);
@@ -1836,7 +1909,7 @@ export default function BookAppointmentScreen() {
               </View>
             ) : (
               <Animated.View style={{ gap: 12 }} layout={SERVICE_LIST_LAYOUT}>
-                {visibleServices.map((service, index) => {
+                {orderedServices.map((service, index) => {
                   const pkgs = packagesByService.get(service.id);
                   const packageActive =
                     selectedPackage?.service.id === service.id;
@@ -1865,6 +1938,7 @@ export default function BookAppointmentScreen() {
                           hasPackages={showPackages}
                           packageActive={packageActive}
                           onPressPackage={() => handleOpenPackageSheet(service)}
+                          isLastBooked={lastBookedVisibleIds.includes(service.id)}
                         />
                       </View>
                     </View>

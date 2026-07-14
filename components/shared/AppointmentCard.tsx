@@ -163,6 +163,10 @@ export interface AppointmentCardProps {
   index: number;
   onCancel: (item: AppointmentWithDetails) => void;
   onReschedule: (item: AppointmentWithDetails) => void;
+  /** Number of live people in this appointment's booking group (>1 shows a
+   *  "Grup" badge; the group relationship is otherwise invisible). Defaults
+   *  to 1 (a solo booking). */
+  groupSize?: number;
 }
 
 export function AppointmentCard({
@@ -170,7 +174,9 @@ export function AppointmentCard({
   index,
   onCancel,
   onReschedule,
+  groupSize = 1,
 }: AppointmentCardProps) {
+  const isGroup = groupSize > 1;
   // Upcoming = in the future AND not cancelled
   const upcoming = isUpcoming(item.scheduled_at) && item.status !== "cancelled";
   // Actions only shown when upcoming and modifiable
@@ -283,18 +289,31 @@ export function AppointmentCard({
             <StatusBadge status={item.status as keyof typeof STATUS_CONFIG} />
           </View>
 
-          {/* ── "Pentru {name}" pill — booked for a dependent ─────────────── */}
-          {dependentName ? (
-            <View className="flex-row mt-3">
-              <View
-                className="flex-row items-center gap-1 px-2 py-1"
-                style={[Bubble.radiiSm, { backgroundColor: "rgba(180,83,9,0.10)" }]}
-              >
-                <Ionicons name="happy-outline" size={12} color="#B45309" />
-                <Text style={{ fontSize: 11, fontFamily: "EuclidCircularA-SemiBold", color: "#B45309" }}>
-                  Pentru {dependentName}
-                </Text>
-              </View>
+          {/* ── Pills: "Pentru {name}" (dependent) + "Grup" (group booking) ── */}
+          {dependentName || isGroup ? (
+            <View className="flex-row flex-wrap gap-1.5 mt-3">
+              {dependentName ? (
+                <View
+                  className="flex-row items-center gap-1 px-2 py-1"
+                  style={[Bubble.radiiSm, { backgroundColor: "rgba(180,83,9,0.10)" }]}
+                >
+                  <Ionicons name="happy-outline" size={12} color="#B45309" />
+                  <Text style={{ fontSize: 11, fontFamily: "EuclidCircularA-SemiBold", color: "#B45309" }}>
+                    Pentru {dependentName}
+                  </Text>
+                </View>
+              ) : null}
+              {isGroup ? (
+                <View
+                  className="flex-row items-center gap-1 px-2 py-1"
+                  style={[Bubble.radiiSm, { backgroundColor: "rgba(68,129,235,0.10)" }]}
+                >
+                  <Ionicons name="people-outline" size={12} color="#4481EB" />
+                  <Text style={{ fontSize: 11, fontFamily: "EuclidCircularA-SemiBold", color: "#4481EB" }}>
+                    Grup · {groupSize} persoane
+                  </Text>
+                </View>
+              ) : null}
             </View>
           ) : null}
 

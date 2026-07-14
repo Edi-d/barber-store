@@ -355,31 +355,99 @@ export default function AppointmentsScreen() {
     [queryClient]
   );
 
-  const handleReschedule = useCallback((item: AppointmentWithDetails) => {
-    // Carry the original id so book-appointment cancels it once the new booking
-    // is confirmed — otherwise a reschedule leaves the old appointment active.
-    const params: Record<string, string> = { rescheduleId: item.id };
-
-    if (item.barber?.salon_id) {
-      params.salonId = item.barber.salon_id;
+  // Live members of each booking group (non-cancelled), keyed by
+  // booking_group_id. Drives the "group" badge and the per-person vs
+  // whole-group reschedule choice below.
+  const groupMembersById = useMemo(() => {
+    const map = new Map<string, AppointmentWithDetails[]>();
+    for (const a of appointments ?? []) {
+      if (!a.booking_group_id || a.status === "cancelled") continue;
+      const arr = map.get(a.booking_group_id);
+      if (arr) arr.push(a);
+      else map.set(a.booking_group_id, [a]);
     }
+    return map;
+  }, [appointments]);
 
-    if (item.barber_id) {
-      params.barberId = item.barber_id;
-    }
+  const handleReschedule = useCallback(
+    (item: AppointmentWithDetails) => {
+      // Single-appointment reschedule (existing behavior): rebook just this
+      // person and cancel just this row once the new booking is confirmed —
+      // otherwise a reschedule leaves the old appointment active.
+      const rescheduleSingle = () => {
+        const params: Record<string, string> = { rescheduleId: item.id };
+        if (item.barber?.salon_id) params.salonId = item.barber.salon_id;
+        if (item.barber_id) params.barberId = item.barber_id;
+        // Prefer junction-table service ids; fall back to legacy service_id.
+        const serviceIds =
+          item.services && item.services.length > 0
+            ? item.services.map((s) => s.service_id).join(",")
+            : item.service_id ?? "";
+        if (serviceIds) params.serviceIds = serviceIds;
+        // Preserve who it's for: a dependent/guest booking exposes its managed
+        // CRM row (RLS). Without this the rebooking would default to "self",
+        // silently reassigning the appointment to the account holder.
+        if (item.salon_client?.managed_by_profile_id && item.salon_client_id) {
+          params.rescheduleForClientId = item.salon_client_id;
+          const name = [item.salon_client.first_name, item.salon_client.last_name]
+            .filter(Boolean)
+            .join(" ")
+            .trim();
+          if (name) params.rescheduleForName = name;
+        }
+        router.push({ pathname: "/book-appointment", params } as any);
+      };
 
-    // Prefer junction-table service ids; fall back to legacy single service_id.
-    const serviceIds =
-      item.services && item.services.length > 0
-        ? item.services.map((s) => s.service_id).join(",")
-        : item.service_id ?? "";
+      // Whole-group reschedule: book-appointment reconstructs every person in
+      // the group from booking_group_id (services + who each is for) and
+      // cancels all their original rows once the new group booking confirms.
+      const rescheduleGroup = () => {
+        const params: Record<string, string> = {
+          rescheduleGroupId: item.booking_group_id!,
+        };
+        if (item.barber?.salon_id) params.salonId = item.barber.salon_id;
+        if (item.barber_id) params.barberId = item.barber_id;
+        router.push({ pathname: "/book-appointment", params } as any);
+      };
 
-    if (serviceIds) {
-      params.serviceIds = serviceIds;
-    }
+      const members = item.booking_group_id
+        ? groupMembersById.get(item.booking_group_id) ?? []
+        : [];
 
-    router.push({ pathname: "/book-appointment", params } as any);
-  }, []);
+      // Solo booking (or the rest of the group was already cancelled) — no
+      // choice to offer.
+      if (members.length <= 1) {
+        rescheduleSingle();
+        return;
+      }
+
+      // A dependent row exposes its name (RLS); the account holder's own row is
+      // not readable, so a self appointment falls back to "programarea mea".
+      const dependentName = item.salon_client?.managed_by_profile_id
+        ? [item.salon_client.first_name, item.salon_client.last_name]
+            .filter(Boolean)
+            .join(" ")
+            .trim()
+        : "";
+
+      Alert.alert(
+        "Reprogramează",
+        `Această programare face parte dintr-un grup de ${members.length} persoane. Ce vrei să reprogramezi?`,
+        [
+          {
+            text: dependentName ? `Doar ${dependentName}` : "Doar programarea mea",
+            onPress: rescheduleSingle,
+          },
+          {
+            text: `Toată programarea (${members.length})`,
+            onPress: rescheduleGroup,
+          },
+          { text: "Renunță", style: "cancel" },
+        ]
+      );
+    },
+    [groupMembersById]
+  );
 
   // ── Derived lists ─────────────────────────────────────────────────────────
 
@@ -506,6 +574,11 @@ export default function AppointmentsScreen() {
                   index={index}
                   onCancel={handleCancel}
                   onReschedule={handleReschedule}
+                  groupSize={
+                    item.appt.booking_group_id
+                      ? groupMembersById.get(item.appt.booking_group_id)?.length ?? 1
+                      : 1
+                  }
                 />
               )}
             </View>

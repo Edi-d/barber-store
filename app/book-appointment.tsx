@@ -45,7 +45,7 @@ import { ServiceCard } from "@/components/shared/ServiceCard";
 import { BookingDatePicker } from "@/components/shared/BookingDatePicker";
 import { BookingTimeGrid, UnavailableNotice } from "@/components/shared/BookingTimeGrid";
 import { BookingConfirmation } from "@/components/shared/BookingConfirmation";
-import { BookingForSelector, type BookingFor, type Dependent } from "@/components/shared/BookingForSelector";
+import { type BookingFor, type Dependent } from "@/components/shared/BookingForSelector";
 import { BookingSuccess, BookingSuccessResult } from "@/components/shared/BookingSuccess";
 import { BookingFloatingBar } from "@/components/shared/BookingFloatingBar";
 import { BookingGuestsSection, type Guest } from "@/components/shared/BookingGuestsSection";
@@ -53,6 +53,21 @@ import { BookingPersonTabs } from "@/components/shared/BookingPersonTabs";
 import { PackageChooserSheet, type PackageChooserSheetHandle } from "@/components/shared/PackageChooserSheet";
 
 type BookingStep = 1 | 2 | 3 | 4;
+
+// One person's row within a group being rescheduled (see the reschedule-group
+// query). salon_client is the embedded CRM identity (null for the account
+// holder's own, unreadable, row); services carries just the service ids.
+type RescheduleGroupRow = {
+  id: string;
+  scheduled_at: string;
+  salon_client_id: string | null;
+  salon_client: {
+    first_name: string | null;
+    last_name: string | null;
+    managed_by_profile_id: string | null;
+  } | null;
+  services: { service_id: string }[];
+};
 
 const STEP_TITLES: Record<BookingStep, string> = {
   1: "Alege Frizer",
@@ -71,17 +86,29 @@ const SERVICE_LIST_LAYOUT = LinearTransition.springify().damping(20).stiffness(2
 export default function BookAppointmentScreen() {
   const { session } = useAuthStore();
   const queryClient = useQueryClient();
-  const { salonId: rawSalonId, serviceId, serviceIds: rawServiceIds, barberId, rescheduleId: rawRescheduleId } = useLocalSearchParams<{
+  const { salonId: rawSalonId, serviceId, serviceIds: rawServiceIds, barberId, rescheduleId: rawRescheduleId, rescheduleGroupId: rawRescheduleGroupId, rescheduleForClientId: rawRescheduleForClientId, rescheduleForName: rawRescheduleForName } = useLocalSearchParams<{
     salonId?: string;
     serviceId?: string;
     serviceIds?: string;
     barberId?: string;
     rescheduleId?: string;
+    rescheduleGroupId?: string;
+    rescheduleForClientId?: string;
+    rescheduleForName?: string;
   }>();
   // Set by the "Reprogramează" action (see app/appointments.tsx). When present,
   // this booking is a reschedule: once the NEW appointment is confirmed we
   // cancel this original so the user isn't left with two active bookings.
   const rescheduleId = rawRescheduleId && rawRescheduleId.length > 0 ? rawRescheduleId : undefined;
+  // Whole-group reschedule: rebook every person sharing this booking_group_id
+  // (services + who each is for are reconstructed below) and cancel all of
+  // their original rows on success. Mutually exclusive with rescheduleId.
+  const rescheduleGroupId = rawRescheduleGroupId && rawRescheduleGroupId.length > 0 ? rawRescheduleGroupId : undefined;
+  // Single reschedule of a dependent/guest appointment: carry the managed CRM
+  // client so the rebooking stays "for" that person instead of defaulting to
+  // the account holder (see app/appointments.tsx → rescheduleSingle).
+  const rescheduleForClientId = rawRescheduleForClientId && rawRescheduleForClientId.length > 0 ? rawRescheduleForClientId : undefined;
+  const rescheduleForName = rawRescheduleForName && rawRescheduleForName.length > 0 ? rawRescheduleForName : undefined;
   const salonId = rawSalonId && rawSalonId.length > 0 ? rawSalonId : undefined;
 
   const [step, setStep] = useState<BookingStep>(1);
@@ -115,6 +142,10 @@ export default function BookAppointmentScreen() {
   const [isAddingCalendar, setIsAddingCalendar] = useState(false);
   const [calendarEventAdded, setCalendarEventAdded] = useState(false);
   const [paramsApplied, setParamsApplied] = useState(false);
+  // Group reschedule: guard so the reconstruction runs once, plus the ids of
+  // the original group rows to cancel once the new group booking is confirmed.
+  const [groupApplied, setGroupApplied] = useState(false);
+  const [rescheduleGroupOriginalIds, setRescheduleGroupOriginalIds] = useState<string[]>([]);
   const [isResolvingAnyBarber, setIsResolvingAnyBarber] = useState(false);
   const [bookingResult, setBookingResult] =
     useState<BookingSuccessResult | null>(null);
@@ -311,6 +342,32 @@ export default function BookAppointmentScreen() {
       if (error) throw error;
       return data as BarberService[];
     },
+  });
+
+  // Group reschedule: load every person sharing this booking_group_id so we can
+  // rebuild the exact booking (main + guests, their services, who each is for).
+  // Ordered by scheduled_at so row[0] is the main appointment (guests are always
+  // chained back-to-back after it). A dependent/guest row exposes its CRM
+  // identity (RLS); the account holder's own row is not readable, which is how
+  // we tell a "self" main appointment from a "for a child" one.
+  const { data: rescheduleGroup } = useQuery({
+    queryKey: ["reschedule-group", rescheduleGroupId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("appointments")
+        .select(
+          `id, scheduled_at, salon_client_id,
+           salon_client:salon_clients(first_name, last_name, managed_by_profile_id),
+           services:appointment_services(service_id)`
+        )
+        .eq("booking_group_id", rescheduleGroupId!)
+        .eq("user_id", session!.user.id)
+        .in("status", ["pending", "confirmed"])
+        .order("scheduled_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as unknown as RescheduleGroupRow[];
+    },
+    enabled: !!rescheduleGroupId && !!session,
   });
 
   // Services visible in step 2: if the barber has explicit assignments, restrict to those
@@ -628,6 +685,10 @@ export default function BookAppointmentScreen() {
 
   // ── Auto-apply route params ────────────────────────────────────────────
   useEffect(() => {
+    // Group reschedule owns prefill (barber + main services + guests) via its
+    // own effect below — the single-appointment param path must stay out of it.
+    if (rescheduleGroupId) return;
+
     // Clobber guard: if the user already interacted, params are no longer relevant
     if (selectedBarber || selectedServices.length > 0) {
       setParamsApplied(true);
@@ -635,6 +696,17 @@ export default function BookAppointmentScreen() {
     }
 
     if (paramsApplied || !barbers || ((serviceId || rawServiceIds) && !services)) return;
+
+    // Rescheduling a dependent/guest appointment: keep it booked for that
+    // person. Without this the rebooking silently reverts to "self". (The
+    // whole-group path handles this in its own effect below.)
+    if (rescheduleForClientId) {
+      setBookingFor({
+        kind: "dependent",
+        clientId: rescheduleForClientId,
+        name: rescheduleForName || "Copil",
+      });
+    }
 
     // Resolve service(s) from params: support both serviceId and serviceIds (comma-separated)
     const resolveParamServices = (): BarberService[] => {
@@ -686,7 +758,74 @@ export default function BookAppointmentScreen() {
     if (!salonId) {
       setParamsApplied(true);
     }
-  }, [barberId, salonId, serviceId, rawServiceIds, barbers, services, paramsApplied, selectedBarber, selectedServices.length]);
+  }, [barberId, salonId, serviceId, rawServiceIds, barbers, services, paramsApplied, selectedBarber, selectedServices.length, rescheduleGroupId, rescheduleForClientId, rescheduleForName]);
+
+  // ── Group reschedule: reconstruct the whole booking ─────────────────────
+  // Rebuild barber + main person (services + who it's for) + guests from the
+  // fetched group rows, then jump straight to date/time (step 3) — services and
+  // people are carried over, the user only picks a new slot. On confirm,
+  // handleSubmit rebooks the group and cancelRescheduledOriginal cancels every
+  // original row (see rescheduleGroupOriginalIds).
+  useEffect(() => {
+    if (!rescheduleGroupId || groupApplied) return;
+    // Wait for the barber list, the salon's service catalogue (needed to map
+    // service ids back to full BarberService objects), and the group rows.
+    if (!barbers || !services || !rescheduleGroup) return;
+
+    // Nothing left to reschedule (e.g. the whole group was cancelled between
+    // tapping and arriving here) — release the guard and fall back to a blank
+    // flow rather than getting stuck.
+    if (rescheduleGroup.length === 0) {
+      setGroupApplied(true);
+      setParamsApplied(true);
+      return;
+    }
+
+    const mapServices = (ids: string[]): BarberService[] =>
+      ids
+        .map((id) => services.find((s) => s.id === id))
+        .filter((s): s is BarberService => !!s);
+
+    const [main, ...guestRows] = rescheduleGroup;
+
+    // Main person: preserve who it was booked for. A dependent booking exposes
+    // salon_client.managed_by_profile_id (RLS); a self booking's own CRM row is
+    // unreadable here, so it reads as "self".
+    const mainName = [main.salon_client?.first_name, main.salon_client?.last_name]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+    const mainFor: BookingFor =
+      main.salon_client?.managed_by_profile_id && main.salon_client_id
+        ? { kind: "dependent", clientId: main.salon_client_id, name: mainName || "Copil" }
+        : { kind: "self" };
+
+    const reconstructedGuests: Guest[] = guestRows.map((r) => {
+      const name = [r.salon_client?.first_name, r.salon_client?.last_name]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+      return {
+        // Stable per original row so re-renders don't churn the guest list.
+        key: `rg-${r.id}`,
+        name: name || "Persoană",
+        // Reuse the existing dependent so the RPC re-points onto the same CRM
+        // row instead of creating a duplicate (dependent_client_id wins).
+        dependentClientId: r.salon_client_id ?? undefined,
+        services: mapServices(r.services.map((s) => s.service_id)),
+      };
+    });
+
+    const barber = barberId ? barbers.find((b) => b.id === barberId) ?? null : null;
+    if (barber) setSelectedBarber(barber);
+    setSelectedServices(mapServices(main.services.map((s) => s.service_id)));
+    setBookingFor(mainFor);
+    setGuests(reconstructedGuests);
+    setRescheduleGroupOriginalIds(rescheduleGroup.map((r) => r.id));
+    setStep(3);
+    setGroupApplied(true);
+    setParamsApplied(true);
+  }, [rescheduleGroupId, groupApplied, barbers, services, rescheduleGroup, barberId]);
 
   // ── Group booking: guests + active person ───────────────────────────────
   // Toggling a guest's services mirrors toggleService below. Unlike before,
@@ -906,20 +1045,28 @@ export default function BookAppointmentScreen() {
   // cancelled/completed row. Best-effort: a failure here is logged, not fatal,
   // since the new appointment already exists.
   const cancelRescheduledOriginal = useCallback(async () => {
-    if (!rescheduleId) return;
+    // Group reschedule cancels every original group row; a single reschedule
+    // cancels just the one. Empty ⇒ this booking isn't a reschedule at all.
+    const ids =
+      rescheduleGroupOriginalIds.length > 0
+        ? rescheduleGroupOriginalIds
+        : rescheduleId
+        ? [rescheduleId]
+        : [];
+    if (ids.length === 0) return;
     const { error } = await supabase
       .from("appointments")
       .update({ status: "cancelled" })
-      .eq("id", rescheduleId)
+      .in("id", ids)
       .in("status", ["pending", "confirmed"]);
     if (error) {
       console.error("[book] failed to cancel rescheduled original", {
-        id: rescheduleId,
+        ids,
         code: error.code,
         message: error.message,
       });
     }
-  }, [rescheduleId]);
+  }, [rescheduleId, rescheduleGroupOriginalIds]);
 
   // ── Submit ─────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
@@ -1813,28 +1960,20 @@ export default function BookAppointmentScreen() {
         {/* ── Step 4: Confirmation (animated) ── */}
         {step === 4 && selectedBarber && selectedDate && selectedTime && (
           <View style={styles.stepContent}>
-            {/* "Pentru cine" + guests are single-person concerns — hidden for a
+            {/* Guest management sits ABOVE the summary card so the add-person
+                affordance is seen before the Total / "Confirmă" CTA. Hidden for a
                 recurring package, which always books under the account holder. */}
             {!selectedPackage && (
-              <>
-                <BookingForSelector
-                  dependents={dependents ?? []}
-                  value={bookingFor}
-                  onChange={setBookingFor}
-                />
-                {/* Guest management sits ABOVE the summary card so the add-person
-                    affordance is seen before the Total / "Confirmă" CTA. */}
-                <BookingGuestsSection
-                  guests={guests}
-                  dependents={dependents ?? []}
-                  usedDependentIds={usedDependentIds}
-                  canAdd={selectedServices.length > 0 && guests.length < 5}
-                  formatPrice={formatPrice}
-                  onAdd={addGuest}
-                  onEdit={editGuestServices}
-                  onRemove={removeGuest}
-                />
-              </>
+              <BookingGuestsSection
+                guests={guests}
+                dependents={dependents ?? []}
+                usedDependentIds={usedDependentIds}
+                canAdd={selectedServices.length > 0 && guests.length < 5}
+                formatPrice={formatPrice}
+                onAdd={addGuest}
+                onEdit={editGuestServices}
+                onRemove={removeGuest}
+              />
             )}
             <BookingConfirmation
               barber={selectedBarber}

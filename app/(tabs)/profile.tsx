@@ -11,8 +11,6 @@ import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { Colors, Bubble, Shadows, Spacing } from "@/constants/theme";
 import { useTutorialContext } from "@/components/tutorial/TutorialProvider";
-import { useLoyaltyProfile } from "@/hooks/useLoyaltyProfile";
-import { PointsBadge } from "@/components/loyalty/PointsBadge";
 
 import { ProfileHero } from "@/components/profile/ProfileHero";
 import { ProfileMenu } from "@/components/profile/ProfileMenu";
@@ -35,8 +33,6 @@ export default function ProfileScreen() {
       unregisterRef("profile-menu-tutorials");
     };
   }, [registerRef, unregisterRef]);
-
-  const { data: loyaltyProfile } = useLoyaltyProfile();
 
   const { data: stats, refetch, isRefetching } = useQuery({
     queryKey: ["profile-stats", session?.user.id],
@@ -77,7 +73,6 @@ export default function ProfileScreen() {
       icon: 'trophy',
       label: 'Punctele mele',
       onPress: () => router.push('/loyalty?from=profile'),
-      badge: loyaltyProfile?.balance ?? undefined,
       iconColor: '#F5A623',
       iconBgColor: 'rgba(245,166,35,0.1)',
     },
@@ -138,18 +133,6 @@ export default function ProfileScreen() {
                 contentFit="contain"
               />
               <View style={s.headerRight}>
-                {loyaltyProfile && loyaltyProfile.balance > 0 && (
-                  <Pressable
-                    onPress={() => router.push('/loyalty?from=profile')}
-                    className="active:opacity-70"
-                  >
-                    <PointsBadge
-                      points={loyaltyProfile.balance}
-                      level={loyaltyProfile.currentLevel}
-                      size="sm"
-                    />
-                  </Pressable>
-                )}
                 <Pressable
                   onPress={() => router.push("/settings")}
                   className="w-10 h-10 items-center justify-center active:opacity-70"

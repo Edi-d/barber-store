@@ -645,6 +645,11 @@ export interface Appointment {
   // Set when this appointment was booked together with back-to-back guests
   // (migration 157). NULL for solo bookings.
   booking_group_id?: string | null;
+  // The CRM client this appointment is for. For a "book for a child"/guest
+  // booking it points at the managed dependent; for a plain self booking it's
+  // the account holder's own (RLS-unreadable) row. Used to preserve the "booked
+  // for" identity when rescheduling. See salon_client for the readable name.
+  salon_client_id?: string | null;
 }
 
 export interface AppointmentService {

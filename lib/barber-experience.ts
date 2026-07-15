@@ -16,7 +16,7 @@ const META: Record<
     icon: require("@/assets/barber-experience/piaptan.png"),
   },
   y2_4: {
-    name: "Stilist",
+    name: "Stylist",
     range: "2–4 ani",
     icon: require("@/assets/barber-experience/foarfeca.png"),
   },
@@ -26,7 +26,7 @@ const META: Record<
     icon: require("@/assets/barber-experience/briceag.png"),
   },
   y8_plus: {
-    name: "Maestru",
+    name: "Master",
     range: "8+ ani",
     icon: require("@/assets/barber-experience/maestru.png"),
   },

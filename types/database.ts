@@ -623,6 +623,8 @@ export interface Barber {
   amenities: string[] | null;
   active: boolean;
   created_at: string;
+  // Coarse years-of-experience tier (see lib/barber-experience.ts); null = unset.
+  experience_band: string | null;
 }
 
 export interface Appointment {

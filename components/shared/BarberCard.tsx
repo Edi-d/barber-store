@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Barber } from "@/types/database";
 import { barberRoleLabel } from "@/lib/utils";
 import { Colors, Bubble, Shadows, Typography } from "@/constants/theme";
+import { ExperienceBadge } from "@/components/ExperienceBadge";
 
 // ─── Spring configs ────────────────────────────────────────────────────────────
 
@@ -189,6 +190,11 @@ export function BarberCard({ barber, isSelected, onSelect, index, role }: Barber
             </Text>
 
             <Text style={styles.role}>{roleLabel}</Text>
+
+            <ExperienceBadge
+              band={barber.experience_band}
+              className="self-start mt-1"
+            />
 
             {specialties.length > 0 && (
               <View style={styles.specialtiesRow}>

@@ -44,6 +44,7 @@ import { parseCoverPosition } from "@/lib/cover-position";
 import { CountdownTimer } from "@/components/shared/CountdownTimer";
 import { ReviewModal } from "@/components/salon/ReviewModal";
 import { ReviewPhotoStrip } from "@/components/shared/ReviewPhotoStrip";
+import { ExperienceBadge } from "@/components/ExperienceBadge";
 import { Bubble, Shadows } from "@/constants/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -765,7 +766,7 @@ export default function SalonDetailScreen() {
                 <Pressable
                   key={barber.id}
                   onPress={() => router.push(`/barber/${barber.id}`)}
-                  className="w-[150px] bg-white overflow-hidden active:opacity-90"
+                  className="w-[156px] bg-white overflow-hidden border border-slate-100 active:opacity-90"
                   style={{ ...Bubble.radii, ...Shadows.sm }}
                 >
                   {/* Avatar — 4:5 portrait, top corners follow Bubble.radii */}
@@ -797,39 +798,51 @@ export default function SalonDetailScreen() {
                     })()}
                   </View>
 
+                  {/* Rank — floats over the avatar's top-right corner. */}
+                  <ExperienceBadge
+                    band={barber.experience_band}
+                    floating
+                    className="absolute top-2 right-2 z-10"
+                  />
+
                   {/* Info */}
-                  <View className="px-3 pt-2.5 pb-3">
+                  <View className="px-3 pt-3 pb-3.5">
                     <Text
-                      className="font-bold text-[13px] text-[#191919]"
+                      className="font-bold text-[14px] leading-5 text-[#191919]"
                       numberOfLines={1}
                     >
                       {barber.name}
                     </Text>
-                    {(() => {
-                      const role =
-                        (barber.profile_id && roleByProfileId.get(barber.profile_id)) ||
-                        barber.role;
-                      const isOwner = role === "owner";
-                      return (
-                        <View
-                          className={`self-start px-1.5 py-0.5 rounded-md mt-1 ${
-                            isOwner ? "bg-amber-50" : "bg-slate-100"
-                          }`}
-                        >
-                          <Text
-                            className={`text-[10px] font-semibold ${
-                              isOwner ? "text-amber-700" : "text-slate-600"
+
+                    {/* Role + experience badges */}
+                    <View className="flex-row flex-wrap items-center gap-1.5 mt-1.5">
+                      {(() => {
+                        const role =
+                          (barber.profile_id && roleByProfileId.get(barber.profile_id)) ||
+                          barber.role;
+                        const isOwner = role === "owner";
+                        return (
+                          <View
+                            className={`h-7 px-2.5 rounded-lg items-center justify-center ${
+                              isOwner ? "bg-amber-50" : "bg-slate-100"
                             }`}
                           >
-                            {barberRoleLabel(role)}
-                          </Text>
-                        </View>
-                      );
-                    })()}
+                            <Text
+                              className={`text-[11px] font-semibold ${
+                                isOwner ? "text-amber-700" : "text-slate-600"
+                              }`}
+                            >
+                              {barberRoleLabel(role)}
+                            </Text>
+                          </View>
+                        );
+                      })()}
+                    </View>
+
                     {/* Rating + reviews */}
                     {barber.rating_avg != null && (
-                      <View className="flex-row items-center mt-1 gap-0.5">
-                        <Ionicons name="star" size={10} color="#f59e0b" />
+                      <View className="flex-row items-center mt-2 gap-0.5">
+                        <Ionicons name="star" size={11} color="#f59e0b" />
                         <Text className="text-[11px] font-semibold text-dark-700 ml-0.5">
                           {Number(barber.rating_avg).toFixed(1)}
                         </Text>
@@ -842,7 +855,7 @@ export default function SalonDetailScreen() {
                     )}
                     {barber.specialties?.[0] && (
                       <Text
-                        className="text-[#4481EB] text-[11px] font-medium mt-0.5"
+                        className="text-[#4481EB] text-[11px] font-medium mt-1"
                         numberOfLines={1}
                       >
                         {barber.specialties[0]}

@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Barber } from "@/types/database";
 import { getInitials, barberRoleLabel } from "@/lib/utils";
 import { Bubble, Shadows, FontFamily } from "@/constants/theme";
+import { ExperienceBadge } from "@/components/ExperienceBadge";
 
 interface BarberProfileHeaderProps {
   /** Barber row, optionally joined with its profile for the avatar fallback. */
@@ -88,6 +89,12 @@ export function BarberProfileHeader({ barber, role }: BarberProfileHeaderProps) 
           {barberRoleLabel(effectiveRole)}
         </Text>
       </View>
+
+      <ExperienceBadge
+        band={barber.experience_band}
+        showRange
+        className="self-center mt-1.5"
+      />
 
       {/* Specialties */}
       {specialties.length > 0 && (

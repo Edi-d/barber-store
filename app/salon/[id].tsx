@@ -27,7 +27,8 @@ import { getDistanceKm } from "@/lib/discover";
 import {
   fetchSalonPhotos,
   fetchServicesGrouped,
-  fetchSalonSchedule,
+  fetchSalonScheduleWithMeta,
+  fetchSalonExtendedUntil,
   fetchSalonReviews,
   fetchActiveHappyHour,
   toggleFavorite,
@@ -39,7 +40,6 @@ import {
   getTodayScheduleText,
   getWeekSchedule,
 } from "@/lib/salon";
-import { fetchSalonExtendedHours } from "@/lib/extended-hours";
 import { parseCoverPosition } from "@/lib/cover-position";
 import { CountdownTimer } from "@/components/shared/CountdownTimer";
 import { ReviewModal } from "@/components/salon/ReviewModal";
@@ -150,15 +150,20 @@ export default function SalonDetailScreen() {
     enabled: !!id,
   });
 
-  const { data: availability } = useQuery({
+  // Team-envelope schedule (earliest open / latest close across active
+  // barbers) + whether individual barbers' windows differ.
+  const { data: scheduleData } = useQuery({
     queryKey: ["salon-availability", id],
-    queryFn: () => fetchSalonSchedule(id!),
+    queryFn: () => fetchSalonScheduleWithMeta(id!),
     enabled: !!id,
   });
+  const availability = scheduleData?.schedule;
+  const variesByBarber = scheduleData?.variesByBarber ?? false;
 
-  const { data: extendedHours } = useQuery({
-    queryKey: ["salon-extended-hours", id],
-    queryFn: () => fetchSalonExtendedHours(id!),
+  // Opt-in-derived after-hours close per weekday (max across the team).
+  const { data: extendedUntil } = useQuery({
+    queryKey: ["salon-extended-until", id],
+    queryFn: () => fetchSalonExtendedUntil(id!),
     enabled: !!id,
     staleTime: 5 * 60 * 1000,
   });
@@ -212,13 +217,13 @@ export default function SalonDetailScreen() {
   }, [latitude, longitude, salon]);
 
   const todaySchedule = useMemo(
-    () => getTodayScheduleText(availability || [], extendedHours),
-    [availability, extendedHours]
+    () => getTodayScheduleText(availability || [], extendedUntil),
+    [availability, extendedUntil]
   );
 
   const weekSchedule = useMemo(
-    () => getWeekSchedule(availability || [], extendedHours),
-    [availability, extendedHours]
+    () => getWeekSchedule(availability || [], extendedUntil),
+    [availability, extendedUntil]
   );
 
   const availableCategories = useMemo(() => {
@@ -585,6 +590,17 @@ export default function SalonDetailScreen() {
                   </Text>
                 </View>
               ))}
+              {variesByBarber && (
+                <Text
+                  className="text-xs px-3 pt-1"
+                  style={{
+                    color: "#94a3b8",
+                    fontFamily: "EuclidCircularA-Regular",
+                  }}
+                >
+                  * Programul diferă în funcție de stilist
+                </Text>
+              )}
             </View>
           )}
         </View>

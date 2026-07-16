@@ -264,19 +264,51 @@ export default function DiscoverScreen() {
     refetchInterval: 60000,
   });
 
-  // Fetch today's enabled extended-hours windows (after-close), for the
-  // "Deschis prelungit" badge. Keyed by salon_id → extended_close_time.
+  // Today's after-hours close per salon for the "Deschis prelungit" badge —
+  // derived from per-barber OPT-INS (salon_extended_barber_optins): a salon
+  // only reads as open after-hours when at least one barber opted in today.
+  // The resolved value per opt-in is its own extended_until, or — when NULL —
+  // the salon's ENABLED salon_extended_hours close (NULL until + no enabled
+  // row = inert). Keyed by salon_id → latest resolved close across the team;
+  // salons with zero opt-ins today are absent (no badge).
   const { data: extendedToday } = useQuery({
-    queryKey: ["salon-extended-hours-today"],
+    queryKey: ["salon-extended-until-today"],
     queryFn: async () => {
       const dow = new Date().getDay();
-      const { data, error } = await supabase
-        .from("salon_extended_hours")
-        .select("salon_id, extended_close_time")
-        .eq("day_of_week", dow)
-        .eq("enabled", true);
-      if (error) throw error;
-      return data as { salon_id: string; extended_close_time: string }[];
+      const [optinsRes, extRes] = await Promise.all([
+        supabase
+          .from("salon_extended_barber_optins")
+          .select("salon_id, extended_until")
+          .eq("day_of_week", dow),
+        supabase
+          .from("salon_extended_hours")
+          .select("salon_id, extended_close_time")
+          .eq("day_of_week", dow)
+          .eq("enabled", true),
+      ]);
+      if (optinsRes.error) throw optinsRes.error;
+      if (extRes.error) throw extRes.error;
+
+      const extBySalon = new Map<string, string>();
+      for (const e of (extRes.data ?? []) as { salon_id: string; extended_close_time: string }[]) {
+        extBySalon.set(e.salon_id, e.extended_close_time);
+      }
+
+      const toMinutes = (t: string) => {
+        const [h, m] = t.split(":").map(Number);
+        return (h ?? 0) * 60 + (m ?? 0);
+      };
+      const maxBySalon = new Map<string, string>();
+      for (const o of (optinsRes.data ?? []) as { salon_id: string; extended_until: string | null }[]) {
+        const until = o.extended_until ?? extBySalon.get(o.salon_id) ?? null;
+        if (!until) continue; // inert opt-in
+        const prev = maxBySalon.get(o.salon_id);
+        if (!prev || toMinutes(until) > toMinutes(prev)) maxBySalon.set(o.salon_id, until);
+      }
+      return Array.from(maxBySalon.entries()).map(([salon_id, extended_close_time]) => ({
+        salon_id,
+        extended_close_time,
+      }));
     },
     refetchInterval: 60000,
   });

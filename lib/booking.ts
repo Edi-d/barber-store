@@ -74,8 +74,9 @@ export interface DaySlots {
 
 // ─── Internal helpers ────────────────────────────────────────────────────────
 
-// `normal_end_time` is the pre-extension close; when set, slots starting at/after
-// it fall in the extended window. Only populated on the salon_hours fallback path.
+// `normal_end_time` is the pre-extension boundary (the SALON's normal close);
+// when set, slots starting at/after it fall in the extended window. Only
+// populated on days stretched by a per-barber after-hours opt-in.
 type DayHours = { start_time: string; end_time: string; normal_end_time?: string };
 
 /**
@@ -91,21 +92,29 @@ function parseTime(t: string): [number, number] {
  * Resolve a barber's effective working schedule: a map of
  * day_of_week (0=Sunday..6=Saturday) → { start_time, end_time }.
  *
- * Precedence rules (verified against migration 144 contract):
+ * Base-window precedence:
  *
  * 1. Fetch ALL barber_availability rows for the barber (not just
  *    is_available=true).  When ANY rows exist the barber owns their
  *    schedule: only is_available=true days become working days.
  *    Days with an is_available=false row (or no row) are off — we do NOT
- *    fall back to salon_hours for a barber that has any availability rows.
+ *    fall back for a barber that has any availability rows.
  *
- * 2. Only when the barber has ZERO rows in barber_availability do we fall
- *    back to the salon's published salon_hours (is_open=true days).
+ * 2. Otherwise the base is the salon's published salon_hours (is_open=true
+ *    days) overlaid per-day with the barber's `barber_hours` overrides:
+ *    an is_open row replaces that weekday's window, an is_open=false row is
+ *    an explicit day off, and a weekday with no row inherits the salon row.
  *
- * This prevents a barber who has been marked fully unavailable from
- * silently inheriting the salon schedule and becoming bookable again.
+ * After-hours are OPT-IN per barber (salon_extended_barber_optins): only a
+ * weekday with an opt-in row for THIS barber stretches past the base close —
+ * until the row's own extended_until, or (when NULL) the enabled
+ * salon_extended_hours close for that weekday. A NULL-until row without an
+ * enabled extension row is inert; a weekday with no opt-in row never
+ * stretches. `normal_end_time` — the boundary that tags slots `extended`
+ * (the surcharge boundary) — stays the SALON's normal close.
  *
- * Every supabase call throws on error so react-query surfaces it.
+ * barber_availability / salon_hours base reads throw on error so react-query
+ * surfaces them; barber_hours and opt-in reads fail soft (treated as absent).
  */
 async function resolveSchedule(
   barberId: string,
@@ -121,6 +130,10 @@ async function resolveSchedule(
 
   if (barberErr) throw barberErr;
 
+  // The salon's normal close per weekday — needed both as the base fallback
+  // and as the `extended` (surcharge) boundary when an opt-in stretches a day.
+  let salonHoursByDay: Map<number, { open_time: string; close_time: string }> | null = null;
+
   if (barberRows && barberRows.length > 0) {
     // Barber has an explicit schedule — only is_available=true days work
     for (const r of barberRows) {
@@ -131,44 +144,116 @@ async function resolveSchedule(
         });
       }
     }
-    return map;
-  }
-
-  // 2. Zero barber rows — fall back to salon_hours
-  if (salonId) {
-    const { data: salonRows, error: salonErr } = await supabase
-      .from("salon_hours")
+  } else {
+    // 2. Zero barber_availability rows — salon_hours base overlaid with the
+    // barber's per-day barber_hours overrides.
+    let hourRows: {
+      day_of_week: number;
+      is_open: boolean;
+      open_time: string | null;
+      close_time: string | null;
+    }[] = [];
+    const { data: bhData, error: bhErr } = await supabase
+      .from("barber_hours")
       .select("day_of_week, is_open, open_time, close_time")
-      .eq("salon_id", salonId);
+      .eq("barber_id", barberId);
+    if (bhErr) {
+      // Fail-soft: treat as "no overrides" so the salon base still resolves.
+      console.warn("resolveSchedule: barber_hours fetch failed — using salon hours only", bhErr);
+    } else {
+      hourRows = bhData ?? [];
+    }
 
-    if (salonErr) throw salonErr;
+    if (salonId) {
+      const { data: salonRows, error: salonErr } = await supabase
+        .from("salon_hours")
+        .select("day_of_week, is_open, open_time, close_time")
+        .eq("salon_id", salonId);
 
-    for (const r of salonRows ?? []) {
-      if (r.is_open) {
-        map.set(r.day_of_week, {
-          start_time: r.open_time,
-          end_time: r.close_time,
-        });
+      if (salonErr) throw salonErr;
+
+      salonHoursByDay = new Map();
+      for (const r of salonRows ?? []) {
+        if (r.is_open) {
+          salonHoursByDay.set(r.day_of_week, { open_time: r.open_time, close_time: r.close_time });
+          map.set(r.day_of_week, {
+            start_time: r.open_time.slice(0, 5),
+            end_time: r.close_time.slice(0, 5),
+          });
+        }
       }
     }
 
-    // Stretch the window with the salon's extended hours: on an enabled day
-    // whose extended close is later than the normal close, push end_time out so
-    // after-close slots are offered, and remember the normal close so those
-    // slots can be tagged `extended` (and surcharged). Extension only applies to
-    // salon_hours-governed barbers — a barber with explicit availability owns
-    // their schedule and returned above before reaching this branch.
-    const extByDay = await fetchSalonExtendedHours(salonId);
-    for (const [dow, ext] of extByDay) {
-      const day = map.get(dow);
-      if (!day) continue; // salon closed that day → nothing to extend
-      const closeMin = timeToMinutes(day.end_time);
-      if (timeToMinutes(ext.extended_close_time) > closeMin) {
-        map.set(dow, {
-          ...day,
-          end_time: ext.extended_close_time,
-          normal_end_time: day.end_time,
+    // Overlay: an is_open override replaces the day's window; is_open=false is
+    // an explicit day off; weekdays without a row keep the inherited salon row.
+    for (const r of hourRows) {
+      if (r.is_open && r.open_time && r.close_time) {
+        map.set(r.day_of_week, {
+          start_time: r.open_time.slice(0, 5),
+          end_time: r.close_time.slice(0, 5),
         });
+      } else if (!r.is_open) {
+        map.delete(r.day_of_week);
+      }
+    }
+  }
+
+  // 3. Per-barber after-hours opt-ins — independent of which base won above.
+  // Fail-soft: any read error means "no stretch" (the RPC stays authoritative).
+  if (salonId && map.size > 0) {
+    const { data: optinRows, error: optinErr } = await supabase
+      .from("salon_extended_barber_optins")
+      .select("day_of_week, extended_until")
+      .eq("salon_id", salonId)
+      .eq("barber_id", barberId);
+
+    if (optinErr) {
+      console.warn("resolveSchedule: extended opt-ins fetch failed — no after-hours stretch", optinErr);
+    } else if (optinRows && optinRows.length > 0) {
+      // NULL extended_until inherits the enabled salon_extended_hours close.
+      // fetchSalonExtendedHours is itself fail-soft (empty map on error).
+      const extByDay = await fetchSalonExtendedHours(salonId);
+
+      // The surcharge boundary is the SALON's normal close even when the
+      // barber's own base close differs — fetch it if the base path didn't.
+      if (salonHoursByDay === null) {
+        salonHoursByDay = new Map();
+        const { data: salonRows, error: salonErr } = await supabase
+          .from("salon_hours")
+          .select("day_of_week, is_open, open_time, close_time")
+          .eq("salon_id", salonId);
+        if (salonErr) {
+          console.warn(
+            "resolveSchedule: salon_hours fetch failed — using base close as extended boundary",
+            salonErr
+          );
+        } else {
+          for (const r of salonRows ?? []) {
+            if (r.is_open) {
+              salonHoursByDay.set(r.day_of_week, { open_time: r.open_time, close_time: r.close_time });
+            }
+          }
+        }
+      }
+
+      for (const row of optinRows as { day_of_week: number; extended_until: string | null }[]) {
+        const day = map.get(row.day_of_week);
+        if (!day) continue; // barber doesn't work that weekday → nothing to stretch
+
+        const until =
+          row.extended_until ??
+          extByDay.get(row.day_of_week)?.extended_close_time ??
+          null; // NULL until + no enabled extension row → inert opt-in
+        if (!until) continue;
+
+        if (timeToMinutes(until) > timeToMinutes(day.end_time)) {
+          const salonClose = salonHoursByDay.get(row.day_of_week)?.close_time;
+          map.set(row.day_of_week, {
+            start_time: day.start_time,
+            end_time: until.slice(0, 5),
+            normal_end_time: (salonClose ?? day.end_time).slice(0, 5),
+          });
+        }
       }
     }
   }

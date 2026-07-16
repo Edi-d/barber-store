@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { Barber, BarberService } from "@/types/database";
 import {
   fetchBarberScheduleWithFallback,
+  fetchSalonExtendedUntil,
   fetchBarberReviews,
   getTodayScheduleText,
   getWeekSchedule,
@@ -15,7 +16,6 @@ import {
   hasCompletedAppointment,
   SERVICE_CATEGORY_ORDER,
 } from "@/lib/salon";
-import { fetchSalonExtendedHours } from "@/lib/extended-hours";
 import { useAuthStore } from "@/stores/authStore";
 import { ScreenHeader } from "@/components/shared/ScreenHeader";
 import { BarberProfileHeader } from "@/components/barber/BarberProfileHeader";
@@ -99,10 +99,12 @@ export default function BarberProfileScreen() {
     enabled: !!barber,
   });
 
-  const { data: extendedHours } = useQuery({
-    queryKey: ["salon-extended-hours", barber?.salon_id],
-    queryFn: () => fetchSalonExtendedHours(barber!.salon_id!),
-    enabled: !!barber?.salon_id,
+  // After-hours "prelungit" display for THIS barber only: their own opt-in
+  // rows (not the salon-wide max) resolve the per-weekday extended close.
+  const { data: extendedUntil } = useQuery({
+    queryKey: ["barber-extended-until", barber?.salon_id, id],
+    queryFn: () => fetchSalonExtendedUntil(barber!.salon_id!, id!),
+    enabled: !!barber?.salon_id && !!id,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -180,13 +182,13 @@ export default function BarberProfileScreen() {
   }, [servicesGrouped]);
 
   const todaySchedule = useMemo(
-    () => getTodayScheduleText(availability || [], extendedHours),
-    [availability, extendedHours]
+    () => getTodayScheduleText(availability || [], extendedUntil),
+    [availability, extendedUntil]
   );
 
   const weekSchedule = useMemo(
-    () => getWeekSchedule(availability || [], extendedHours),
-    [availability, extendedHours]
+    () => getWeekSchedule(availability || [], extendedUntil),
+    [availability, extendedUntil]
   );
 
   // ── Loading / empty guard ────────────────────────────────────────────────────

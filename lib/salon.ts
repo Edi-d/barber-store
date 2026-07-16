@@ -8,7 +8,7 @@ import {
   SalonReview,
   SalonReviewWithAuthor,
 } from "@/types/database";
-import type { SalonExtendedHours } from "@/lib/extended-hours";
+import { fetchSalonExtendedHours } from "@/lib/extended-hours";
 
 // Fetch gallery photos for a salon
 export async function fetchSalonPhotos(salonId: string): Promise<SalonPhoto[]> {
@@ -39,16 +39,40 @@ export async function fetchServicesGrouped(salonId: string): Promise<Record<stri
   return grouped;
 }
 
+// A salon's working schedule plus per-barber metadata.
+export interface SalonScheduleResult {
+  schedule: BarberAvailability[];
+  // True when at least two active barbers have different base windows (incl.
+  // one being off) on some day the salon is open — the UI shows a
+  // "programul diferă în funcție de stilist" note.
+  variesByBarber: boolean;
+}
+
 // Fetch a salon's working schedule.
 //
-// Prefers the salon's own published hours (`salon_hours` — the authoritative,
-// owner-managed source). Falls back to aggregating barber availability (union of
-// all barbers' hours) only when a salon has no published hours, so older salons
-// without a `salon_hours` row still show something sensible.
+// The per-day windows are the TEAM ENVELOPE: for each day the salon is open
+// (`salon_hours` — the authoritative, owner-managed source), each ACTIVE
+// barber's base window is their `barber_hours` override for that weekday
+// (skipped when is_open=false = day off) else the salon row; the envelope is
+// the earliest open / latest close across those windows. When the salon has no
+// active barbers or the barber_hours read fails, the salon hours are kept
+// as-is. Falls back to aggregating barber availability (union of all barbers'
+// hours) only when a salon has no published hours, so older salons without a
+// `salon_hours` row still show something sensible.
 //
 // Returned in the BarberAvailability shape the display helpers
 // (getTodayScheduleText / getWeekSchedule) already consume.
-export async function fetchSalonSchedule(salonId: string): Promise<BarberAvailability[]> {
+export async function fetchSalonScheduleWithMeta(salonId: string): Promise<SalonScheduleResult> {
+  const toAvailability = (dow: number, start: string, end: string): BarberAvailability => ({
+    id: `hours-${dow}`,
+    barber_id: salonId,
+    day_of_week: dow,
+    start_time: start,
+    end_time: end,
+    is_available: true,
+    created_at: "",
+  });
+
   // 1. Authoritative source: the salon's own published hours.
   const { data: hours, error: hoursErr } = await supabase
     .from("salon_hours")
@@ -58,17 +82,98 @@ export async function fetchSalonSchedule(salonId: string): Promise<BarberAvailab
 
   if (!hoursErr && hours && hours.length > 0) {
     // Closed days are simply omitted → getWeekSchedule renders them as "Închis".
-    return hours
-      .filter((h: any) => h.is_open)
-      .map((h: any) => ({
-        id: `hours-${h.day_of_week}`,
-        barber_id: salonId,
-        day_of_week: h.day_of_week,
-        start_time: h.open_time,
-        end_time: h.close_time,
-        is_available: true,
-        created_at: "",
-      }));
+    const openDays = (hours as {
+      day_of_week: number;
+      is_open: boolean;
+      open_time: string;
+      close_time: string;
+    }[]).filter((h) => h.is_open);
+
+    // Team envelope across active barbers. Fail-soft: any read error keeps the
+    // salon's own hours as-is.
+    try {
+      const { data: barbers, error: barbersErr } = await supabase
+        .from("barbers")
+        .select("id")
+        .eq("salon_id", salonId)
+        .eq("active", true);
+      if (barbersErr) throw barbersErr;
+
+      if (barbers && barbers.length > 0) {
+        const barberIds = barbers.map((b: { id: string }) => b.id);
+        const { data: bhRows, error: bhErr } = await supabase
+          .from("barber_hours")
+          .select("barber_id, day_of_week, is_open, open_time, close_time")
+          .in("barber_id", barberIds);
+        if (bhErr) throw bhErr;
+
+        const overrides = new Map<
+          string,
+          { is_open: boolean; open_time: string | null; close_time: string | null }
+        >();
+        for (const r of (bhRows ?? []) as {
+          barber_id: string;
+          day_of_week: number;
+          is_open: boolean;
+          open_time: string | null;
+          close_time: string | null;
+        }[]) {
+          overrides.set(`${r.barber_id}:${r.day_of_week}`, r);
+        }
+
+        let variesByBarber = false;
+        const schedule: BarberAvailability[] = [];
+
+        for (const h of openDays) {
+          const windows: { start: string; end: string }[] = [];
+          // Distinct per-barber window signatures (minutes-normalized so
+          // "09:00" vs "09:00:00" never reads as different); "off" counts as
+          // its own signature — a day off IS a schedule difference.
+          const signatures = new Set<string>();
+
+          for (const barberId of barberIds) {
+            const o = overrides.get(`${barberId}:${h.day_of_week}`);
+            if (o) {
+              if (!o.is_open || !o.open_time || !o.close_time) {
+                signatures.add("off");
+                continue; // explicit day off for this barber
+              }
+              windows.push({ start: o.open_time, end: o.close_time });
+              signatures.add(`${timeToMinutes(o.open_time)}-${timeToMinutes(o.close_time)}`);
+            } else {
+              windows.push({ start: h.open_time, end: h.close_time });
+              signatures.add(`${timeToMinutes(h.open_time)}-${timeToMinutes(h.close_time)}`);
+            }
+          }
+
+          if (barberIds.length >= 2 && signatures.size > 1) variesByBarber = true;
+
+          if (windows.length === 0) {
+            // Every barber is off — keep the salon's own advertised window.
+            schedule.push(toAvailability(h.day_of_week, h.open_time, h.close_time));
+            continue;
+          }
+
+          let start = windows[0].start;
+          let end = windows[0].end;
+          for (const w of windows) {
+            if (timeToMinutes(w.start) < timeToMinutes(start)) start = w.start;
+            if (timeToMinutes(w.end) > timeToMinutes(end)) end = w.end;
+          }
+          schedule.push(toAvailability(h.day_of_week, start, end));
+        }
+
+        return { schedule, variesByBarber };
+      }
+    } catch (err) {
+      console.warn("fetchSalonSchedule: team-envelope read failed — using salon hours as-is", err);
+    }
+
+    // No active barbers / envelope read failed → salon hours as published.
+    return {
+      schedule: openDays.map((h) => toAvailability(h.day_of_week, h.open_time, h.close_time)),
+      variesByBarber: false,
+    };
   }
 
   // 2. Fallback: aggregate all barbers' availability for this salon.
@@ -79,7 +184,7 @@ export async function fetchSalonSchedule(salonId: string): Promise<BarberAvailab
     .eq("salon_id", salonId)
     .eq("active", true);
 
-  if (!barbers || barbers.length === 0) return [];
+  if (!barbers || barbers.length === 0) return { schedule: [], variesByBarber: false };
 
   const barberIds = barbers.map((b) => b.id);
 
@@ -91,7 +196,7 @@ export async function fetchSalonSchedule(salonId: string): Promise<BarberAvailab
     .order("day_of_week");
 
   if (error) throw error;
-  if (!avail) return [];
+  if (!avail) return { schedule: [], variesByBarber: false };
 
   // Aggregate per day: earliest start, latest end.
   // Use timeToMinutes for comparisons — Postgres TIME values arrive as
@@ -107,7 +212,7 @@ export async function fetchSalonSchedule(salonId: string): Promise<BarberAvailab
     }
   }
 
-  return Array.from(byDay.entries()).map(([dow, times]) => ({
+  const schedule = Array.from(byDay.entries()).map(([dow, times]) => ({
     id: `agg-${dow}`,
     barber_id: salonId,
     day_of_week: dow,
@@ -116,6 +221,13 @@ export async function fetchSalonSchedule(salonId: string): Promise<BarberAvailab
     is_available: true,
     created_at: "",
   }));
+  return { schedule, variesByBarber: false };
+}
+
+// Schedule-only variant (team envelope, no metadata) for callers that don't
+// need the variesByBarber flag.
+export async function fetchSalonSchedule(salonId: string): Promise<BarberAvailability[]> {
+  return (await fetchSalonScheduleWithMeta(salonId)).schedule;
 }
 
 // Fetch availability for a specific barber (all days)
@@ -129,18 +241,117 @@ export async function fetchBarberAvailability(barberId: string): Promise<BarberA
   return data as BarberAvailability[];
 }
 
-// A barber's schedule, falling back to the salon's published hours when the
-// barber has no `barber_availability` rows at all (common — many salons only
-// manage `salon_hours`). Without this, such barbers render as "Închis astăzi"
-// even while the salon page shows the shop open.
+// A barber's schedule, falling back to the salon's published hours — overlaid
+// with the barber's per-day `barber_hours` overrides — when the barber has no
+// `barber_availability` rows at all (common — many salons only manage
+// `salon_hours`). Without this, such barbers render as "Închis astăzi" even
+// while the salon page shows the shop open.
+//
+// Deliberately NOT the team envelope (fetchSalonSchedule): this is a SINGLE
+// barber's base, mirroring lib/booking.ts resolveSchedule.
 export async function fetchBarberScheduleWithFallback(
   barberId: string,
   salonId: string | null
 ): Promise<BarberAvailability[]> {
   const own = await fetchBarberAvailability(barberId);
   if (own.length > 0) return own;
-  if (salonId) return fetchSalonSchedule(salonId);
-  return own;
+  if (!salonId) return own;
+
+  const { data: hours, error: hoursErr } = await supabase
+    .from("salon_hours")
+    .select("day_of_week, is_open, open_time, close_time")
+    .eq("salon_id", salonId);
+
+  if (!hoursErr && hours && hours.length > 0) {
+    const byDay = new Map<number, { start: string; end: string }>();
+    for (const h of hours as {
+      day_of_week: number;
+      is_open: boolean;
+      open_time: string;
+      close_time: string;
+    }[]) {
+      if (h.is_open) byDay.set(h.day_of_week, { start: h.open_time, end: h.close_time });
+    }
+
+    // Per-day override: is_open row replaces the window, is_open=false row is
+    // a day off, no row inherits the salon hours. Fail-soft on read error.
+    const { data: bhRows, error: bhErr } = await supabase
+      .from("barber_hours")
+      .select("day_of_week, is_open, open_time, close_time")
+      .eq("barber_id", barberId);
+    if (bhErr) {
+      console.warn("fetchBarberScheduleWithFallback: barber_hours fetch failed — using salon hours", bhErr);
+    } else {
+      for (const r of (bhRows ?? []) as {
+        day_of_week: number;
+        is_open: boolean;
+        open_time: string | null;
+        close_time: string | null;
+      }[]) {
+        if (r.is_open && r.open_time && r.close_time) {
+          byDay.set(r.day_of_week, { start: r.open_time, end: r.close_time });
+        } else if (!r.is_open) {
+          byDay.delete(r.day_of_week);
+        }
+      }
+    }
+
+    return Array.from(byDay.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([dow, w]) => ({
+        id: `barber-hours-${dow}`,
+        barber_id: barberId,
+        day_of_week: dow,
+        start_time: w.start,
+        end_time: w.end,
+        is_available: true,
+        created_at: "",
+      }));
+  }
+
+  // No published salon hours — the salon-level aggregate fallback still applies.
+  return fetchSalonSchedule(salonId);
+}
+
+// Resolved after-hours "open until" per weekday (minutes since midnight),
+// derived from per-barber opt-ins (salon_extended_barber_optins). A weekday's
+// value = the MAX resolved until across matching opt-in rows: a row's own
+// extended_until, or — when NULL — the salon's ENABLED salon_extended_hours
+// close for that weekday (a NULL-until row without an enabled extension row is
+// inert). Weekdays with zero opt-in rows are absent — nobody works after-hours
+// then. Pass `barberId` to restrict to a single barber's opt-ins (barber
+// profile page). Fail-soft: any error resolves to an empty map.
+export async function fetchSalonExtendedUntil(
+  salonId: string,
+  barberId?: string
+): Promise<Map<number, number>> {
+  const result = new Map<number, number>();
+  try {
+    let query = supabase
+      .from("salon_extended_barber_optins")
+      .select("day_of_week, extended_until")
+      .eq("salon_id", salonId);
+    if (barberId) query = query.eq("barber_id", barberId);
+    const { data: rows, error } = await query;
+    if (error) throw error;
+    if (!rows || rows.length === 0) return result;
+
+    // Inherit the enabled extension close for NULL-until rows (fail-soft too).
+    const extByDay = await fetchSalonExtendedHours(salonId);
+
+    for (const r of rows as { day_of_week: number; extended_until: string | null }[]) {
+      const until =
+        r.extended_until ?? extByDay.get(r.day_of_week)?.extended_close_time ?? null;
+      if (!until) continue; // inert opt-in
+      const min = timeToMinutes(until);
+      const prev = result.get(r.day_of_week);
+      if (prev == null || min > prev) result.set(r.day_of_week, min);
+    }
+  } catch (err) {
+    console.warn("fetchSalonExtendedUntil failed — no extended-hours display", err);
+    return new Map();
+  }
+  return result;
 }
 
 // Fetch reviews with author profile
@@ -316,19 +527,6 @@ function timeToMinutes(time: string): number {
   return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
 }
 
-// A usable extension for a given weekday's normal close: enabled and actually
-// later than that close. Returns the extended close in minutes, or null.
-function extendedEndMinutes(
-  extendedHours: Map<number, SalonExtendedHours> | null | undefined,
-  dow: number,
-  normalEndMinutes: number
-): number | null {
-  const ext = extendedHours?.get(dow);
-  if (!ext || !ext.enabled) return null;
-  const extEnd = timeToMinutes(ext.extended_close_time);
-  return extEnd > normalEndMinutes ? extEnd : null;
-}
-
 // "HH:MM" from minutes since midnight (for extended-close display).
 function minutesToHHMM(min: number): string {
   const h = Math.floor(min / 60);
@@ -336,11 +534,13 @@ function minutesToHHMM(min: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-// Get today's schedule text. `extendedHours` (optional) lets the salon read as
-// open past its normal close while inside an enabled after-close window.
+// Get today's schedule text. `extendedUntil` (optional — see
+// fetchSalonExtendedUntil) is the opt-in-derived after-hours close per weekday
+// in minutes; it lets the schedule read as open past its normal close while
+// inside that window.
 export function getTodayScheduleText(
   availability: BarberAvailability[],
-  extendedHours?: Map<number, SalonExtendedHours> | null
+  extendedUntil?: Map<number, number> | null
 ): {
   isOpen: boolean;
   text: string;
@@ -372,9 +572,9 @@ export function getTodayScheduleText(
     };
   }
 
-  // Past normal close — still open if inside the extended window.
-  const extEnd = extendedEndMinutes(extendedHours, dayOfWeek, endMinutes);
-  if (extEnd != null && currentMinutes >= endMinutes && currentMinutes < extEnd) {
+  // Past normal close — still open if inside the opt-in after-hours window.
+  const extEnd = extendedUntil?.get(dayOfWeek);
+  if (extEnd != null && extEnd > endMinutes && currentMinutes >= endMinutes && currentMinutes < extEnd) {
     return {
       isOpen: true,
       text: `Deschis prelungit · până la ${minutesToHHMM(extEnd)}`,
@@ -391,11 +591,12 @@ export function getTodayScheduleText(
   return { isOpen: false, text: "Închis acum" };
 }
 
-// Get full week schedule. `extendedHours` (optional) annotates days that stay
-// open later than usual with their extended close.
+// Get full week schedule. `extendedUntil` (optional — see
+// fetchSalonExtendedUntil) annotates days with an opt-in after-hours window
+// later than the day's close with that extended close.
 export function getWeekSchedule(
   availability: BarberAvailability[],
-  extendedHours?: Map<number, SalonExtendedHours> | null
+  extendedUntil?: Map<number, number> | null
 ): {
   day: string;
   hours: string;
@@ -408,12 +609,8 @@ export function getWeekSchedule(
     let hours = "Închis";
     if (slot) {
       hours = `${stripSeconds(slot.start_time)} - ${stripSeconds(slot.end_time)}`;
-      const extEnd = extendedEndMinutes(
-        extendedHours,
-        dow,
-        timeToMinutes(slot.end_time)
-      );
-      if (extEnd != null) {
+      const extEnd = extendedUntil?.get(dow);
+      if (extEnd != null && extEnd > timeToMinutes(slot.end_time)) {
         hours += ` · prelungit ${minutesToHHMM(extEnd)}`;
       }
     }

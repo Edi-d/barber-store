@@ -12,8 +12,9 @@ export interface SalonWithDistance extends Salon {
   // scheduled now / extended window) — regardless of whether a slot is free.
   // A salon can be open (is_open_now) but not bookable (is_available_now).
   is_open_now: boolean;
-  // True when the salon is currently inside its enabled after-close extended
-  // window (past the normal close, before the extended close) today.
+  // True when the salon is currently inside its after-close extended window
+  // today (past the normal close, before the latest close some barber OPTED IN
+  // to via salon_extended_barber_optins — zero opt-ins means never extended).
   extended_open_now: boolean;
   price_range_label: string | null;
 }
@@ -139,6 +140,9 @@ function hhmmToMinutes(t: string): number {
 
 // Whether the salon is currently inside its after-close extended window today:
 // past the normal close and before the extended close (which must be later).
+// `extendedCloseToday` is opt-in-derived (max resolved until across the
+// salon's salon_extended_barber_optins rows for today) — undefined when no
+// barber opted in, in which case the salon is never "extended open".
 function checkExtendedOpenNow(
   salonHoursToday: { start: string; end: string } | null,
   extendedCloseToday: string | undefined

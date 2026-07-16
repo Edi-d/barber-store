@@ -14,11 +14,11 @@
  *
  * ── Boundary note ─────────────────────────────────────────────────────────────
  * The surcharge applies to slots that START at/after the day's NORMAL
- * salon_hours.close_time. Extension is a SALON-level concept; in the consumer
- * flow it only stretches the window for barbers that fall back to salon_hours
- * (a barber with explicit barber_availability owns their own schedule — see
- * lib/booking.ts resolveSchedule), which keeps the client boundary in lockstep
- * with the RPC.
+ * salon_hours.close_time. salon_extended_hours is ONLY the pricing layer
+ * (surcharge + allowed services); whether a given barber is actually bookable
+ * after-hours is a per-barber OPT-IN (salon_extended_barber_optins — see
+ * lib/booking.ts resolveSchedule). A barber with no opt-in row never gets
+ * after-close slots, keeping the client boundary in lockstep with the RPC.
  */
 
 import { supabase } from "@/lib/supabase";

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   StyleSheet,
   View,
@@ -88,6 +88,9 @@ export function StoryViewer({
   const muteButtonRef = useRef<View>(null);
 
   const {
+    // Frozen snapshot taken when the viewer opened — the live `groups` prop is
+    // intentionally not used for playback. See useStoryViewer for why.
+    groups: viewerGroups,
     creatorIndex,
     storyIndex,
     isPaused,
@@ -145,51 +148,67 @@ export function StoryViewer({
 
   // -- Gestures (media area only) -------------------------------------------
 
-  const tap = Gesture.Tap().onEnd((event) => {
-    "worklet";
-    if (event.x < screenWidth / 3) {
-      runOnJS(goToPrevStory)();
-    } else {
-      runOnJS(goToNextStory)();
-    }
-  });
-
-  const longPress = Gesture.LongPress()
-    .minDuration(200)
-    .onStart(() => {
+  // Memoised so RNGH doesn't tear down and reconfigure every handler on each
+  // render. These were rebuilt inline previously, so every story advance,
+  // pause, mute toggle or buffering change reconfigured all four gestures.
+  const composed = useMemo(() => {
+    const tap = Gesture.Tap().onEnd((event) => {
       "worklet";
-      runOnJS(pause)();
-    })
-    .onEnd(() => {
-      "worklet";
-      runOnJS(resume)();
+      if (event.x < screenWidth / 3) {
+        runOnJS(goToPrevStory)();
+      } else {
+        runOnJS(goToNextStory)();
+      }
     });
 
-  const flingLeft = Gesture.Fling()
-    .direction(Directions.LEFT)
-    .onEnd(() => {
-      "worklet";
-      runOnJS(resume)();
-      runOnJS(goToNextCreator)();
-    });
+    const longPress = Gesture.LongPress()
+      .minDuration(200)
+      .onStart(() => {
+        "worklet";
+        runOnJS(pause)();
+      })
+      .onEnd(() => {
+        "worklet";
+        runOnJS(resume)();
+      });
 
-  const flingRight = Gesture.Fling()
-    .direction(Directions.RIGHT)
-    .onEnd(() => {
-      "worklet";
-      runOnJS(resume)();
-      runOnJS(goToPrevCreator)();
-    });
+    // NOTE: these deliberately do NOT call resume(). resume() restarts the
+    // timing animation using the OUTGOING story's remaining duration, and
+    // goToNext/PrevCreator immediately cancels it and zeroes progress — which
+    // read as a forward jerk of the progress bar on every swipe. The creator
+    // navigators clear the pause lock themselves instead.
+    const flingLeft = Gesture.Fling()
+      .direction(Directions.LEFT)
+      .onEnd(() => {
+        "worklet";
+        runOnJS(goToNextCreator)();
+      });
 
-  const composed = Gesture.Race(
-    flingLeft,
-    flingRight,
-    Gesture.Exclusive(longPress, tap)
-  );
+    const flingRight = Gesture.Fling()
+      .direction(Directions.RIGHT)
+      .onEnd(() => {
+        "worklet";
+        runOnJS(goToPrevCreator)();
+      });
+
+    return Gesture.Race(
+      flingLeft,
+      flingRight,
+      Gesture.Exclusive(longPress, tap)
+    );
+  }, [
+    screenWidth,
+    goToPrevStory,
+    goToNextStory,
+    pause,
+    resume,
+    goToNextCreator,
+    goToPrevCreator,
+  ]);
 
   // -- Render -----------------------------------------------------------------
 
-  if (!visible || groups.length === 0) return null;
+  if (!visible || viewerGroups.length === 0) return null;
 
   return (
     <Modal
@@ -207,9 +226,14 @@ export function StoryViewer({
             {/* Story media */}
             {currentStory && (
               <StoryMedia
-                key={currentStory.id}
+                // No `key` here on purpose: keying by story id force-remounted
+                // the whole media stack on every advance (loading scrim over
+                // cached images, native video player rebuilt for image
+                // stories). StoryMedia swaps its source in place instead.
+                storyId={currentStory.id}
                 type={currentStory.type}
                 uri={currentStory.mediaUrl}
+                thumbnailUrl={currentStory.thumbnailUrl}
                 isPaused={isPaused}
                 isMuted={isMuted}
                 onMediaReady={onMediaReady}

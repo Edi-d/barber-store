@@ -12,8 +12,19 @@ import { useEvent, useEventListener } from "expo";
 type LoadPhase = "loading" | "buffering" | "ready";
 
 type StoryMediaProps = {
+  /**
+   * Identity of the story currently being shown. This component is deliberately
+   * NOT remounted per story (no `key` at the call site) — remounting reset
+   * `phase` to "loading" and painted a full-screen scrim over every advance,
+   * even for images already prefetched into the expo-image cache, and it tore
+   * down + rebuilt the native video player on image-only stories too. Instead
+   * the source is swapped in place and internal state is reset off this id.
+   */
+  storyId: string;
   type: "image" | "video";
   uri: string;
+  /** Cheap blurred/low-res frame shown while the full image decodes, if known. */
+  thumbnailUrl?: string | null;
   isPaused: boolean;
   isMuted: boolean;
   onMediaReady: () => void;
@@ -24,10 +35,18 @@ type StoryMediaProps = {
 };
 
 const VIDEO_LOAD_TIMEOUT_MS = 10000;
+// A warm (memory/disk cached) image resolves within a frame or two. Showing a
+// spinner for that single frame IS the flicker we're fixing, so the loading
+// scrim is withheld until the media has genuinely been slow for this long.
+const LOADER_DELAY_MS = 250;
+// Short cross-fade between stories instead of a hard cut on source swap.
+const IMAGE_TRANSITION_MS = 150;
 
 export function StoryMedia({
+  storyId,
   type,
   uri,
+  thumbnailUrl,
   isPaused,
   isMuted,
   onMediaReady,
@@ -40,6 +59,8 @@ export function StoryMedia({
 
   const [phase, setPhase] = useState<LoadPhase>("loading");
   const [hasError, setHasError] = useState(false);
+  // Gated version of `phase === "loading"` — see LOADER_DELAY_MS.
+  const [showLoader, setShowLoader] = useState(false);
   const errorAdvanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Timeout that fires if the video stays unready too long
   const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -82,13 +103,21 @@ export function StoryMedia({
     };
   }, []);
 
-  // Reset state when the story (uri/type) changes
+  // Reset per-story state when the story identity changes. The component
+  // instance is reused across stories, so everything story-scoped has to be
+  // cleared here rather than relying on unmount.
   useEffect(() => {
     setPhase("loading");
     setHasError(false);
     durationReported.current = false;
     hasBeenReady.current = false;
     clearLoadTimeout();
+    // A pending "advance after error" timer belongs to the PREVIOUS story —
+    // letting it fire would skip the story we just navigated to.
+    if (errorAdvanceTimer.current) {
+      clearTimeout(errorAdvanceTimer.current);
+      errorAdvanceTimer.current = null;
+    }
 
     if (isVideo) {
       // Safety timeout for the initial load phase
@@ -103,7 +132,19 @@ export function StoryMedia({
     return () => {
       clearLoadTimeout();
     };
-  }, [uri, type]);
+  }, [storyId]);
+
+  // Withhold the full-screen loading scrim until the media has been slow for
+  // LOADER_DELAY_MS. Cached images never reach this, so advancing through
+  // prefetched stories no longer flashes a spinner.
+  useEffect(() => {
+    if (phase !== "loading" || hasError) {
+      setShowLoader(false);
+      return;
+    }
+    const t = setTimeout(() => setShowLoader(true), LOADER_DELAY_MS);
+    return () => clearTimeout(t);
+  }, [phase, hasError, storyId]);
 
   // Drive play/pause from the parent-controlled isPaused flag
   useEffect(() => {
@@ -182,6 +223,14 @@ export function StoryMedia({
       ) : (
         <Image
           source={{ uri }}
+          // Tells expo-image this view is being recycled for a different item,
+          // so it clears the previous image instead of showing it under the new
+          // one while that decodes.
+          recyclingKey={storyId}
+          placeholder={thumbnailUrl ? { uri: thumbnailUrl } : undefined}
+          placeholderContentFit="contain"
+          transition={IMAGE_TRANSITION_MS}
+          cachePolicy="memory-disk"
           contentFit="contain"
           style={StyleSheet.absoluteFill}
           onLoad={handleImageLoad}
@@ -189,8 +238,8 @@ export function StoryMedia({
         />
       )}
 
-      {/* Full-screen initial loader */}
-      {phase === "loading" && !hasError && (
+      {/* Full-screen initial loader — delayed, so warm images never show it */}
+      {showLoader && !hasError && (
         <View style={styles.fullLoader}>
           <ActivityIndicator size="large" color="#fff" />
         </View>

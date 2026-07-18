@@ -30,6 +30,31 @@ const PHOTO_DURATION = 5000;
 const MUTE_STORAGE_KEY = "@stories_muted";
 
 export function useStoryViewer(groups: StoryGroup[], onClose: () => void) {
+  // -- Frozen playback snapshot ----------------------------------------------
+  //
+  // WHY THIS EXISTS — do not "simplify" this back into reading `groups` live.
+  //
+  // Playback indexes positionally (`viewerGroups[creatorIndex]`), but the live
+  // `groups` array is not positionally stable while the viewer is open:
+  //   * `fetchStoriesWithSeenState` sorts groups UNSEEN-FIRST. Advancing a story
+  //     fires onStoryViewed -> markViewed -> invalidateQueries(['stories']) ->
+  //     refetch. The group you are watching just flipped hasUnseen true->false,
+  //     so it is re-sorted to the BACK of the array — and `creatorIndex` then
+  //     points at a completely different author mid-playback (header swaps,
+  //     segment count changes, media remounts).
+  //   * The `.gt('expires_at', now)` cutoff drops a story that expires during
+  //     the session, shifting every index after it.
+  //   * The `stories-inserts` realtime subscription can push a new group in at
+  //     any moment.
+  //
+  // So we snapshot `groups` at open time and play entirely from that snapshot.
+  // Live updates are ignored until the viewer is closed and reopened, which is
+  // exactly the semantics a story viewer wants. The mark-viewed mutation and
+  // its invalidation still run — the tray rings behind the modal stay correct.
+  const liveGroupsRef = useRef(groups);
+  liveGroupsRef.current = groups;
+  const [viewerGroups, setViewerGroups] = useState<StoryGroup[]>(groups);
+
   const [creatorIndex, setCreatorIndex] = useState(0);
   const [storyIndex, setStoryIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -48,7 +73,7 @@ export function useStoryViewer(groups: StoryGroup[], onClose: () => void) {
   const mediaReadyRef = useRef(false);
   const durationKnownRef = useRef(false);
 
-  const currentGroup = groups[creatorIndex];
+  const currentGroup = viewerGroups[creatorIndex];
   const currentStory = currentGroup?.stories[storyIndex];
 
   // Derived: next story for preloading
@@ -57,8 +82,8 @@ export function useStoryViewer(groups: StoryGroup[], onClose: () => void) {
     if (storyIndex < currentGroup.stories.length - 1) {
       return currentGroup.stories[storyIndex + 1];
     }
-    if (creatorIndex < groups.length - 1) {
-      return groups[creatorIndex + 1]?.stories[0] ?? null;
+    if (creatorIndex < viewerGroups.length - 1) {
+      return viewerGroups[creatorIndex + 1]?.stories[0] ?? null;
     }
     return null;
   })();
@@ -201,14 +226,14 @@ export function useStoryViewer(groups: StoryGroup[], onClose: () => void) {
     if (storyIndex < currentGroup.stories.length - 1) {
       progress.value = 0;
       setStoryIndex((i) => i + 1);
-    } else if (creatorIndex < groups.length - 1) {
+    } else if (creatorIndex < viewerGroups.length - 1) {
       progress.value = 0;
       setStoryIndex(0);
       setCreatorIndex((i) => i + 1);
     } else {
       onClose();
     }
-  }, [storyIndex, creatorIndex, currentGroup, groups.length, onClose, progress, resetNavState]);
+  }, [storyIndex, creatorIndex, currentGroup, viewerGroups.length, onClose, progress, resetNavState]);
 
   // Keep ref in sync
   goToNextStoryRef.current = goToNextStory;
@@ -222,7 +247,7 @@ export function useStoryViewer(groups: StoryGroup[], onClose: () => void) {
     } else if (creatorIndex > 0) {
       progress.value = 0;
       setCreatorIndex((i) => {
-        const prevGroup = groups[i - 1];
+        const prevGroup = viewerGroups[i - 1];
         setStoryIndex(prevGroup ? prevGroup.stories.length - 1 : 0);
         return i - 1;
       });
@@ -230,29 +255,42 @@ export function useStoryViewer(groups: StoryGroup[], onClose: () => void) {
       // Restart current story
       progress.value = 0;
     }
-  }, [storyIndex, creatorIndex, groups, progress, resetNavState]);
+  }, [storyIndex, creatorIndex, viewerGroups, progress, resetNavState]);
+
+  // Swiping between creators always lands on a PLAYING story. The fling
+  // handlers deliberately no longer call resume() (it animated the outgoing
+  // story's progress bar right before resetNavState zeroed it — a visible
+  // jerk), so clearing the pause lock is done here instead: state only, no
+  // animation. tryStartProgress() drives the new story once its media reports
+  // ready.
+  const clearPause = useCallback(() => {
+    isPausedRef.current = false;
+    setIsPaused(false);
+  }, []);
 
   const goToNextCreator = useCallback(() => {
     resetNavState();
+    clearPause();
 
-    if (creatorIndex < groups.length - 1) {
+    if (creatorIndex < viewerGroups.length - 1) {
       progress.value = 0;
       setStoryIndex(0);
       setCreatorIndex((i) => i + 1);
     } else {
       onClose();
     }
-  }, [creatorIndex, groups.length, onClose, progress, resetNavState]);
+  }, [creatorIndex, viewerGroups.length, onClose, progress, resetNavState, clearPause]);
 
   const goToPrevCreator = useCallback(() => {
     resetNavState();
+    clearPause();
 
     if (creatorIndex > 0) {
       progress.value = 0;
       setStoryIndex(0);
       setCreatorIndex((i) => i - 1);
     }
-  }, [creatorIndex, progress, resetNavState]);
+  }, [creatorIndex, progress, resetNavState, clearPause]);
 
   const onMediaReady = useCallback(() => {
     mediaReadyRef.current = true;
@@ -285,7 +323,16 @@ export function useStoryViewer(groups: StoryGroup[], onClose: () => void) {
 
   const openAt = useCallback(
     (groupIndex: number) => {
-      setCreatorIndex(groupIndex);
+      // Take the playback snapshot here — this is the one moment the viewer is
+      // allowed to pick up fresh data. See the note at the top of this hook.
+      // Reads through a ref so `openAt` stays referentially stable: if it
+      // changed identity on every `groups` refetch, the effect in StoryViewer
+      // that calls it would re-fire and reset playback to story 0.
+      const snapshot = liveGroupsRef.current ?? [];
+      setViewerGroups(snapshot);
+
+      const maxIndex = Math.max(snapshot.length - 1, 0);
+      setCreatorIndex(Math.min(Math.max(groupIndex, 0), maxIndex));
       setStoryIndex(0);
       setIsPaused(false);
       isPausedRef.current = false;
@@ -303,6 +350,8 @@ export function useStoryViewer(groups: StoryGroup[], onClose: () => void) {
   );
 
   return {
+    // The frozen snapshot the viewer is playing from — NOT the live query data.
+    groups: viewerGroups,
     creatorIndex,
     storyIndex,
     isPaused,

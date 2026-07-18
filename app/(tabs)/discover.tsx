@@ -90,7 +90,6 @@ export default function DiscoverScreen() {
   }, [discoverFilters.availability, filterAvailableNow]);
 
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showChat, setShowChat] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
@@ -1210,22 +1209,6 @@ export default function DiscoverScreen() {
                     alignItems: "center",
                     justifyContent: "center",
                   }}
-                  onPress={() => setShowChat(true)}
-                >
-                  <Ionicons name="chatbubble-outline" size={17} color="#191919" />
-                </Pressable>
-                <Pressable
-                  style={{
-                    width: 38,
-                    height: 38,
-                    ...Bubble.radiiSm,
-                    ...Bubble.accent,
-                    backgroundColor: "rgba(255,255,255,0.65)",
-                    borderWidth: 1,
-                    borderColor: "rgba(255,255,255,0.9)",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
                   onPress={() => setShowNotifications(true)}
                 >
                   <Ionicons name="notifications-outline" size={17} color="#191919" />
@@ -1555,37 +1538,6 @@ export default function DiscoverScreen() {
             </Text>
             <Text className="text-dark-400 text-sm text-center mt-2 leading-5">
               Vei primi notificări despre programările tale, oferte speciale și noutăți de la saloanele preferate.
-            </Text>
-          </View>
-        </SafeAreaView>
-      </Modal>
-
-      {/* ── Chat Modal ── */}
-      <Modal
-        visible={showChat}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowChat(false)}
-      >
-        <SafeAreaView className="flex-1 bg-white">
-          <View className="flex-row items-center justify-between px-5 py-4 border-b border-dark-100">
-            <Text className="text-dark-700 font-bold text-lg">Mesaje</Text>
-            <Pressable
-              onPress={() => setShowChat(false)}
-              className="w-8 h-8 rounded-full bg-dark-100 items-center justify-center"
-            >
-              <Ionicons name="close" size={18} color="#64748b" />
-            </Pressable>
-          </View>
-          <View className="flex-1 items-center justify-center px-8">
-            <View className="w-20 h-20 rounded-full bg-dark-100 items-center justify-center mb-5">
-              <Ionicons name="chatbubbles-outline" size={36} color="#cbd5e1" />
-            </View>
-            <Text className="text-dark-700 font-bold text-base text-center">
-              Niciun mesaj
-            </Text>
-            <Text className="text-dark-400 text-sm text-center mt-2 leading-5">
-              Aici vei putea comunica direct cu saloanele tale preferate pentru programări și întrebări.
             </Text>
           </View>
         </SafeAreaView>

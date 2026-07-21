@@ -3,6 +3,7 @@ import {
   Text,
   FlatList,
   RefreshControl,
+  ScrollView,
   Pressable,
   Alert,
   LayoutChangeEvent,
@@ -41,6 +42,29 @@ type ListItem =
 // ─── Tab filter ───────────────────────────────────────────────────────────────
 
 type TabValue = "upcoming" | "past";
+
+// Status chips shown under the tabs. Only statuses actually present in the
+// active tab get a chip, so a tab never offers a filter that yields nothing
+// (e.g. "Finalizate" on Viitoare). Order here is the order they render in.
+type StatusValue = AppointmentWithDetails["status"];
+type StatusFilter = "all" | StatusValue;
+
+const STATUS_ORDER: StatusValue[] = [
+  "confirmed",
+  "pending",
+  "completed",
+  "cancelled",
+  "no_show",
+];
+
+// Matches the badge copy on the cards themselves (AppointmentCard).
+const STATUS_FILTER_LABELS: Record<StatusValue, string> = {
+  confirmed: "Confirmate",
+  pending: "În așteptare",
+  completed: "Finalizate",
+  cancelled: "Anulate",
+  no_show: "Neprezentate",
+};
 
 interface TabFilterProps {
   activeTab: TabValue;
@@ -193,6 +217,82 @@ function TabFilter({
   );
 }
 
+// ─── Status chips ─────────────────────────────────────────────────────────────
+
+interface StatusChipsProps {
+  /** Statuses present in the active tab, already in STATUS_ORDER order. */
+  available: StatusValue[];
+  active: StatusFilter;
+  onChange: (next: StatusFilter) => void;
+  /** Per-status counts within the active tab, for the chip badges. */
+  counts: Record<string, number>;
+  totalCount: number;
+}
+
+function StatusChips({
+  available,
+  active,
+  onChange,
+  counts,
+  totalCount,
+}: StatusChipsProps) {
+  // A single status means the chips carry no information — hide the row.
+  if (available.length < 2) return null;
+
+  const chips: { value: StatusFilter; label: string; count: number }[] = [
+    { value: "all", label: "Toate", count: totalCount },
+    ...available.map((s) => ({
+      value: s as StatusFilter,
+      label: STATUS_FILTER_LABELS[s],
+      count: counts[s] ?? 0,
+    })),
+  ];
+
+  return (
+    <View className="bg-[#F0F4F8] pb-2">
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+      >
+        {chips.map((chip) => {
+          const isActive = chip.value === active;
+          return (
+            <Pressable
+              key={chip.value}
+              onPress={() => onChange(chip.value)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isActive }}
+              className={
+                isActive
+                  ? "flex-row items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#4481EB]"
+                  : "flex-row items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-[#E4EAF2]"
+              }
+            >
+              <Text
+                className={
+                  isActive ? "text-[12px] text-white" : "text-[12px] text-[#65676B]"
+                }
+                style={{ fontFamily: "EuclidCircularA-SemiBold" }}
+              >
+                {chip.label}
+              </Text>
+              <Text
+                className={
+                  isActive ? "text-[11px] text-white/70" : "text-[11px] text-[#9AA5B1]"
+                }
+                style={{ fontFamily: "EuclidCircularA-SemiBold" }}
+              >
+                {chip.count}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function AppointmentsScreen() {
@@ -200,6 +300,7 @@ export default function AppointmentsScreen() {
   const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<TabValue>("upcoming");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const {
     data: appointments,
@@ -453,48 +554,97 @@ export default function AppointmentsScreen() {
 
   const upcomingAppointments = useMemo(
     () =>
-      appointments?.filter(
-        (a) => isUpcoming(a.scheduled_at) && a.status !== "cancelled"
-      ) ?? [],
+      (
+        appointments?.filter(
+          (a) => isUpcoming(a.scheduled_at) && a.status !== "cancelled"
+        ) ?? []
+      )
+        // The query returns newest-first, which for upcoming means the most
+        // DISTANT appointment lands on top. Soonest-first is what this tab means.
+        .slice()
+        .sort((a, b) => +new Date(a.scheduled_at) - +new Date(b.scheduled_at)),
     [appointments]
   );
 
-  const pastAppointments = useMemo(
-    () =>
+  const pastAppointments = useMemo(() => {
+    const rows =
       appointments?.filter(
         (a) => !isUpcoming(a.scheduled_at) || a.status === "cancelled"
-      ) ?? [],
-    [appointments]
+      ) ?? [];
+
+    // A cancelled booking for a future date belongs in history (it isn't
+    // happening) but it hasn't happened *yet* — sorting the whole bucket by
+    // scheduled_at alone floats those to the top and buries everything that
+    // actually took place. So: elapsed first (newest first), then the
+    // cancelled-but-still-future ones (soonest first).
+    const now = Date.now();
+    const at = (a: AppointmentWithDetails) => +new Date(a.scheduled_at);
+
+    return rows.slice().sort((a, b) => {
+      const aPending = at(a) > now;
+      const bPending = at(b) > now;
+      if (aPending !== bPending) return aPending ? 1 : -1;
+      return aPending ? at(a) - at(b) : at(b) - at(a);
+    });
+  }, [appointments]);
+
+  // ── Status filter, scoped to the active tab ───────────────────────────────
+  const tabAppointments =
+    activeTab === "upcoming" ? upcomingAppointments : pastAppointments;
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const a of tabAppointments) {
+      counts[a.status] = (counts[a.status] ?? 0) + 1;
+    }
+    return counts;
+  }, [tabAppointments]);
+
+  const availableStatuses = useMemo(
+    () => STATUS_ORDER.filter((s) => (statusCounts[s] ?? 0) > 0),
+    [statusCounts]
+  );
+
+  // Switching tabs (or the active status disappearing after a cancel/refetch)
+  // must not strand the list on a filter that no longer exists.
+  const effectiveStatus: StatusFilter =
+    statusFilter !== "all" && !availableStatuses.includes(statusFilter)
+      ? "all"
+      : statusFilter;
+
+  const filteredTabAppointments = useMemo(
+    () =>
+      effectiveStatus === "all"
+        ? tabAppointments
+        : tabAppointments.filter((a) => a.status === effectiveStatus),
+    [tabAppointments, effectiveStatus]
   );
 
   // Upcoming tab: collapse each recurring package's occurrences into one group
   // card (placed where its first occurrence appears in the list). Past tab keeps
   // occurrences individual (normal history).
-  const upcomingItems = useMemo<ListItem[]>(() => {
+  const displayedList = useMemo<ListItem[]>(() => {
+    if (activeTab === "past") {
+      return filteredTabAppointments.map((a) => ({ kind: "single", appt: a }));
+    }
+
     const items: ListItem[] = [];
     const seen = new Set<string>();
-    for (const a of upcomingAppointments) {
+    for (const a of filteredTabAppointments) {
       if (a.package_id) {
         if (seen.has(a.package_id)) continue;
         seen.add(a.package_id);
         items.push({
           kind: "package",
           packageId: a.package_id,
-          appts: upcomingAppointments.filter((x) => x.package_id === a.package_id),
+          appts: filteredTabAppointments.filter((x) => x.package_id === a.package_id),
         });
       } else {
         items.push({ kind: "single", appt: a });
       }
     }
     return items;
-  }, [upcomingAppointments]);
-
-  const pastItems = useMemo<ListItem[]>(
-    () => pastAppointments.map((a) => ({ kind: "single", appt: a })),
-    [pastAppointments]
-  );
-
-  const displayedList = activeTab === "upcoming" ? upcomingItems : pastItems;
+  }, [activeTab, filteredTabAppointments]);
 
   // ── Loading ───────────────────────────────────────────────────────────────
 
@@ -536,12 +686,26 @@ export default function AppointmentsScreen() {
             flexGrow: 1,
           }}
           ListHeaderComponent={
-            <TabFilter
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              upcomingCount={upcomingAppointments.length}
-              pastCount={pastAppointments.length}
-            />
+            <>
+              <TabFilter
+                activeTab={activeTab}
+                onTabChange={(tab) => {
+                  // Each tab carries its own status vocabulary, so a filter
+                  // never survives the switch.
+                  setStatusFilter("all");
+                  setActiveTab(tab);
+                }}
+                upcomingCount={upcomingAppointments.length}
+                pastCount={pastAppointments.length}
+              />
+              <StatusChips
+                available={availableStatuses}
+                active={effectiveStatus}
+                onChange={setStatusFilter}
+                counts={statusCounts}
+                totalCount={tabAppointments.length}
+              />
+            </>
           }
           stickyHeaderIndices={[0]}
           refreshControl={

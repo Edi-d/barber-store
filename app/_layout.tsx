@@ -348,6 +348,7 @@ function RootLayoutNav() {
         <Stack.Screen name="salon/[id]" />
         <Stack.Screen name="product/[id]" />
         <Stack.Screen name="book-appointment" />
+        <Stack.Screen name="academy-booking" />
         <Stack.Screen name="cart" options={{ presentation: "modal" }} />
         <Stack.Screen name="checkout" options={{ presentation: "modal" }} />
         <Stack.Screen name="marketplace" />

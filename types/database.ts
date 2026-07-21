@@ -34,6 +34,10 @@ export interface Database {
           onboarding_completed: boolean;
           onboarding_role: string | null;
           search_vector: string | null;
+          // Academy free-haircut consent (migration 162). Both null until the
+          // user accepts the consent copy via accept_academy_consent.
+          academy_consent_accepted_at: string | null;
+          academy_consent_version: string | null;
         };
         Insert: {
           id: string;
@@ -49,6 +53,8 @@ export interface Database {
           onboarding_completed?: boolean;
           onboarding_role?: string | null;
           search_vector?: string | null;
+          academy_consent_accepted_at?: string | null;
+          academy_consent_version?: string | null;
         };
         Update: {
           id?: string;
@@ -64,6 +70,8 @@ export interface Database {
           onboarding_completed?: boolean;
           onboarding_role?: string | null;
           search_vector?: string | null;
+          academy_consent_accepted_at?: string | null;
+          academy_consent_version?: string | null;
         };
       };
       content: {
@@ -625,7 +633,20 @@ export interface Barber {
   created_at: string;
   // Coarse years-of-experience tier (see lib/barber-experience.ts); null = unset.
   experience_band: string | null;
+  // True for a trainee barber offering free "Academy" haircuts, pooled across
+  // all salons via the academy_barbers view (migration 162).
+  is_academy: boolean;
 }
+
+// A row of the academy_barbers view (migration 162): every Barber column plus
+// the salon/profile fields a barber card needs, for trainee barbers pooled
+// across ALL active salons. Single source of truth for "who is an academy
+// barber" — see the view's SQL comment.
+export type AcademyBarber = Barber & {
+  salon_name: string;
+  salon_city: string | null;
+  profile_avatar_url: string | null;
+};
 
 export interface Appointment {
   id: string;
@@ -652,6 +673,9 @@ export interface Appointment {
   // the account holder's own (RLS-unreadable) row. Used to preserve the "booked
   // for" identity when rescheduling. See salon_client for the readable name.
   salon_client_id?: string | null;
+  // True for a FREE appointment booked via book_academy_appointment
+  // (migration 162). total_cents is always 0 on these rows.
+  is_academy: boolean;
 }
 
 export interface AppointmentService {
@@ -927,3 +951,10 @@ export interface BookAppointmentResult {
   currency: string;
   status: AppointmentStatus;
 }
+
+/**
+ * The single row returned by book_academy_appointment RPC (migration 162).
+ * Same shape as BookAppointmentResult so the existing success screen works
+ * unchanged; total_cents is always 0.
+ */
+export type BookAcademyAppointmentResult = BookAppointmentResult;

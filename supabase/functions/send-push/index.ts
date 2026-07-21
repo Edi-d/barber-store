@@ -99,10 +99,24 @@ const TEMPLATES: Record<
     title: "Felicitări! Ai urcat de nivel",
     body: `Ai ajuns la ${p(x, "tierName", "un nou nivel")}.`,
   }),
-  loyalty_xp_earned: (x) => ({
-    title: "Ai câștigat XP",
-    body: `+${p(x, "xp")} XP la ${p(x, "salonName")}.`,
-  }),
+  loyalty_xp_earned: (x) => {
+    // The trigger (migration 112) emits `points` + `total`; earlier callers
+    // used `xp`. Accept both so the DB and this function never have to be
+    // redeployed in lockstep. Every fragment is optional — a missing param
+    // drops its clause instead of rendering an empty gap ("+ XP la .").
+    const xp = p(x, "points") || p(x, "xp");
+    const salon = p(x, "salonName");
+    const total = p(x, "total");
+
+    return {
+      title: "Ai câștigat XP",
+      body:
+        (xp ? `+${xp} XP` : "Ai primit XP") +
+        (salon ? ` la ${salon}` : "") +
+        "." +
+        (total ? ` Total: ${total} XP.` : ""),
+    };
+  },
 };
 
 function humanizeType(type: string): string {
@@ -255,7 +269,22 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── Build messages ──────────────────────────────────────────────────────
-    const { title, body } = renderContent(record);
+    // Some triggers record the salon on the row (notification_log.salon_id)
+    // rather than in params — the XP trigger does. Backfill `salonName` from
+    // the row so any template that wants it can use it, whichever trigger
+    // produced the notification. Failure is non-fatal: the templates all
+    // degrade to a salon-less phrasing.
+    const params: Params = { ...((record?.params as Params) ?? {}) };
+    if (!params.salonName && record?.salon_id) {
+      const { data: salon } = await admin
+        .from("salons")
+        .select("name")
+        .eq("id", record.salon_id)
+        .maybeSingle();
+      if (salon?.name) params.salonName = salon.name;
+    }
+
+    const { title, body } = renderContent({ ...record, params });
 
     const data: Params = {
       ...(record?.data ?? {}),

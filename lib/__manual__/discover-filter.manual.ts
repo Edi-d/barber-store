@@ -164,6 +164,8 @@ function check(name: string, cond: boolean, got?: unknown, want?: unknown) {
     category,
     active: true,
     created_at: '',
+    price_cents_extended: null,
+    pricing_model: 'fix',
   });
   const ctx = makeCtx({
     servicesBySalonId: new Map([

@@ -31,6 +31,8 @@ export function barberRoleLabel(role: string | null | undefined): string {
       return "Manager";
     case "receptionist":
       return "Recepție";
+    case "trainee":
+      return "Ucenic";
     default:
       return "Frizer";
   }

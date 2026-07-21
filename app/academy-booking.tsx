@@ -103,8 +103,12 @@ export default function AcademyBookingScreen() {
     return [...barbers].sort((a, b) => a.name.localeCompare(b.name, "ro"));
   }, [barbers]);
 
-  // ── Step 2: this barber's services (mirrors book-appointment.tsx) ─────────
-  const { data: barberAssignments } = useQuery({
+  // ── Step 2: the academy services this trainee is assigned to ─────────────
+  // Unlike book-appointment.tsx, zero assignment rows does NOT mean "every
+  // salon service is allowed" — the shop assigns each academy service to a
+  // trainee explicitly in the business app, and book_academy_appointment
+  // enforces the same rule, so an unassigned trainee has nothing to offer.
+  const { data: barberAssignments, isLoading: assignmentsLoading } = useQuery({
     queryKey: ["academy-barber-assignments", selectedBarber?.id ?? null],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -130,17 +134,18 @@ export default function AcademyBookingScreen() {
         .select("*")
         .eq("active", true)
         .eq("salon_id", selectedBarber!.salon_id!)
-        .order("price_cents");
+        // Only 'academie'-priced services are free/bookable in this flow; the
+        // salon's paid services are never offered here even to a trainee.
+        .eq("pricing_model", "academie")
+        .order("name");
       if (error) throw error;
       return (data ?? []) as BarberService[];
     },
     enabled: !!selectedBarber,
   });
 
-  // Zero assignment rows == every active salon service is allowed for this barber.
   const visibleServices = useMemo<BarberService[]>(() => {
-    if (!services) return [];
-    if (!barberAssignments || barberAssignments.length === 0) return services;
+    if (!services || !barberAssignments) return [];
     const allowed = new Set(barberAssignments.map((a) => a.service_id));
     return services.filter((s) => allowed.has(s.id));
   }, [services, barberAssignments]);
@@ -615,6 +620,10 @@ export default function AcademyBookingScreen() {
                       </View>
                       <BarberCard
                         barber={cardBarber}
+                        // Everyone in this list is a trainee by definition.
+                        // barbers.role is unreliable — it defaults to 'owner'
+                        // and the business app doesn't set it when enrolling.
+                        role="trainee"
                         isSelected={selectedBarber?.id === barber.id}
                         onSelect={() => {
                           if (selectedBarber?.id !== barber.id) {
@@ -645,7 +654,7 @@ export default function AcademyBookingScreen() {
               Un singur serviciu, complet gratuit — alegerea unui alt serviciu o înlocuiește pe cea curentă.
             </Text>
 
-            {servicesLoading ? (
+            {servicesLoading || assignmentsLoading ? (
               <ActivityIndicator size="large" color={Colors.primary} style={{ marginVertical: 32 }} />
             ) : servicesError ? (
               <View style={styles.inlineError}>

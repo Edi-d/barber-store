@@ -607,6 +607,10 @@ export interface BarberService {
   category: string | null;
   active: boolean;
   created_at: string;
+  // How the price is presented/charged. 'academie' marks a free Academy
+  // service, bookable only through app/academy-booking.tsx by a trainee it is
+  // assigned to. Null on rows created before the business app introduced it.
+  pricing_model: "fix" | "de_la" | "la_consultatie" | "academie" | null;
 }
 
 export interface Barber {
@@ -633,8 +637,12 @@ export interface Barber {
   created_at: string;
   // Coarse years-of-experience tier (see lib/barber-experience.ts); null = unset.
   experience_band: string | null;
-  // True for a trainee barber offering free "Academy" haircuts, pooled across
-  // all salons via the academy_barbers view (migration 162).
+  // True for a trainee ("ucenic") offering free Academy haircuts, pooled across
+  // all salons via the academy_barbers view. Written by the business app when a
+  // shop enrols a learner, and the flag academy_barbers filters on.
+  is_trainee: boolean;
+  // Mirror of is_trainee, kept in sync by a trigger (tapzi-barber migration
+  // 171). Kept for compatibility — prefer is_trainee.
   is_academy: boolean;
 }
 

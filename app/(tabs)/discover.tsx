@@ -42,6 +42,8 @@ import { FiltersSheet, type FiltersSheetHandle, type ServiceOption } from '@/com
 import { SALON_TYPE_LABELS } from '@/constants/filters';
 import SalonMarkersLayer from "@/components/discover/SalonMarkersLayer";
 import { BarberService } from '@/types/database';
+import { useAcademyConsent } from '@/hooks/useAcademyConsent';
+import { AcademyConsentModal } from '@/components/academy/AcademyConsentModal';
 
 const bubbleRadii = Bubble.radii;
 const bubbleRadiiSm = Bubble.radiiSm;
@@ -92,6 +94,8 @@ export default function DiscoverScreen() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [showAcademyConsent, setShowAcademyConsent] = useState(false);
+  const { hasConsented: hasAcademyConsent, accept: acceptAcademyConsent } = useAcademyConsent();
 
   const cameraRef = useRef<Mapbox.Camera>(null);
   const mapRef = useRef<Mapbox.MapView>(null);
@@ -812,6 +816,20 @@ export default function DiscoverScreen() {
     }
   };
 
+  const handleAcademyPress = () => {
+    if (hasAcademyConsent) {
+      router.push('/academy-booking' as any);
+    } else {
+      setShowAcademyConsent(true);
+    }
+  };
+
+  const handleAcademyConsentAccept = async () => {
+    await acceptAcademyConsent();
+    setShowAcademyConsent(false);
+    router.push('/academy-booking' as any);
+  };
+
   const h = new Date().getHours();
   const greeting = h < 12 ? "Bună dimineața" : h < 18 ? "Bună ziua" : "Bună seara";
 
@@ -1264,6 +1282,34 @@ export default function DiscoverScreen() {
               )}
             </Pressable>
 
+            {/* ── Academy free haircut ── */}
+            <Pressable
+              onPress={handleAcademyPress}
+              className="mx-5 mb-5 flex-row items-center p-3.5 bg-white active:scale-[0.98]"
+              style={{ ...bubbleRadii, ...cardShadow }}
+            >
+              <View
+                className="w-10 h-10 items-center justify-center mr-3 bg-primary-500"
+                style={{
+                  borderTopLeftRadius: 14,
+                  borderTopRightRadius: 7,
+                  borderBottomRightRadius: 14,
+                  borderBottomLeftRadius: 14,
+                }}
+              >
+                <Ionicons name="cut" size={20} color="white" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-[14px] text-dark-700" style={{ fontFamily: 'EuclidCircularA-Bold' }}>
+                  Tuns gratuit
+                </Text>
+                <Text className="text-xs mt-0.5 text-dark-400" style={{ fontFamily: 'EuclidCircularA-Regular' }}>
+                  Lasă un cursant să te tundă — gratuit
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+            </Pressable>
+
             {/* ── Next Appointment ── */}
             {nextAppointment && (
               <View className="px-5 mb-4">
@@ -1510,6 +1556,13 @@ export default function DiscoverScreen() {
         }}
         serviceOptions={serviceOptions}
         computePreview={computeFilterPreview}
+      />
+
+      {/* ── Academy Consent Modal ── */}
+      <AcademyConsentModal
+        visible={showAcademyConsent}
+        onAccept={handleAcademyConsentAccept}
+        onDecline={() => setShowAcademyConsent(false)}
       />
 
       {/* ── Notifications Modal ── */}

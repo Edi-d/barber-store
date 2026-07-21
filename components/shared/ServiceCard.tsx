@@ -41,6 +41,8 @@ interface ServiceCardProps {
   packageActive?: boolean;
   /** Tap handler for the package hint — opens the chooser sheet. */
   onPressPackage?: () => void;
+  /** Marks the user's most recent booking here — shows the „Ultima rezervare" pill. */
+  isLastBooked?: boolean;
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────────
@@ -54,6 +56,7 @@ export function ServiceCard({
   hasPackages = false,
   packageActive = false,
   onPressPackage,
+  isLastBooked = false,
 }: ServiceCardProps) {
   // 0 = idle/deselected  |  1 = selected
   const selection = useSharedValue(isSelected ? 1 : 0);
@@ -176,7 +179,7 @@ export function ServiceCard({
         onPressOut={handlePressOut}
         accessible
         accessibilityRole="checkbox"
-        accessibilityLabel={`${service.name}, ${durationLabel}, ${priceLabel}`}
+        accessibilityLabel={`${service.name}, ${durationLabel}, ${priceLabel}${isLastBooked ? ', ultima rezervare' : ''}`}
         accessibilityState={{ checked: isSelected }}
       >
         <Animated.View style={[styles.card, cardStyle]}>
@@ -201,6 +204,14 @@ export function ServiceCard({
               </Animated.View>
             </Animated.View>
           </View>
+
+          {/* ── Last-booked badge (quiet, in-card) ──────────────────────────── */}
+          {isLastBooked ? (
+            <View style={styles.lastBookedBadge}>
+              <Ionicons name="refresh" size={12} color={Colors.primary} />
+              <Text style={styles.lastBookedText}>Ultima rezervare</Text>
+            </View>
+          ) : null}
 
           {/* ── Service name ────────────────────────────────────────────────── */}
           <Text style={styles.name} numberOfLines={1}>
@@ -374,5 +385,24 @@ const styles = StyleSheet.create({
   pkgHintChevron: {
     opacity: 0.7,
     marginLeft: -1,
+  },
+
+  // ── Last-booked badge ───────────────────────────────────────────────────────
+  lastBookedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: Colors.primaryMuted,
+    marginBottom: 8,
+  },
+
+  lastBookedText: {
+    fontFamily: 'EuclidCircularA-SemiBold',
+    fontSize: 11,
+    color: Colors.primary,
   },
 });

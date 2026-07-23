@@ -199,10 +199,3 @@ extension AppointmentActivityAttributes.ContentState {
         )
     }
 }
-
-#Preview("Notification", as: .content, using: AppointmentActivityAttributes.preview) {
-    AppointmentLiveActivity()
-} contentStates: {
-    AppointmentActivityAttributes.ContentState.upcoming
-    AppointmentActivityAttributes.ContentState.inProgress
-}

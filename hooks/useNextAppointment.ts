@@ -20,7 +20,7 @@ export function useNextAppointment(): {
         .from("appointments")
         .select(`
           *,
-          barber:barbers(*),
+          barber:barbers(*, salon:salons!barbers_salon_id_fkey(name)),
           service:barber_services(*),
           services:appointment_services(*, service:barber_services(*))
         `)

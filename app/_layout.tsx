@@ -33,6 +33,7 @@ import { TutorialProvider } from '@/components/tutorial/TutorialProvider';
 import { useLoyaltyNotifications } from '@/hooks/useLoyaltyNotifications';
 import { usePushRegistration } from '@/hooks/use-push-registration';
 import { usePushDeepLinks } from '@/hooks/use-push-deep-links';
+import { useAppointmentLiveActivity } from '@/hooks/useAppointmentLiveActivity';
 import { PointsEarnedToast } from '@/components/loyalty/PointsEarnedToast';
 import { PointsLevelUpModal } from '@/components/loyalty/PointsLevelUpModal';
 import { useLoyaltyQueueStore } from '@/stores/loyaltyQueueStore';
@@ -272,6 +273,7 @@ function RootLayoutNav() {
   // matching in-app screen (e.g. /salon/<id>) instead of the web URL.
   usePushRegistration(userId);
   usePushDeepLinks();
+  useAppointmentLiveActivity();
 
   useEffect(() => {
     const handleAuthUrl = async (url: string | null) => {

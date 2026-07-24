@@ -1,7 +1,11 @@
 /** @type {import('@bacons/apple-targets/app.plugin').Config} */
 module.exports = {
   type: "widget",
-  name: "appointment-activity",
+  name: "appointmentactivity",
+  // Pinned explicitly (rather than left to derive from `type`) so the Xcode
+  // target name and bundle id stay stable and match the provisioning
+  // profile/credentials already registered with EAS.
+  bundleIdentifier: "com.reverbarber.tapzi.widget",
   displayName: "Tapzi Appointment",
   // Must stay in sync with ios.infoPlist.NSSupportsLiveActivities + the
   // expo-build-properties ios.deploymentTarget in app.json.
